@@ -6,7 +6,7 @@ A Python package for learning prior distributions based on expert knowledge
 **Key info :**
 [![Docs](https://readthedocs.org/projects/elicito/badge/?version=latest)](https://elicito.readthedocs.io)
 [![Main branch: supported Python versions](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fflorence-bockting%2Felicito%2Fmain%2Fpyproject.toml)](https://github.com/florence-bockting/elicito/blob/main/pyproject.toml)
-[![Licence](https://img.shields.io/pypi/l/elicito?label=licence)](https://github.com/florence-bockting/elicito/blob/main/LICENCE)
+[![Licence](https://img.shields.io/pypi/l/elicito?label=license)](https://github.com/florence-bockting/elicito/blob/main/LICENCE)
 
 **PyPI :**
 [![PyPI](https://img.shields.io/pypi/v/elicito.svg)](https://pypi.org/project/elicito/)
