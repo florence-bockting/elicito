@@ -20,3 +20,7 @@ from the examples given in that link.
 -->
 
 <!-- towncrier release notes start -->
+
+## Expert prior elicitation method v0.1.0a2 (2025-03-14)
+
+No significant changes.
