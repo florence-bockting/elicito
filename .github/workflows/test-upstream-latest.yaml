@@ -1,0 +1,58 @@
+name: Test against upstream latest
+
+on:
+  workflow_dispatch:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    # This means At 03:00 on Wednesday.
+    # see https://crontab.guru/#0_0_*_*_3
+    - cron:  '0 3 * * 3'
+
+jobs:
+  tests-upstream-latest:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Only test on ubuntu here for now.
+        # We could consider doing this on different platforms too,
+        # but this is mainly a warning for us of what is coming,
+        # rather than a super robust dive.
+        os: [ "ubuntu-latest" ]
+        # Test against all bugfix versions: https://devguide.python.org/versions/
+        # as they are latest and ones most likely to support new features
+        python-version: [ "3.12", "3.13" ]
+    runs-on: "${{ matrix.os }}"
+    defaults:
+      run:
+        # This might be needed for Windows
+        # and doesn't seem to affect unix-based systems so we include it.
+        # If you have better proof of whether this is needed or not,
+        # feel free to update.
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Setup uv
+        id: setup-uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "0.5.21"
+          python-version: ${{ matrix.python-version }}
+      # Often you need a step like this for e.g. numpy, scipy, pandas
+      - name: Setup compilation dependencies
+        run: |
+          echo "python${{ matrix.python-version }}-dev"
+          sudo add-apt-repository ppa:deadsnakes/ppa -y
+          sudo apt update
+          sudo apt install -y "python${{ matrix.python-version }}-dev"
+      - name: Create venv
+        run: |
+          uv venv --seed
+      - name: Install dependencies
+        run: |
+          uv pip install --requirements requirements-only-tests-locked.txt --requirements requirements-only-tests-min-locked.txt
+          uv pip install --requirements pyproject.toml --all-extras .
+          uv pip install --requirements requirements-upstream-dev.txt
+      - name: Run tests
+        run: |
+          uv run --no-sync pytest tests -r a -v

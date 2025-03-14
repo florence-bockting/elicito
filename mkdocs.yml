@@ -1,0 +1,133 @@
+site_name: Expert prior elicitation method
+site_description: A Python package for learning prior distributions based on expert knowledge
+site_url: https://elicito.readthedocs.io
+edit_uri: blob/master/docs/
+
+repo_name: florence-bockting/elicito
+repo_url: https://github.com/florence-bockting/elicito
+
+theme:
+  name: "material"
+  features:
+    - content.code.copy
+  palette:
+    # Light mode (toggle to dark mode)
+    - scheme: default
+      # Other colour choices at https://squidfunk.github.io/mkdocs-material/setup/changing-the-colors/#color-palette
+      primary: blue-grey
+      # More info on toggles at https://squidfunk.github.io/mkdocs-material/setup/changing-the-colors/#color-palette-toggle
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+
+    # Dark mode (toggle back to light mode)
+    - scheme: slate
+      primary: pink
+      toggle:
+        icon: material/brightness-7
+        name: Switch to light mode
+
+plugins:
+  # https://mkdocstrings.github.io/autorefs/
+  - autorefs
+  # Required for auto-generating our documentation stubs
+  # https://oprypin.github.io/mkdocs-gen-files/
+  - gen-files:
+      scripts:
+        - docs/gen_doc_stubs.py
+  # Make the navigation easier to handle/auto-generate if we wish
+  # https://oprypin.github.io/mkdocs-literate-nav/
+  - literate-nav:
+      nav_file: NAVIGATION.md
+  # Docstring generation
+  - mkdocstrings:
+      # See https://analog-garage.github.io/mkdocstrings-python-xref/1.6.0/
+      default_handler: python_xref
+      enable_inventory: true
+      handlers:
+        python_xref:
+          paths: [src]
+          import:
+            # Cross-ref helpers (lots included here, remove what you don't want)
+            - https://www.attrs.org/en/stable/objects.inv
+            - https://unidata.github.io/cftime/objects.inv
+            - https://ipython.readthedocs.io/en/stable/objects.inv
+            - https://loguru.readthedocs.io/en/latest/objects.inv
+            - https://matplotlib.org/stable/objects.inv
+            - https://ncdata.readthedocs.io/en/stable/objects.inv
+            - https://numpy.org/doc/stable/objects.inv
+            - https://openscm-units.readthedocs.io/en/stable/objects.inv
+            - https://pandas.pydata.org/docs/objects.inv
+            - https://pint.readthedocs.io/en/stable/objects.inv
+            - https://www.fatiando.org/pooch/latest/objects.inv
+            - https://docs.python.org/3/objects.inv
+            - https://docs.scipy.org/doc/scipy/objects.inv
+            - https://scitools-iris.readthedocs.io/en/stable/objects.inv
+            - https://scmdata.readthedocs.io/en/stable/objects.inv
+            - https://validators.readthedocs.io/en/stable/objects.inv
+            - http://xarray.pydata.org/en/stable/objects.inv
+          options:
+            docstring_style: numpy
+            relative_crossrefs: yes
+            separate_signature: true
+            show_root_heading: false
+            show_signature_annotations: true
+            show_source: true
+            signature_crossrefs: true
+            summary:
+              attributes: true
+              classes: true
+              functions: true
+              modules: true
+  # https://squidfunk.github.io/mkdocs-material/plugins/search/
+  - search
+  # Add clickable sections to the sidebar
+  # https://oprypin.github.io/mkdocs-section-index/
+  - section-index
+
+markdown_extensions:
+  # https://squidfunk.github.io/mkdocs-material/setup/extensions/python-markdown/#attribute-lists
+  - attr_list
+  # https://squidfunk.github.io/mkdocs-material/reference/math/#katex-mkdocsyml
+  - pymdownx.arithmatex:
+      generic: true
+  # Allow admonitions, useful for deprecation warnings
+  # https://facelessuser.github.io/pymdown-extensions/extensions/blocks/plugins/admonition/
+  - pymdownx.blocks.admonition
+  # Code highlighting handiness
+  # https://facelessuser.github.io/pymdown-extensions/extensions/highlight/
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  # https://facelessuser.github.io/pymdown-extensions/extensions/inlinehilite/
+  - pymdownx.inlinehilite
+  # Enable the use of snippets (e.g. taking snippets from README and putting them in docs)
+  # https://facelessuser.github.io/pymdown-extensions/extensions/snippets/
+  - pymdownx.snippets
+  # Support more complicated indents etc.
+  # https://facelessuser.github.io/pymdown-extensions/extensions/superfences/
+  - pymdownx.superfences
+  # Tabbed sections (e.g. for our installation options)
+  # https://facelessuser.github.io/pymdown-extensions/extensions/tabbed/
+  - pymdownx.tabbed:
+      alternate_style: true
+  # Support tables (used in our API docs)
+  # https://squidfunk.github.io/mkdocs-material/reference/data-tables/
+  - tables
+  # Ensure that there are links to table of contents items
+  - toc:
+      permalink: "#"
+
+extra_javascript:
+  - javascripts/katex.js
+  - https://unpkg.com/katex@0/dist/katex.min.js
+  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
+
+extra_css:
+  - https://unpkg.com/katex@0/dist/katex.min.css
+
+watch:
+  - README.md
+  # Auto-generate if `src` changes (because this changes API docs)
+  - src

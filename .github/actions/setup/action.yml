@@ -1,0 +1,29 @@
+name: "Setup Python and uv"
+description: "setup Python and uv"
+
+inputs:
+  python-version:
+    description: "Python version to use"
+    required: true
+  uv-dependency-install-flags:
+    description: "Flags to pass to uv when running `uv install`"
+    required: true
+  run-uv-install:
+    description: "Should we run the uv install steps"
+    required: false
+    default: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup uv
+      id: setup-uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.21"
+        python-version: ${{ inputs.python-version }}
+    - name: Install dependencies
+      shell: bash
+      if: ${{ (inputs.run-uv-install == 'true') }}
+      run: |
+        uv sync ${{ inputs.uv-dependency-install-flags }}

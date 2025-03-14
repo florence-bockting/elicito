@@ -1,0 +1,250 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+jobs:
+  mypy:
+    if: ${{ !github.event.pull_request.draft }}
+    strategy:
+      matrix:
+        os: [ "ubuntu-latest" ]
+        python-version: [ "3.9" ]
+    runs-on: "${{ matrix.os }}"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          python-version: ${{ matrix.python-version }}
+          uv-dependency-install-flags: "--all-extras --group dev"
+      - name: mypy
+        run: |
+          MYPYPATH=stubs uv run mypy src
+
+  docs:
+    if: ${{ !github.event.pull_request.draft }}
+    strategy:
+      matrix:
+        os: [ "ubuntu-latest" ]
+        python-version: [ "3.11" ]
+    runs-on: "${{ matrix.os }}"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          python-version: ${{ matrix.python-version }}
+          uv-dependency-install-flags: "--all-extras --group docs"
+      - name: docs
+        run: |
+          uv run mkdocs build --strict
+      - uses: ./.github/actions/setup
+        with:
+          python-version: "3.11"
+          uv-dependency-install-flags: "--all-extras --group docs --group dev"
+      - name: docs-with-changelog
+        run: |
+          # Check CHANGELOG will build too
+          uv run towncrier build --yes
+          uv run mkdocs build --strict
+          # Just in case, undo the staged changes
+          git restore --staged . && git restore .
+
+  urls:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: check-urls-are-valid
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Exclude local links
+          # and the template link in pyproject.toml
+          args: "--exclude 'file://' --exclude '^https://github\\.com/florence-bockting/elicito/pull/\\{issue\\}$' ."
+
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "ubuntu-latest" ]
+        # Test against all security and bugfix versions: https://devguide.python.org/versions/
+        python-version: [ "3.9", "3.10", "3.11", "3.12", "3.13" ]
+    runs-on: "${{ matrix.os }}"
+    defaults:
+      run:
+        # This might be needed for Windows
+        # and doesn't seem to affect unix-based systems so we include it.
+        # If you have better proof of whether this is needed or not,
+        # feel free to update.
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          python-version: ${{ matrix.python-version }}
+          # When running the tests, install with all optional dependencies
+          # to get maximum test coverage.
+          # If we find that we're getting failures
+          # when people try to run without installing optional dependencies,
+          # we should add a CI step that runs the tests without optional dependencies too.
+          # We don't have that right now, because we're not sure this pain point exists.
+          uv-dependency-install-flags: "--all-extras --group tests"
+      - name: Run tests
+        run: |
+          uv run pytest -r a -v src tests --doctest-modules --cov=src --cov-report=term-missing --cov-report=xml
+          uv run coverage report
+      - name: Upload coverage reports to Codecov with GitHub Action
+        uses: codecov/codecov-action@v4.2.0
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  tests-resolution-strategies:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Only test on ubuntu here for now.
+        # We could consider doing this on different platforms too,
+        # although that probably belongs better with the PyPI tests.
+        os: [ "ubuntu-latest" ]
+        # Tests with lowest direct resolution.
+        # We don't do lowest because that is essentially testing
+        # whether downstream dependencies
+        # have set their minimum support dependencies correctly,
+        # which isn't our problem to solve.
+        resolution-strategy: [ "lowest-direct" ]
+        # Only test against the oldest supported python version
+        # because python is itself a direct dependency
+        # (so we're testing against the lowest direct python too).
+        python-version: [ "3.9" ]
+    runs-on: "${{ matrix.os }}"
+    defaults:
+      run:
+        # This might be needed for Windows
+        # and doesn't seem to affect unix-based systems so we include it.
+        # If you have better proof of whether this is needed or not,
+        # feel free to update.
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Setup uv
+        id: setup-uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "0.5.21"
+          python-version: ${{ matrix.python-version }}
+      - name: Create venv
+        run: |
+          uv venv --seed
+      - name: Install dependencies
+        run: |
+          uv pip install --requirements requirements-only-tests-locked.txt
+          uv pip compile --python ${{ matrix.python-version }} --resolution ${{ matrix.resolution-strategy }} --all-extras pyproject.toml -o requirements-tmp.txt
+          uv pip install --requirements requirements-tmp.txt .
+      - name: Run tests
+        run: |
+          uv run --no-sync pytest tests -r a -v
+
+  tests-without-extras:
+    # Run the tests without installing extras.
+    # This is just a test to make sure to avoid
+    # breaking our test PyPI install workflow.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "ubuntu-latest" ]
+        # Just test against one Python version, this is just a helper.
+        # The real work happens in the test PyPI install
+        python-version: [ "3.11" ]
+    runs-on: "${{ matrix.os }}"
+    defaults:
+      run:
+        # This might be needed for Windows
+        # and doesn't seem to affect unix-based systems so we include it.
+        # If you have better proof of whether this is needed or not,
+        # feel free to update.
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python "${{ matrix.python-version }}"
+        id: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: Install
+        run: |
+          pip install --upgrade pip wheel
+          pip install .
+          pip install -r requirements-only-tests-locked.txt
+      - name: Run tests
+        run: |
+          pytest tests -r a -vv tests
+
+  imports-without-extras:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "ubuntu-latest" ]
+        # Test against all security and bugfix versions: https://devguide.python.org/versions/
+        python-version: [ "3.9", "3.10", "3.11", "3.12", "3.13" ]
+    runs-on: "${{ matrix.os }}"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          python-version: ${{ matrix.python-version }}
+          uv-dependency-install-flags: "--no-dev"  # no extras is default
+      - name: Check importable without extras
+        run: uv run python scripts/test-install.py
+
+  check-build:
+    strategy:
+      matrix:
+        os: [ "ubuntu-latest" ]
+        python-version: [ "3.11" ]
+    runs-on: "${{ matrix.os }}"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Setup uv
+        id: setup-uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "0.5.21"
+          python-version: ${{ matrix.python-version }}
+      - name: Build package
+        run: |
+          uv build
+      - name: Check build
+        run: |
+          tar -tvf dist/elicito-*.tar.gz --wildcards '*elicito/py.typed'
+          tar -tvf dist/elicito-*.tar.gz --wildcards 'elicito-*/LICENCE'
+
+  check-dependency-licences:
+    strategy:
+      matrix:
+        os: [ "ubuntu-latest" ]
+        python-version: [ "3.11" ]
+    runs-on: "${{ matrix.os }}"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          python-version: ${{ matrix.python-version }}
+          uv-dependency-install-flags: "--group dev"
+      - name: Check licences of dependencies
+        shell: bash
+        run: |
+          TEMP_FILE=$(mktemp)
+          uv export --no-dev > $TEMP_FILE
+          uv run liccheck -r $TEMP_FILE -R licence-check.txt
+          cat licence-check.txt

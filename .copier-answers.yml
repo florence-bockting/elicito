@@ -1,0 +1,18 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v0.11.1
+_src_path: gl:openscm/copier-core-python-repository
+conda_release: true
+email: florence.bockting@tu-dortmund.de
+include_cli: false
+name: Florence Bockting
+notebook_based_docs: false
+package_manager: uv
+pandas_doctests: false
+plot_dependencies: true
+project_description_short: A Python package for learning prior distributions based
+    on expert knowledge
+project_name_human: Expert prior elicitation method
+project_name_pip: elicito
+project_name_python: elicito
+project_url: https://github.com/florence-bockting/elicito
+track_lock_file: true

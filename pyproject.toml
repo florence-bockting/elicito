@@ -1,0 +1,337 @@
+[project]
+name = "elicito"
+version = "0.1.0a1"
+description = "A Python package for learning prior distributions based on expert knowledge"
+authors = [
+    { name = "Florence Bockting", email = "florence.bockting@tu-dortmund.de" },
+]
+license = { text = "placeholder" }
+requires-python = ">=3.9"
+dependencies = [
+]
+readme = "README.md"
+classifiers = [
+    # Full list: https://pypi.org/classifiers/
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    ## If you apply an OSI-approved licence, you should uncomment the below
+    # "License :: OSI Approved :: BSD License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://elicito.readthedocs.io"
+Documentation = "https://elicito.readthedocs.io"
+Changelog = "https://elicito.readthedocs.io/en/stable/changelog"
+Repository = "https://github.com/florence-bockting/elicito"
+Issues = "https://github.com/florence-bockting/elicito/issues"
+
+
+[project.optional-dependencies]
+plots = [
+    "matplotlib>=3.7.1",
+]
+full = [
+    "elicito[plots]",
+]
+
+[dependency-groups]
+# The development dependencies are pinned
+# to give a consistent starting point when using this template.
+# They should be removed/updated/changed/loosened as suits your project.
+# (As soon as you have a lock file, you can remove all of the implied dependencies.)
+# (This is a workaround for the fact
+# that we can't easily include the lock file in the copier template
+# because of how locking works and the order of operations).
+dev = [
+    # Key dependencies
+    # ----------------
+    "liccheck==0.9.2",
+    "mypy==1.14.0",
+    # Required for liccheck, see https://github.com/dhatim/python-license-check/pull/113
+    "pip==24.3.1",
+    "pre-commit==4.0.1",
+    # Required for liccheck, see https://github.com/dhatim/python-license-check/pull/113
+    "setuptools==75.6.0",
+    "towncrier==24.8.0",
+    # Implied by the key dependencies above
+    # -------------------------------------
+    "cfgv==3.4.0",
+    "click==8.1.8",
+    "colorama==0.4.6 ; sys_platform == 'win32'",
+    "distlib==0.3.9",
+    "filelock==3.16.1",
+    "identify==2.6.5",
+    "jinja2==3.1.5",
+    "markupsafe==3.0.2",
+    "mypy-extensions==1.0.0",
+    "nodeenv==1.9.1",
+    "platformdirs==4.3.6",
+    "pyyaml==6.0.2",
+    "semantic-version==2.10.0",
+    "toml==0.10.2",
+    "typing-extensions==4.12.2",
+    "virtualenv==20.28.1",
+]
+docs = [
+    # Key dependencies
+    # ----------------
+    "attrs==24.3.0",
+    "mkdocs-autorefs==1.2.0",
+    "mkdocs-gen-files==0.5.0",
+    "mkdocs-literate-nav==0.6.1",
+    "mkdocs-material==9.5.49",
+    "mkdocs-section-index==0.3.9",
+    "mkdocs==1.6.1",
+    "mkdocstrings-python-xref==1.6.2",
+    "mkdocstrings-python==1.13.0",
+    "pymdown-extensions==10.13",
+    "ruff==0.8.6",
+    # Implied by the key dependencies above
+    # -------------------------------------
+    "babel==2.16.0",
+    "certifi==2024.12.14",
+    "charset-normalizer==3.4.1",
+    "click==8.1.8",
+    "colorama==0.4.6",
+    "ghp-import==2.1.0",
+    "griffe==1.5.4",
+    "idna==3.10",
+    "jinja2==3.1.5",
+    "markdown==3.7",
+    "markupsafe==3.0.2",
+    "mergedeep==1.3.4",
+    "mkdocs-get-deps==0.2.0",
+    "mkdocs-material-extensions==1.3.1",
+    "mkdocstrings==0.27.0",
+    "packaging==24.2",
+    "paginate==0.5.7",
+    "pathspec==0.12.1",
+    "platformdirs==4.3.6",
+    "pygments==2.19.1",
+    "python-dateutil==2.9.0.post0",
+    "pyyaml-env-tag==0.1",
+    "pyyaml==6.0.2",
+    "regex==2024.11.6",
+    "requests==2.32.3",
+    "six==1.17.0",
+    "urllib3==2.3.0",
+    "watchdog==6.0.0",
+]
+# For minimum test dependencies.
+# These are used when running our minimum PyPI install tests.
+tests-min = [
+    # Key dependencies
+    # ----------------
+    "pytest==8.3.4",
+    # Implied by the key dependencies above
+    # -------------------------------------
+    "colorama==0.4.6 ; sys_platform == 'win32'",
+    "iniconfig==2.0.0",
+    "packaging==24.2",
+    "pluggy==1.5.0",
+]
+# Full test dependencies.
+tests-full = [
+    # Key dependencies
+    # ----------------
+    "pytest-cov==6.0.0",
+    # Implied by the key dependencies above
+    # -------------------------------------
+    "colorama==0.4.6 ; sys_platform == 'win32'",
+    "coverage==7.6.10",
+    "iniconfig==2.0.0",
+    "packaging==24.2",
+    "pluggy==1.5.0",
+    "pytest==8.3.4",
+]
+# Test dependencies
+# (partly split because liccheck uses toml,
+# which doesn't support inhomogeneous arrays).
+tests = [
+    {include-group = "tests-min"},
+    {include-group = "tests-full"},
+]
+all-dev = [
+    {include-group = "dev"},
+    {include-group = "docs"},
+    {include-group = "tests"},
+]
+
+[build-system]
+requires = [
+    "pdm-backend",
+    "pdm-build-locked",
+]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+[tool.pdm.build]
+locked = true
+includes = [
+    "src/elicito",
+    "LICENCE",
+]
+
+[tool.coverage.run]
+source = [
+    "src",
+]
+branch = true
+
+[tool.coverage.report]
+fail_under = 90
+skip_empty = true
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING",
+    # Type overloading lines
+    "@overload",
+    "\\.\\.\\.",
+
+]
+
+[tool.mypy]
+strict = true
+disallow_any_unimported = true
+show_error_codes = true
+show_error_context = true
+warn_unreachable = true
+follow_imports = "normal"
+
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]
+
+[tool.ruff]
+src = [
+    "src",
+]
+target-version = "py39"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "D",
+    "PL",
+    "TRY",
+    "NPY",
+    "RUF",
+    "UP",
+    "S",
+]
+unfixable = [
+    "PD002",
+]
+ignore = [
+    "D200",
+    "D400",
+    "UP007",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"test*.py" = [
+    "D",
+    "S101",
+    "PLR2004",
+]
+"docs/*" = [
+    "D100",
+    "E402",
+    "S101",
+]
+"scripts/*" = [
+    "S101",
+]
+"stubs/*" = [
+    "PLR0913",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "src",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.towncrier]
+package = "elicito"
+package_dir = "src"
+filename = "docs/changelog.md"
+directory = "changelog/"
+title_format = "## Expert prior elicitation method {version} ({project_date})"
+underlines = [
+    "",
+    "",
+    "",
+]
+issue_format = "[#{issue}](https://github.com/florence-bockting/elicito/pull/{issue})"
+type = [
+    { directory = "breaking", name = "⚠️ Breaking Changes", showcontent = true },
+    { directory = "deprecation", name = "🗑️ Deprecations", showcontent = true },
+    { directory = "feature", name = "🆕 Features", showcontent = true },
+    { directory = "improvement", name = "🎉 Improvements", showcontent = true },
+    { directory = "fix", name = "🐛 Bug Fixes", showcontent = true },
+    { directory = "docs", name = "📚 Improved Documentation", showcontent = true },
+    { directory = "trivial", name = "🔧 Trivial/Internal Changes", showcontent = false },
+]
+
+[tool.liccheck]
+authorized_licenses = [
+    "bsd",
+    "bsd license",
+    "BSD 3-Clause",
+    "CC0",
+    "apache",
+    "apache 2.0",
+    "apache software",
+    "apache software license",
+    "Apache License, Version 2.0",
+    "CMU License (MIT-CMU)",
+    "Historical Permission Notice and Disclaimer (HPND)",
+    "isc",
+    "isc license",
+    "isc license (iscl)",
+    "gnu lgpl",
+    "lgpl with exceptions or zpl",
+    "LGPLv2+",
+    "GNU Lesser General Public License v2 (LGPLv2)",
+    "GNU Lesser General Public License v2 or later (LGPLv2+)",
+    "mit",
+    "mit license",
+    "Mozilla Public License 2.0 (MPL 2.0)",
+    "python software foundation",
+    "python software foundation license",
+    "The Unlicense (Unlicense)",
+    "zpl 2.1",
+]
+unauthorized_licenses = [
+    "agpl",
+    "gnu agpl",
+    "gpl v3",
+    "gplv3",
+    "gpl v2",
+    "gplv2",
+    "gpl v1",
+    "gplv1",
+]

@@ -1,0 +1,91 @@
+name: Bump version
+# For the time being, we still do this with pdm.
+# Honestly, it doesn't really matter,
+# but one day uv will have a bump command too and we can switch to that.
+# Relevant issue in uv: https://github.com/astral-sh/uv/issues/6298
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_rule:
+        type: choice
+        description: How to bump the project's version (see https://github.com/carstencodes/pdm-bump#usage)
+        options:
+          - no-pre-release
+          # no micro because we always sit on a pre-release in main,
+          # so we would always use no-pre-release instead of micro
+          # - micro
+          - minor
+          - major
+          - "pre-release --pre alpha"
+          - "pre-release --pre beta"
+          - "pre-release --pre release-candidate"
+        required: true
+
+jobs:
+  bump_version:
+    name: "Bump version and create changelog"
+    if: "!startsWith(github.event.head_commit.message, 'bump:')"
+    strategy:
+      matrix:
+        os: [ "ubuntu-latest" ]
+        python-version: [ "3.9" ]
+    runs-on: "${{ matrix.os }}"
+    env:
+      CI_COMMIT_EMAIL: "ci-runner@elicito.invalid"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: "${{ secrets.PERSONAL_ACCESS_TOKEN }}"
+
+      - name: Setup PDM
+        uses: pdm-project/setup-pdm@v4.1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install pdm-bump
+        run: |
+          pdm self add pdm-bump
+
+      - uses: ./.github/actions/setup
+        with:
+          python-version: ${{ matrix.python-version }}
+          uv-dependency-install-flags: "--all-extras --group dev"
+
+      - name: Create bump and changelog
+        run: |
+          git config --global user.name "$GITHUB_ACTOR"
+          git config --global user.email "$CI_COMMIT_EMAIL"
+
+          BASE_VERSION=`sed -ne 's/^version = "\([0-9\.a]*\)"/\1/p' pyproject.toml`
+          echo "Bumping from version $BASE_VERSION"
+
+          # Bump
+          pdm bump ${{ github.event.inputs.bump_rule }}
+
+          NEW_VERSION=`sed -ne 's/^version = "\([0-9\.a]*\)"/\1/p' pyproject.toml`
+          echo "Bumping to version $NEW_VERSION"
+
+          # Build CHANGELOG
+          uv run towncrier build --yes --version v$NEW_VERSION
+
+          # Commit, tag and push
+          git commit -a -m "bump: version $BASE_VERSION -> $NEW_VERSION"
+          git tag v$NEW_VERSION
+          git push && git push --tags
+
+          # Bump to alpha (so that future commits do not have the same
+          # version as the tagged commit)
+          BASE_VERSION=`sed -ne 's/^version = "\([0-9\.a]*\)"/\1/p' pyproject.toml`
+
+          # Bump to pre-release of next version
+          pdm bump pre-release --pre alpha
+
+          NEW_VERSION=`sed -ne 's/^version = "\([0-9\.a]*\)"/\1/p' pyproject.toml`
+          echo "Bumping version $BASE_VERSION > $NEW_VERSION"
+
+          # Commit and push
+          git commit -a -m "bump(pre-release): version $BASE_VERSION > $NEW_VERSION"
+          git push

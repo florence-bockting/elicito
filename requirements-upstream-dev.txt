@@ -1,0 +1,5 @@
+# Upstream packages can be listed in here.
+# The basic pattern is
+# <package-name>@git+<git-repo-url>
+# e.g.
+# pandas@git+https://github.com/pandas-dev/pandas
