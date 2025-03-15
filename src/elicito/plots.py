@@ -3,7 +3,7 @@ plotting helpers
 """
 
 import itertools
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import numpy as np
 import tensorflow as tf
@@ -253,9 +253,6 @@ def hyperparameter(eliobj, cols: int = 4, **kwargs) -> None:
     cols : int, optional
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
-    span : int, optional
-        number of last epochs used to get a final averaged hyperparameter
-        value. The default is ``30``.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -1196,14 +1193,8 @@ def _prep_subplots(eliobj, cols, n_quant, bounderies=False):
         return cols, rows, k
 
 
-try:
-    import matplotlib.pyplot as plt
-except ImportError as exc:
-    raise MissingOptionalDependencyError("plotting", requirement="matplotlib") from exc
-
-
 def _convergence_plot(  # noqa: PLR0913
-    subfigs: plt.Figure.subfigures,
+    subfigs: Any,
     elicits: tf.Tensor,
     span: int,
     label: str,
@@ -1212,7 +1203,7 @@ def _convergence_plot(  # noqa: PLR0913
     cols: int,
     k: int,
     success: list,
-) -> plt.Figure.subplots:
+) -> Any:
     axs = subfigs.subplots(rows, cols)
     if rows == 1:
         for c, n_hyp in zip(tf.range(cols), tf.range(elicits.shape[-1])):
