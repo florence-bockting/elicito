@@ -50,12 +50,12 @@ plots = [
 pandas = [
     "pandas>=2.2.3"
 ]
-bayesflow = [
-    "bayesflow==1.1.6"
-]
+#bayesflow = [
+#    "bayesflow==1.1.6"
+#]
 full = [
     "elicito[plots]",
-    "elicito[bayesflow]",
+#    "elicito[bayesflow]",
     "elicito[pandas]"
 ]
 

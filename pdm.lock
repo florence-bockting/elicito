@@ -2,10 +2,10 @@
 # It is not intended for manual editing.
 
 [metadata]
-groups = ["default", "all-dev", "bayesflow", "dev", "docs", "full", "pandas", "plots", "tests", "tests-full", "tests-min"]
+groups = ["default", "all-dev", "dev", "docs", "full", "pandas", "plots", "tests", "tests-full", "tests-min"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:9e5270d5dd5f5b5822c02193737770d4280093d05c91bb64abd2bd8e24e6bbb5"
+content_hash = "sha256:5318d313df94d5f1831d03bb0c5ca22335b1bde1fc1de31d2903e296e7996acf"
 
 [[metadata.targets]]
 requires_python = ">=3.10,<3.11"
@@ -15,7 +15,7 @@ name = "absl-py"
 version = "2.1.0"
 requires_python = ">=3.7"
 summary = "Abseil Python Common Libraries, see https://github.com/abseil/abseil-py."
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "absl-py-2.1.0.tar.gz", hash = "sha256:7820790efbb316739cde8b4e19357243fc3608a152024288513dd968d7d959ff"},
@@ -23,33 +23,10 @@ files = [
 ]
 
 [[package]]
-name = "aesara"
-version = "2.9.4"
-requires_python = ">=3.8"
-summary = "A library for defining, optimizing, and efficiently evaluating mathematical expressions involving multi-dimensional arrays."
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "cons",
-    "etuples",
-    "filelock",
-    "logical-unification",
-    "minikanren",
-    "numpy<2.0.0,>=1.17.0",
-    "scipy<=1.12.0,>=0.14",
-    "setuptools>=48.0.0",
-    "typing-extensions",
-]
-files = [
-    {file = "aesara-2.9.4-py3-none-any.whl", hash = "sha256:ff2224b6cd538264632e7a197e66f8e3705740fc2af0d45cb233072aa43a803d"},
-    {file = "aesara-2.9.4.tar.gz", hash = "sha256:704eecf24a0165b2eefcf23539eb0f0c5973081ee3b9ecd8a97b80e1f301ad7a"},
-]
-
-[[package]]
 name = "astunparse"
 version = "1.6.3"
 summary = "An AST unparser for Python"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "six<2.0,>=1.6.1",
@@ -65,7 +42,7 @@ name = "attrs"
 version = "24.3.0"
 requires_python = ">=3.8"
 summary = "Classes Without Boilerplate"
-groups = ["default", "all-dev", "bayesflow", "docs", "full"]
+groups = ["default", "all-dev", "docs"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "attrs-24.3.0-py3-none-any.whl", hash = "sha256:ac96cd038792094f438ad1f6ff80837353805ac950cd2aa0e0625ef19850c308"},
@@ -88,49 +65,11 @@ files = [
 ]
 
 [[package]]
-name = "bayesflow"
-version = "1.1.6"
-requires_python = ">=3.10"
-summary = "\"Amortizing Bayesian Inference With Neural Networks\""
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "aesara>=2.8",
-    "h5py>=3.7",
-    "matplotlib>=3.5",
-    "numpy>=1.23",
-    "pandas>=1.4",
-    "scikit-learn>=1.0",
-    "scipy>=1.8",
-    "seaborn>=0.11",
-    "tensorflow-macos<2.16,>=2.10; sys_platform == \"darwin\" and platform_machine == \"x86_64\"",
-    "tensorflow-probability<0.24,>=0.17",
-    "tensorflow<2.16,>=2.10.1; sys_platform != \"darwin\" or platform_machine == \"arm64\"",
-    "tqdm>=4.65",
-]
-files = [
-    {file = "bayesflow-1.1.6-py3-none-any.whl", hash = "sha256:93b2f9b2e5b77f599c2fcfb3ab2ce764c62b19070cda223b3c0bc73acc7c3b45"},
-    {file = "bayesflow-1.1.6.tar.gz", hash = "sha256:24a993bce4cc96cad9be79e4f7b1beb5c88d3fc9b6caa7f5b878d4aae0e31852"},
-]
-
-[[package]]
-name = "cachetools"
-version = "5.5.2"
-requires_python = ">=3.7"
-summary = "Extensible memoizing collections and decorators"
-groups = ["default", "bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-files = [
-    {file = "cachetools-5.5.2-py3-none-any.whl", hash = "sha256:d26a22bcc62eb95c3beabd9f1ee5e820d3d2704fe2967cbe350e20c8ffcd3f0a"},
-    {file = "cachetools-5.5.2.tar.gz", hash = "sha256:1a661caa9175d26759571b2e19580f9d6393969e5dfca11fdb1f947a23e640d4"},
-]
-
-[[package]]
 name = "certifi"
 version = "2024.12.14"
 requires_python = ">=3.6"
 summary = "Python package for providing Mozilla's CA Bundle."
-groups = ["default", "all-dev", "bayesflow", "docs", "full"]
+groups = ["default", "all-dev", "docs"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "certifi-2024.12.14-py3-none-any.whl", hash = "sha256:1275f7a45be9464efc1173084eaa30f866fe2e47d389406136d332ed4967ec56"},
@@ -154,7 +93,7 @@ name = "charset-normalizer"
 version = "3.4.1"
 requires_python = ">=3.7"
 summary = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
-groups = ["default", "all-dev", "bayesflow", "docs", "full"]
+groups = ["default", "all-dev", "docs"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "charset_normalizer-3.4.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:91b36a978b5ae0ee86c394f5a54d6ef44db1de0815eb43de826d41d21e4af3de"},
@@ -195,7 +134,7 @@ name = "cloudpickle"
 version = "3.1.1"
 requires_python = ">=3.8"
 summary = "Pickler class to extend the standard pickle.Pickler functionality"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "cloudpickle-3.1.1-py3-none-any.whl", hash = "sha256:c8c5a44295039331ee9dad40ba100a9c7297b6f988e50e87ccdf3765a668350e"},
@@ -207,7 +146,7 @@ name = "colorama"
 version = "0.4.6"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 summary = "Cross-platform colored terminal text."
-groups = ["all-dev", "bayesflow", "dev", "docs", "full", "tests", "tests-full", "tests-min"]
+groups = ["all-dev", "dev", "docs", "tests", "tests-full", "tests-min"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
@@ -215,25 +154,11 @@ files = [
 ]
 
 [[package]]
-name = "cons"
-version = "0.4.6"
-requires_python = ">=3.6"
-summary = "An implementation of Lisp/Scheme-like cons in Python."
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "logical-unification>=0.4.0",
-]
-files = [
-    {file = "cons-0.4.6.tar.gz", hash = "sha256:669fe9d5ee916d5e42b9cac6acc911df803d04f2e945c1604982a04d27a29b47"},
-]
-
-[[package]]
 name = "contourpy"
 version = "1.3.1"
 requires_python = ">=3.10"
 summary = "Python library for calculating contours of 2D quadrilateral grids"
-groups = ["bayesflow", "full", "plots"]
+groups = ["full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "numpy>=1.23",
@@ -309,7 +234,7 @@ name = "cycler"
 version = "0.12.1"
 requires_python = ">=3.8"
 summary = "Composable style cycles"
-groups = ["bayesflow", "full", "plots"]
+groups = ["full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "cycler-0.12.1-py3-none-any.whl", hash = "sha256:85cef7cff222d8644161529808465972e51340599459b8ac3ccbac5a854e0d30"},
@@ -321,7 +246,7 @@ name = "decorator"
 version = "5.2.1"
 requires_python = ">=3.8"
 summary = "Decorators for Humans"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "decorator-5.2.1-py3-none-any.whl", hash = "sha256:d316bb415a2d9e2d2b3abcc4084c6502fc09240e292cd76a76afc106a1c8e04a"},
@@ -344,7 +269,7 @@ name = "dm-tree"
 version = "0.1.9"
 requires_python = ">=3.10"
 summary = "Tree is a library for working with nested data structures."
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "absl-py>=0.6.1",
@@ -364,21 +289,6 @@ files = [
 ]
 
 [[package]]
-name = "etuples"
-version = "0.3.9"
-requires_python = ">=3.8"
-summary = "Python S-expression emulation using tuple-like objects."
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "cons",
-    "multipledispatch",
-]
-files = [
-    {file = "etuples-0.3.9.tar.gz", hash = "sha256:a474e586683d8ba8d842ba29305005ceed1c08371a4b4b0e0e232527137e5ea3"},
-]
-
-[[package]]
 name = "exceptiongroup"
 version = "1.2.2"
 requires_python = ">=3.7"
@@ -395,7 +305,7 @@ name = "filelock"
 version = "3.16.1"
 requires_python = ">=3.8"
 summary = "A platform independent file lock."
-groups = ["all-dev", "bayesflow", "dev", "full"]
+groups = ["all-dev", "dev"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "filelock-3.16.1-py3-none-any.whl", hash = "sha256:2082e5703d51fbf98ea75855d9d5527e33d8ff23099bec374a134febee6946b0"},
@@ -406,7 +316,7 @@ files = [
 name = "flatbuffers"
 version = "25.2.10"
 summary = "The FlatBuffers serialization format for Python"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "flatbuffers-25.2.10-py2.py3-none-any.whl", hash = "sha256:ebba5f4d5ea615af3f7fd70fc310636fbb2bbd1f566ac0a23d98dd412de50051"},
@@ -418,7 +328,7 @@ name = "fonttools"
 version = "4.56.0"
 requires_python = ">=3.8"
 summary = "Tools to manipulate font files"
-groups = ["bayesflow", "full", "plots"]
+groups = ["full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "fonttools-4.56.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:331954d002dbf5e704c7f3756028e21db07097c19722569983ba4d74df014000"},
@@ -438,7 +348,7 @@ name = "gast"
 version = "0.6.0"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
 summary = "Python AST that abstracts the underlying Python version"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "gast-0.6.0-py3-none-any.whl", hash = "sha256:52b182313f7330389f72b069ba00f174cfe2a06411099547288839c6cbafbd54"},
@@ -460,43 +370,10 @@ files = [
 ]
 
 [[package]]
-name = "google-auth"
-version = "2.38.0"
-requires_python = ">=3.7"
-summary = "Google Authentication Library"
-groups = ["default", "bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "cachetools<6.0,>=2.0.0",
-    "pyasn1-modules>=0.2.1",
-    "rsa<5,>=3.1.4",
-]
-files = [
-    {file = "google_auth-2.38.0-py2.py3-none-any.whl", hash = "sha256:e7dae6694313f434a2727bf2906f27ad259bae090d7aa896590d86feec3d9d4a"},
-    {file = "google_auth-2.38.0.tar.gz", hash = "sha256:8285113607d3b80a3f1543b75962447ba8a09fe85783432a784fdeef6ac094c4"},
-]
-
-[[package]]
-name = "google-auth-oauthlib"
-version = "1.2.1"
-requires_python = ">=3.6"
-summary = "Google Authentication Library"
-groups = ["default", "bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "google-auth>=2.15.0",
-    "requests-oauthlib>=0.7.0",
-]
-files = [
-    {file = "google_auth_oauthlib-1.2.1-py2.py3-none-any.whl", hash = "sha256:2d58a27262d55aa1b87678c3ba7142a080098cbc2024f903c62355deb235d91f"},
-    {file = "google_auth_oauthlib-1.2.1.tar.gz", hash = "sha256:afd0cad092a2eaa53cd8e8298557d6de1034c6cb4a740500b5357b648af97263"},
-]
-
-[[package]]
 name = "google-pasta"
 version = "0.2.0"
 summary = "pasta is an AST-based Python refactoring library"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "six",
@@ -527,7 +404,7 @@ name = "grpcio"
 version = "1.71.0"
 requires_python = ">=3.9"
 summary = "HTTP/2-based RPC framework"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "grpcio-1.71.0-cp310-cp310-linux_armv7l.whl", hash = "sha256:c200cb6f2393468142eb50ab19613229dcc7829b5ccee8b658a36005f6669fdd"},
@@ -548,7 +425,7 @@ name = "h5py"
 version = "3.13.0"
 requires_python = ">=3.9"
 summary = "Read and write HDF5 files from Python"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "numpy>=1.19.3",
@@ -579,7 +456,7 @@ name = "idna"
 version = "3.10"
 requires_python = ">=3.6"
 summary = "Internationalized Domain Names in Applications (IDNA)"
-groups = ["default", "all-dev", "bayesflow", "docs", "full"]
+groups = ["default", "all-dev", "docs"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "idna-3.10-py3-none-any.whl", hash = "sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3"},
@@ -614,27 +491,25 @@ files = [
 ]
 
 [[package]]
-name = "joblib"
-version = "1.4.2"
-requires_python = ">=3.8"
-summary = "Lightweight pipelining with Python functions"
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-files = [
-    {file = "joblib-1.4.2-py3-none-any.whl", hash = "sha256:06d478d5674cbc267e7496a410ee875abd68e4340feff4490bcb7afb88060ae6"},
-    {file = "joblib-1.4.2.tar.gz", hash = "sha256:2382c5816b2636fbd20a09e0f4e9dad4736765fdfb7dca582943b9c1366b3f0e"},
-]
-
-[[package]]
 name = "keras"
-version = "2.15.0"
-requires_python = ">=3.8"
-summary = "Deep learning for humans."
-groups = ["default", "bayesflow", "full"]
+version = "3.9.0"
+requires_python = ">=3.9"
+summary = "Multi-backend Keras"
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+dependencies = [
+    "absl-py",
+    "h5py",
+    "ml-dtypes",
+    "namex",
+    "numpy",
+    "optree",
+    "packaging",
+    "rich",
+]
 files = [
-    {file = "keras-2.15.0-py3-none-any.whl", hash = "sha256:2dcc6d2e30cf9c951064b63c1f4c404b966c59caf09e01f3549138ec8ee0dd1f"},
-    {file = "keras-2.15.0.tar.gz", hash = "sha256:81871d298c064dc4ac6b58440fdae67bfcf47c8d7ad28580fab401834c06a575"},
+    {file = "keras-3.9.0-py3-none-any.whl", hash = "sha256:71078e833994384f45d5ea192d18f0969a12bd2572a5d15968c755945ad91d1c"},
+    {file = "keras-3.9.0.tar.gz", hash = "sha256:b5bf04e7c64c3176eda5124d035005bb7a676fb505f42496c7b03a99d5683652"},
 ]
 
 [[package]]
@@ -642,7 +517,7 @@ name = "kiwisolver"
 version = "1.4.8"
 requires_python = ">=3.10"
 summary = "A fast implementation of the Cassowary constraint solver"
-groups = ["bayesflow", "full", "plots"]
+groups = ["full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "kiwisolver-1.4.8-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:88c6f252f6816a73b1f8c904f7bbe02fd67c09a69f7cb8a0eecdbf5ce78e63db"},
@@ -673,7 +548,7 @@ files = [
 name = "libclang"
 version = "18.1.1"
 summary = "Clang Python Bindings, mirrored from the official LLVM repo: https://github.com/llvm/llvm-project/tree/main/clang/bindings/python, to make the installation process easier."
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "libclang-18.1.1-1-py2.py3-none-macosx_11_0_arm64.whl", hash = "sha256:0b2e143f0fac830156feb56f9231ff8338c20aecfe72b4ffe96f19e5a1dbb69a"},
@@ -705,26 +580,11 @@ files = [
 ]
 
 [[package]]
-name = "logical-unification"
-version = "0.4.6"
-requires_python = ">=3.6"
-summary = "Logical unification in Python"
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "multipledispatch",
-    "toolz",
-]
-files = [
-    {file = "logical-unification-0.4.6.tar.gz", hash = "sha256:908435123f8a106fa4dcf9bf1b75c7beb309fa2bbecf277868af8f1c212650a0"},
-]
-
-[[package]]
 name = "markdown"
 version = "3.7"
 requires_python = ">=3.8"
 summary = "Python implementation of John Gruber's Markdown."
-groups = ["default", "all-dev", "bayesflow", "docs", "full"]
+groups = ["default", "all-dev", "docs"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "importlib-metadata>=4.4; python_version < \"3.10\"",
@@ -735,11 +595,26 @@ files = [
 ]
 
 [[package]]
+name = "markdown-it-py"
+version = "3.0.0"
+requires_python = ">=3.8"
+summary = "Python port of markdown-it. Markdown parsing, done right!"
+groups = ["default"]
+marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+dependencies = [
+    "mdurl~=0.1",
+]
+files = [
+    {file = "markdown-it-py-3.0.0.tar.gz", hash = "sha256:e3f60a94fa066dc52ec76661e37c851cb232d92f9886b15cb560aaada2df8feb"},
+    {file = "markdown_it_py-3.0.0-py3-none-any.whl", hash = "sha256:355216845c60bd96232cd8d8c40e8f9765cc86f46880e43a8fd22dc1a1a8cab1"},
+]
+
+[[package]]
 name = "markupsafe"
 version = "3.0.2"
 requires_python = ">=3.9"
 summary = "Safely add untrusted strings to HTML/XML markup."
-groups = ["default", "all-dev", "bayesflow", "dev", "docs", "full"]
+groups = ["default", "all-dev", "dev", "docs"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "MarkupSafe-3.0.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:7e94c425039cde14257288fd61dcfb01963e658efbc0ff54f5306b06054700f8"},
@@ -760,7 +635,7 @@ name = "matplotlib"
 version = "3.10.1"
 requires_python = ">=3.10"
 summary = "Python plotting package"
-groups = ["bayesflow", "full", "plots"]
+groups = ["full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "contourpy>=1.0.1",
@@ -787,6 +662,18 @@ files = [
 ]
 
 [[package]]
+name = "mdurl"
+version = "0.1.2"
+requires_python = ">=3.7"
+summary = "Markdown URL utilities"
+groups = ["default"]
+marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+files = [
+    {file = "mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"},
+    {file = "mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba"},
+]
+
+[[package]]
 name = "mergedeep"
 version = "1.3.4"
 requires_python = ">=3.6"
@@ -796,24 +683,6 @@ marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "mergedeep-1.3.4-py3-none-any.whl", hash = "sha256:70775750742b25c0d8f36c55aed03d24c3384d17c951b3175d898bd778ef0307"},
     {file = "mergedeep-1.3.4.tar.gz", hash = "sha256:0096d52e9dad9939c3d975a774666af186eda617e6ca84df4c94dec30004f2a8"},
-]
-
-[[package]]
-name = "minikanren"
-version = "1.0.3"
-requires_python = ">=3.6"
-summary = "Relational programming in Python"
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "cons>=0.4.0",
-    "etuples>=0.3.1",
-    "logical-unification>=0.4.1",
-    "multipledispatch",
-    "toolz",
-]
-files = [
-    {file = "miniKanren-1.0.3.tar.gz", hash = "sha256:1ec8bdb01144ad5e8752c7c297fb8a122db920f859276d25a72d164e998d7f6e"},
 ]
 
 [[package]]
@@ -1020,34 +889,24 @@ files = [
 
 [[package]]
 name = "ml-dtypes"
-version = "0.3.2"
+version = "0.5.1"
 requires_python = ">=3.9"
 summary = ""
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
-    "numpy>1.20",
+    "numpy>=1.21",
     "numpy>=1.21.2; python_version >= \"3.10\"",
     "numpy>=1.23.3; python_version >= \"3.11\"",
     "numpy>=1.26.0; python_version >= \"3.12\"",
+    "numpy>=2.1.0; python_version >= \"3.13\"",
 ]
 files = [
-    {file = "ml_dtypes-0.3.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:7afde548890a92b41c0fed3a6c525f1200a5727205f73dc21181a2726571bb53"},
-    {file = "ml_dtypes-0.3.2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d1a746fe5fb9cd974a91070174258f0be129c592b93f9ce7df6cc336416c3fbd"},
-    {file = "ml_dtypes-0.3.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:961134ea44c7b8ca63eda902a44b58cd8bd670e21d62e255c81fba0a8e70d9b7"},
-    {file = "ml_dtypes-0.3.2-cp310-cp310-win_amd64.whl", hash = "sha256:6b35c4e8ca957c877ac35c79ffa77724ecc3702a1e4b18b08306c03feae597bb"},
-    {file = "ml_dtypes-0.3.2.tar.gz", hash = "sha256:533059bc5f1764fac071ef54598db358c167c51a718f68f5bb55e3dee79d2967"},
-]
-
-[[package]]
-name = "multipledispatch"
-version = "1.0.0"
-summary = "Multiple dispatch"
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-files = [
-    {file = "multipledispatch-1.0.0-py3-none-any.whl", hash = "sha256:0c53cd8b077546da4e48869f49b13164bebafd0c2a5afceb6bb6a316e7fb46e4"},
-    {file = "multipledispatch-1.0.0.tar.gz", hash = "sha256:5c839915465c68206c3e9c473357908216c28383b425361e5d144594bf85a7e0"},
+    {file = "ml_dtypes-0.5.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:bd73f51957949069573ff783563486339a9285d72e2f36c18e0c1aa9ca7eb190"},
+    {file = "ml_dtypes-0.5.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:810512e2eccdfc3b41eefa3a27402371a3411453a1efc7e9c000318196140fed"},
+    {file = "ml_dtypes-0.5.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:141b2ea2f20bb10802ddca55d91fe21231ef49715cfc971998e8f2a9838f3dbe"},
+    {file = "ml_dtypes-0.5.1-cp310-cp310-win_amd64.whl", hash = "sha256:26ebcc69d7b779c8f129393e99732961b5cc33fcff84090451f448c89b0e01b4"},
+    {file = "ml_dtypes-0.5.1.tar.gz", hash = "sha256:ac5b58559bb84a95848ed6984eb8013249f90b6bab62aa5acbad876e256002c9"},
 ]
 
 [[package]]
@@ -1085,6 +944,17 @@ files = [
 ]
 
 [[package]]
+name = "namex"
+version = "0.0.8"
+summary = "A simple utility to separate the implementation of your Python package and its public API surface."
+groups = ["default"]
+marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+files = [
+    {file = "namex-0.0.8-py3-none-any.whl", hash = "sha256:7ddb6c2bb0e753a311b7590f84f6da659dd0c05e65cb89d519d54c0a250c0487"},
+    {file = "namex-0.0.8.tar.gz", hash = "sha256:32a50f6c565c0bb10aa76298c959507abdc0e850efe085dc38f3440fcb3aa90b"},
+]
+
+[[package]]
 name = "nodeenv"
 version = "1.9.1"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
@@ -1098,33 +968,27 @@ files = [
 
 [[package]]
 name = "numpy"
-version = "1.26.4"
-requires_python = ">=3.9"
+version = "2.1.3"
+requires_python = ">=3.10"
 summary = "Fundamental package for array computing in Python"
-groups = ["default", "bayesflow", "full", "pandas", "plots"]
+groups = ["default", "full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
-    {file = "numpy-1.26.4-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:9ff0f4f29c51e2803569d7a51c2304de5554655a60c5d776e35b4a41413830d0"},
-    {file = "numpy-1.26.4-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:2e4ee3380d6de9c9ec04745830fd9e2eccb3e6cf790d39d7b98ffd19b0dd754a"},
-    {file = "numpy-1.26.4-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d209d8969599b27ad20994c8e41936ee0964e6da07478d6c35016bc386b66ad4"},
-    {file = "numpy-1.26.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ffa75af20b44f8dba823498024771d5ac50620e6915abac414251bd971b4529f"},
-    {file = "numpy-1.26.4-cp310-cp310-musllinux_1_1_aarch64.whl", hash = "sha256:62b8e4b1e28009ef2846b4c7852046736bab361f7aeadeb6a5b89ebec3c7055a"},
-    {file = "numpy-1.26.4-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:a4abb4f9001ad2858e7ac189089c42178fcce737e4169dc61321660f1a96c7d2"},
-    {file = "numpy-1.26.4-cp310-cp310-win32.whl", hash = "sha256:bfe25acf8b437eb2a8b2d49d443800a5f18508cd811fea3181723922a8a82b07"},
-    {file = "numpy-1.26.4-cp310-cp310-win_amd64.whl", hash = "sha256:b97fe8060236edf3662adfc2c633f56a08ae30560c56310562cb4f95500022d5"},
-    {file = "numpy-1.26.4.tar.gz", hash = "sha256:2a02aba9ed12e4ac4eb3ea9421c420301a0c6460d9830d74a9df87efa4912010"},
-]
-
-[[package]]
-name = "oauthlib"
-version = "3.2.2"
-requires_python = ">=3.6"
-summary = "A generic, spec-compliant, thorough implementation of the OAuth request-signing logic"
-groups = ["default", "bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-files = [
-    {file = "oauthlib-3.2.2-py3-none-any.whl", hash = "sha256:8139f29aac13e25d502680e9e19963e83f16838d48a0d71c287fe40e7067fbca"},
-    {file = "oauthlib-3.2.2.tar.gz", hash = "sha256:9859c40929662bec5d64f34d01c99e093149682a3f38915dc0655d5a633dd918"},
+    {file = "numpy-2.1.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:c894b4305373b9c5576d7a12b473702afdf48ce5369c074ba304cc5ad8730dff"},
+    {file = "numpy-2.1.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:b47fbb433d3260adcd51eb54f92a2ffbc90a4595f8970ee00e064c644ac788f5"},
+    {file = "numpy-2.1.3-cp310-cp310-macosx_14_0_arm64.whl", hash = "sha256:825656d0743699c529c5943554d223c021ff0494ff1442152ce887ef4f7561a1"},
+    {file = "numpy-2.1.3-cp310-cp310-macosx_14_0_x86_64.whl", hash = "sha256:6a4825252fcc430a182ac4dee5a505053d262c807f8a924603d411f6718b88fd"},
+    {file = "numpy-2.1.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e711e02f49e176a01d0349d82cb5f05ba4db7d5e7e0defd026328e5cfb3226d3"},
+    {file = "numpy-2.1.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:78574ac2d1a4a02421f25da9559850d59457bac82f2b8d7a44fe83a64f770098"},
+    {file = "numpy-2.1.3-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:c7662f0e3673fe4e832fe07b65c50342ea27d989f92c80355658c7f888fcc83c"},
+    {file = "numpy-2.1.3-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:fa2d1337dc61c8dc417fbccf20f6d1e139896a30721b7f1e832b2bb6ef4eb6c4"},
+    {file = "numpy-2.1.3-cp310-cp310-win32.whl", hash = "sha256:72dcc4a35a8515d83e76b58fdf8113a5c969ccd505c8a946759b24e3182d1f23"},
+    {file = "numpy-2.1.3-cp310-cp310-win_amd64.whl", hash = "sha256:ecc76a9ba2911d8d37ac01de72834d8849e55473457558e12995f4cd53e778e0"},
+    {file = "numpy-2.1.3-pp310-pypy310_pp73-macosx_10_15_x86_64.whl", hash = "sha256:4f2015dfe437dfebbfce7c85c7b53d81ba49e71ba7eadbf1df40c915af75979f"},
+    {file = "numpy-2.1.3-pp310-pypy310_pp73-macosx_14_0_x86_64.whl", hash = "sha256:3522b0dfe983a575e6a9ab3a4a4dfe156c3e428468ff08ce582b9bb6bd1d71d4"},
+    {file = "numpy-2.1.3-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c006b607a865b07cd981ccb218a04fc86b600411d83d6fc261357f1c0966755d"},
+    {file = "numpy-2.1.3-pp310-pypy310_pp73-win_amd64.whl", hash = "sha256:e14e26956e6f1696070788252dcdff11b4aca4c3e8bd166e0df1bb8f315a67cb"},
+    {file = "numpy-2.1.3.tar.gz", hash = "sha256:aa08e04e08aaf974d4458def539dece0d28146d866a39da5639596f4921fd761"},
 ]
 
 [[package]]
@@ -1132,7 +996,7 @@ name = "opt-einsum"
 version = "3.4.0"
 requires_python = ">=3.8"
 summary = "Path optimization of einsum functions."
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "opt_einsum-3.4.0-py3-none-any.whl", hash = "sha256:69bb92469f86a1565195ece4ac0323943e83477171b91d24c35afe028a90d7cd"},
@@ -1140,11 +1004,39 @@ files = [
 ]
 
 [[package]]
+name = "optree"
+version = "0.14.1"
+requires_python = ">=3.8"
+summary = "Optimized PyTree Utilities."
+groups = ["default"]
+marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+dependencies = [
+    "typing-extensions>=4.5.0",
+]
+files = [
+    {file = "optree-0.14.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:4fc0c19cff589629e393d3333cf16c2de7911521a8db75ec47f21d85c589f2f9"},
+    {file = "optree-0.14.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:83088fe5015068de9cf9d96714ac9f98ba666f5da08130e2acdcdc0a87ab4210"},
+    {file = "optree-0.14.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d9d7c5ac3bb996d3da586a3e52c1f65782c97645697be0825495ea31823c0928"},
+    {file = "optree-0.14.1-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:b834aef5b14a0204d775c7d12a3e68712b915dbe553acdedef5f179bd769db64"},
+    {file = "optree-0.14.1-cp310-cp310-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:44aaee385f06189460eacfc8a6c7b002a1f865dd7500e3d4bacc79bd0573a327"},
+    {file = "optree-0.14.1-cp310-cp310-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:573a2d3d37c70ef630d0b1dd161061925a9578380c20c62f61f446a5d6ad5e2a"},
+    {file = "optree-0.14.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8d97e14d57d0d46c3ad581dc53d14d0b5264bf357f99a954a579e534a3ecd494"},
+    {file = "optree-0.14.1-cp310-cp310-win32.whl", hash = "sha256:9646b759cb664c49db8bad737a530c2d849c9414952d74f1f9d30e0004ff54e5"},
+    {file = "optree-0.14.1-cp310-cp310-win_amd64.whl", hash = "sha256:a4c7d5a2c62eaf6406ef124b66b5b3e24e9e464ae5a636cf8508fc47ab228a29"},
+    {file = "optree-0.14.1-cp310-cp310-win_arm64.whl", hash = "sha256:7ecaa65edd10fb055075b9cdb804091fe0f1a0b0987bc6da2b477329a8f8da65"},
+    {file = "optree-0.14.1-pp310-pypy310_pp73-macosx_11_0_arm64.whl", hash = "sha256:2a009ab4d9e44ed5b041577ea16ab432078daa0b79c576c899b7c4d631b10258"},
+    {file = "optree-0.14.1-pp310-pypy310_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:fe92c12e7fd4f1d7b554116fd09bf866e3fdd922a086d8268f17c16e90ff10fc"},
+    {file = "optree-0.14.1-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e40800d311243359969d71ed1beedc8d5819c282e4e88778fe37f2ab55fb96ff"},
+    {file = "optree-0.14.1-pp310-pypy310_pp73-win_amd64.whl", hash = "sha256:9ca9c12a45c5f85ddf5499a2113f7b860ef7503dbee0e3457bfdab93145129eb"},
+    {file = "optree-0.14.1.tar.gz", hash = "sha256:c011c6124d6dcbfceade2d7c4f836eab66ed8cf9ab12f94535b41a71dd734637"},
+]
+
+[[package]]
 name = "packaging"
 version = "24.2"
 requires_python = ">=3.8"
 summary = "Core utilities for Python packages"
-groups = ["default", "all-dev", "bayesflow", "docs", "full", "plots", "tests", "tests-full", "tests-min"]
+groups = ["default", "all-dev", "docs", "full", "plots", "tests", "tests-full", "tests-min"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "packaging-24.2-py3-none-any.whl", hash = "sha256:09abb1bccd265c01f4a3aa3f7a7db064b36514d2cba19a2f694fe6150451a759"},
@@ -1167,7 +1059,7 @@ name = "pandas"
 version = "2.2.3"
 requires_python = ">=3.9"
 summary = "Powerful data structures for data analysis, time series, and statistics"
-groups = ["bayesflow", "full", "pandas", "plots"]
+groups = ["full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "numpy>=1.22.4; python_version < \"3.11\"",
@@ -1205,7 +1097,7 @@ name = "pillow"
 version = "11.1.0"
 requires_python = ">=3.9"
 summary = "Python Imaging Library (Fork)"
-groups = ["bayesflow", "full", "plots"]
+groups = ["full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "pillow-11.1.0-cp310-cp310-macosx_10_10_x86_64.whl", hash = "sha256:e1abe69aca89514737465752b4bcaf8016de61b3be1397a8fc260ba33321b3a8"},
@@ -1286,46 +1178,19 @@ files = [
 
 [[package]]
 name = "protobuf"
-version = "4.25.6"
+version = "5.29.3"
 requires_python = ">=3.8"
 summary = ""
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
-    {file = "protobuf-4.25.6-cp310-abi3-win32.whl", hash = "sha256:61df6b5786e2b49fc0055f636c1e8f0aff263808bb724b95b164685ac1bcc13a"},
-    {file = "protobuf-4.25.6-cp310-abi3-win_amd64.whl", hash = "sha256:b8f837bfb77513fe0e2f263250f423217a173b6d85135be4d81e96a4653bcd3c"},
-    {file = "protobuf-4.25.6-cp37-abi3-macosx_10_9_universal2.whl", hash = "sha256:6d4381f2417606d7e01750e2729fe6fbcda3f9883aa0c32b51d23012bded6c91"},
-    {file = "protobuf-4.25.6-cp37-abi3-manylinux2014_aarch64.whl", hash = "sha256:5dd800da412ba7f6f26d2c08868a5023ce624e1fdb28bccca2dc957191e81fb5"},
-    {file = "protobuf-4.25.6-cp37-abi3-manylinux2014_x86_64.whl", hash = "sha256:4434ff8bb5576f9e0c78f47c41cdf3a152c0b44de475784cd3fd170aef16205a"},
-    {file = "protobuf-4.25.6-py3-none-any.whl", hash = "sha256:07972021c8e30b870cfc0863409d033af940213e0e7f64e27fe017b929d2c9f7"},
-    {file = "protobuf-4.25.6.tar.gz", hash = "sha256:f8cfbae7c5afd0d0eaccbe73267339bff605a2315860bb1ba08eb66670a9a91f"},
-]
-
-[[package]]
-name = "pyasn1"
-version = "0.6.1"
-requires_python = ">=3.8"
-summary = "Pure-Python implementation of ASN.1 types and DER/BER/CER codecs (X.208)"
-groups = ["default", "bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-files = [
-    {file = "pyasn1-0.6.1-py3-none-any.whl", hash = "sha256:0d632f46f2ba09143da3a8afe9e33fb6f92fa2320ab7e886e2d0f7672af84629"},
-    {file = "pyasn1-0.6.1.tar.gz", hash = "sha256:6f580d2bdd84365380830acf45550f2511469f673cb4a5ae3857a3170128b034"},
-]
-
-[[package]]
-name = "pyasn1-modules"
-version = "0.4.1"
-requires_python = ">=3.8"
-summary = "A collection of ASN.1-based protocols modules"
-groups = ["default", "bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "pyasn1<0.7.0,>=0.4.6",
-]
-files = [
-    {file = "pyasn1_modules-0.4.1-py3-none-any.whl", hash = "sha256:49bfa96b45a292b711e986f222502c1c9a5e1f4e568fc30e2574a6c7d07838fd"},
-    {file = "pyasn1_modules-0.4.1.tar.gz", hash = "sha256:c28e2dbf9c06ad61c71a075c7e0f9fd0f1b0bb2d2ad4377f240d33ac2ab60a7c"},
+    {file = "protobuf-5.29.3-cp310-abi3-win32.whl", hash = "sha256:3ea51771449e1035f26069c4c7fd51fba990d07bc55ba80701c78f886bf9c888"},
+    {file = "protobuf-5.29.3-cp310-abi3-win_amd64.whl", hash = "sha256:a4fa6f80816a9a0678429e84973f2f98cbc218cca434abe8db2ad0bffc98503a"},
+    {file = "protobuf-5.29.3-cp38-abi3-macosx_10_9_universal2.whl", hash = "sha256:a8434404bbf139aa9e1300dbf989667a83d42ddda9153d8ab76e0d5dcaca484e"},
+    {file = "protobuf-5.29.3-cp38-abi3-manylinux2014_aarch64.whl", hash = "sha256:daaf63f70f25e8689c072cfad4334ca0ac1d1e05a92fc15c54eb9cf23c3efd84"},
+    {file = "protobuf-5.29.3-cp38-abi3-manylinux2014_x86_64.whl", hash = "sha256:c027e08a08be10b67c06bf2370b99c811c466398c357e615ca88c91c07f0910f"},
+    {file = "protobuf-5.29.3-py3-none-any.whl", hash = "sha256:0a18ed4a24198528f2333802eb075e59dea9d679ab7a6c5efb017a59004d849f"},
+    {file = "protobuf-5.29.3.tar.gz", hash = "sha256:5da0f41edaf117bde316404bad1a486cb4ededf8e4a54891296f648e8e076620"},
 ]
 
 [[package]]
@@ -1333,7 +1198,7 @@ name = "pygments"
 version = "2.19.1"
 requires_python = ">=3.8"
 summary = "Pygments is a syntax highlighting package written in Python."
-groups = ["all-dev", "docs"]
+groups = ["default", "all-dev", "docs"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "pygments-2.19.1-py3-none-any.whl", hash = "sha256:9ea1544ad55cecf4b8242fab6dd35a93bbce657034b0611ee383099054ab6d8c"},
@@ -1361,7 +1226,7 @@ name = "pyparsing"
 version = "3.2.1"
 requires_python = ">=3.9"
 summary = "pyparsing module - Classes and methods to define and execute parsing grammars"
-groups = ["bayesflow", "full", "plots"]
+groups = ["full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "pyparsing-3.2.1-py3-none-any.whl", hash = "sha256:506ff4f4386c4cec0590ec19e6302d3aedb992fdc02c761e90416f158dacf8e1"},
@@ -1409,7 +1274,7 @@ name = "python-dateutil"
 version = "2.9.0.post0"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 summary = "Extensions to the standard Python datetime module"
-groups = ["all-dev", "bayesflow", "docs", "full", "pandas", "plots"]
+groups = ["all-dev", "docs", "full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "six>=1.5",
@@ -1423,7 +1288,7 @@ files = [
 name = "pytz"
 version = "2025.1"
 summary = "World timezone definitions, modern and historical"
-groups = ["bayesflow", "full", "pandas", "plots"]
+groups = ["full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "pytz-2025.1-py2.py3-none-any.whl", hash = "sha256:89dd22dca55b46eac6eda23b2d72721bf1bdfef212645d81513ef5d03038de57"},
@@ -1497,7 +1362,7 @@ name = "requests"
 version = "2.32.3"
 requires_python = ">=3.8"
 summary = "Python HTTP for Humans."
-groups = ["default", "all-dev", "bayesflow", "docs", "full"]
+groups = ["default", "all-dev", "docs"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "certifi>=2017.4.17",
@@ -1511,34 +1376,20 @@ files = [
 ]
 
 [[package]]
-name = "requests-oauthlib"
-version = "2.0.0"
-requires_python = ">=3.4"
-summary = "OAuthlib authentication support for Requests."
-groups = ["default", "bayesflow", "full"]
+name = "rich"
+version = "13.9.4"
+requires_python = ">=3.8.0"
+summary = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
-    "oauthlib>=3.0.0",
-    "requests>=2.0.0",
+    "markdown-it-py>=2.2.0",
+    "pygments<3.0.0,>=2.13.0",
+    "typing-extensions<5.0,>=4.0.0; python_version < \"3.11\"",
 ]
 files = [
-    {file = "requests-oauthlib-2.0.0.tar.gz", hash = "sha256:b3dffaebd884d8cd778494369603a9e7b58d29111bf6b41bdc2dcd87203af4e9"},
-    {file = "requests_oauthlib-2.0.0-py2.py3-none-any.whl", hash = "sha256:7dd8a5c40426b779b0868c404bdef9768deccf22749cde15852df527e6269b36"},
-]
-
-[[package]]
-name = "rsa"
-version = "4.9"
-requires_python = ">=3.6,<4"
-summary = "Pure-Python RSA implementation"
-groups = ["default", "bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "pyasn1>=0.1.3",
-]
-files = [
-    {file = "rsa-4.9-py3-none-any.whl", hash = "sha256:90260d9058e514786967344d0ef75fa8727eed8a7d2e43ce9f4bcf1b536174f7"},
-    {file = "rsa-4.9.tar.gz", hash = "sha256:e38464a49c6c85d7f1351b0126661487a7e0a14a50f1675ec50eb34d4f20ef21"},
+    {file = "rich-13.9.4-py3-none-any.whl", hash = "sha256:6049d5e6ec054bf2779ab3358186963bac2ea89175919d699e378b99738c2a90"},
+    {file = "rich-13.9.4.tar.gz", hash = "sha256:439594978a49a09530cff7ebc4b5c7103ef57baf48d5ea3184f21d9a2befa098"},
 ]
 
 [[package]]
@@ -1570,53 +1421,11 @@ files = [
 ]
 
 [[package]]
-name = "scikit-learn"
-version = "1.6.1"
-requires_python = ">=3.9"
-summary = "A set of python modules for machine learning and data mining"
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "joblib>=1.2.0",
-    "numpy>=1.19.5",
-    "scipy>=1.6.0",
-    "threadpoolctl>=3.1.0",
-]
-files = [
-    {file = "scikit_learn-1.6.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:d056391530ccd1e501056160e3c9673b4da4805eb67eb2bdf4e983e1f9c9204e"},
-    {file = "scikit_learn-1.6.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:0c8d036eb937dbb568c6242fa598d551d88fb4399c0344d95c001980ec1c7d36"},
-    {file = "scikit_learn-1.6.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8634c4bd21a2a813e0a7e3900464e6d593162a29dd35d25bdf0103b3fce60ed5"},
-    {file = "scikit_learn-1.6.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:775da975a471c4f6f467725dff0ced5c7ac7bda5e9316b260225b48475279a1b"},
-    {file = "scikit_learn-1.6.1-cp310-cp310-win_amd64.whl", hash = "sha256:8a600c31592bd7dab31e1c61b9bbd6dea1b3433e67d264d17ce1017dbdce8002"},
-    {file = "scikit_learn-1.6.1.tar.gz", hash = "sha256:b4fc2525eca2c69a59260f583c56a7557c6ccdf8deafdba6e060f94c1c59738e"},
-]
-
-[[package]]
-name = "scipy"
-version = "1.12.0"
-requires_python = ">=3.9"
-summary = "Fundamental algorithms for scientific computing in Python"
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "numpy<1.29.0,>=1.22.4",
-]
-files = [
-    {file = "scipy-1.12.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:78e4402e140879387187f7f25d91cc592b3501a2e51dfb320f48dfb73565f10b"},
-    {file = "scipy-1.12.0-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:f5f00ebaf8de24d14b8449981a2842d404152774c1a1d880c901bf454cb8e2a1"},
-    {file = "scipy-1.12.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e53958531a7c695ff66c2e7bb7b79560ffdc562e2051644c5576c39ff8efb563"},
-    {file = "scipy-1.12.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5e32847e08da8d895ce09d108a494d9eb78974cf6de23063f93306a3e419960c"},
-    {file = "scipy-1.12.0-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:4c1020cad92772bf44b8e4cdabc1df5d87376cb219742549ef69fc9fd86282dd"},
-    {file = "scipy-1.12.0-cp310-cp310-win_amd64.whl", hash = "sha256:75ea2a144096b5e39402e2ff53a36fecfd3b960d786b7efd3c180e29c39e53f2"},
-    {file = "scipy-1.12.0.tar.gz", hash = "sha256:4bf5abab8a36d20193c698b0f1fc282c1d083c94723902c447e5d2f1780936a3"},
-]
-
-[[package]]
 name = "seaborn"
 version = "0.13.2"
 requires_python = ">=3.8"
 summary = "Statistical data visualization"
-groups = ["bayesflow", "full", "plots"]
+groups = ["full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "matplotlib!=3.6.1,>=3.4",
@@ -1645,7 +1454,7 @@ name = "setuptools"
 version = "75.6.0"
 requires_python = ">=3.9"
 summary = "Easily download, build, install, upgrade, and uninstall Python packages"
-groups = ["default", "all-dev", "bayesflow", "dev", "full"]
+groups = ["default", "all-dev", "dev"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "setuptools-75.6.0-py3-none-any.whl", hash = "sha256:ce74b49e8f7110f9bf04883b730f4765b774ef3ef28f722cce7c273d253aaf7d"},
@@ -1657,7 +1466,7 @@ name = "six"
 version = "1.17.0"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 summary = "Python 2 and 3 compatibility utilities"
-groups = ["default", "all-dev", "bayesflow", "docs", "full", "pandas", "plots"]
+groups = ["default", "all-dev", "docs", "full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"},
@@ -1666,27 +1475,25 @@ files = [
 
 [[package]]
 name = "tensorboard"
-version = "2.15.2"
+version = "2.19.0"
 requires_python = ">=3.9"
 summary = "TensorBoard lets you watch Tensors Flow"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "absl-py>=0.4",
-    "google-auth-oauthlib<2,>=0.5",
-    "google-auth<3,>=1.6.3",
     "grpcio>=1.48.2",
     "markdown>=2.6.8",
     "numpy>=1.12.0",
+    "packaging",
     "protobuf!=4.24.0,>=3.19.6",
-    "requests<3,>=2.21.0",
     "setuptools>=41.0.0",
     "six>1.9",
     "tensorboard-data-server<0.8.0,>=0.7.0",
     "werkzeug>=1.0.1",
 ]
 files = [
-    {file = "tensorboard-2.15.2-py3-none-any.whl", hash = "sha256:a6f6443728064d962caea6d34653e220e34ef8df764cb06a8212c17e1a8f0622"},
+    {file = "tensorboard-2.19.0-py3-none-any.whl", hash = "sha256:5e71b98663a641a7ce8a6e70b0be8e1a4c0c45d48760b076383ac4755c35b9a0"},
 ]
 
 [[package]]
@@ -1694,7 +1501,7 @@ name = "tensorboard-data-server"
 version = "0.7.2"
 requires_python = ">=3.7"
 summary = "Fast data loading for TensorBoard"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "tensorboard_data_server-0.7.2-py3-none-any.whl", hash = "sha256:7e0610d205889588983836ec05dc098e80f97b7e7bbff7e994ebb78f578d0ddb"},
@@ -1704,87 +1511,40 @@ files = [
 
 [[package]]
 name = "tensorflow"
-version = "2.15.1"
+version = "2.19.0"
 requires_python = ">=3.9"
 summary = "TensorFlow is an open source machine learning framework for everyone."
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "absl-py>=1.0.0",
     "astunparse>=1.6.0",
-    "flatbuffers>=23.5.26",
+    "flatbuffers>=24.3.25",
     "gast!=0.5.0,!=0.5.1,!=0.5.2,>=0.2.1",
     "google-pasta>=0.1.1",
     "grpcio<2.0,>=1.24.3",
-    "h5py>=2.9.0",
-    "keras<2.16,>=2.15.0",
+    "h5py>=3.11.0",
+    "keras>=3.5.0",
     "libclang>=13.0.0",
-    "ml-dtypes~=0.3.1",
-    "numpy<2.0.0,>=1.23.5",
+    "ml-dtypes<1.0.0,>=0.5.1",
+    "numpy<2.2.0,>=1.26.0",
     "opt-einsum>=2.3.2",
     "packaging",
-    "protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3",
+    "protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<6.0.0dev,>=3.20.3",
+    "requests<3,>=2.21.0",
     "setuptools",
     "six>=1.12.0",
-    "tensorboard<2.16,>=2.15",
-    "tensorflow-estimator<2.16,>=2.15.0",
-    "tensorflow-io-gcs-filesystem>=0.23.1",
+    "tensorboard~=2.19.0",
+    "tensorflow-io-gcs-filesystem>=0.23.1; python_version < \"3.12\"",
     "termcolor>=1.1.0",
     "typing-extensions>=3.6.6",
-    "wrapt<1.15,>=1.11.0",
+    "wrapt>=1.11.0",
 ]
 files = [
-    {file = "tensorflow-2.15.1-cp310-cp310-macosx_10_15_x86_64.whl", hash = "sha256:91b51a507007d63a70b65be307d701088d15042a6399c0e2312b53072226e909"},
-    {file = "tensorflow-2.15.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:10132acc072d59696c71ce7221d2d8e0e3ff1e6bc8688dbac6d7aed8e675b710"},
-    {file = "tensorflow-2.15.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:30c5ef9c758ec9ff7ce2aff76b71c980bc5119b879071c2cc623b1591a497a1a"},
-    {file = "tensorflow-2.15.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ea290e435464cf0794f657b48786e5fa413362abe55ed771c172c25980d070ce"},
-    {file = "tensorflow-2.15.1-cp310-cp310-win_amd64.whl", hash = "sha256:8e5431d45ceb416c2b1b6de87378054fbac7d2ed35d45b102d89a786613fffdc"},
-]
-
-[[package]]
-name = "tensorflow-estimator"
-version = "2.15.0"
-requires_python = ">=3.7"
-summary = "TensorFlow Estimator."
-groups = ["default", "bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-files = [
-    {file = "tensorflow_estimator-2.15.0-py2.py3-none-any.whl", hash = "sha256:aedf21eec7fb2dc91150fc91a1ce12bc44dbb72278a08b58e79ff87c9e28f153"},
-]
-
-[[package]]
-name = "tensorflow-intel"
-version = "2.15.1"
-requires_python = ">=3.9"
-summary = "TensorFlow is an open source machine learning framework for everyone."
-groups = ["bayesflow", "full"]
-marker = "sys_platform == \"darwin\" and platform_machine == \"x86_64\" and platform_system == \"Windows\" and python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "absl-py>=1.0.0",
-    "astunparse>=1.6.0",
-    "flatbuffers>=23.5.26",
-    "gast!=0.5.0,!=0.5.1,!=0.5.2,>=0.2.1",
-    "google-pasta>=0.1.1",
-    "grpcio<2.0,>=1.24.3",
-    "h5py>=2.9.0",
-    "keras<2.16,>=2.15.0",
-    "libclang>=13.0.0",
-    "ml-dtypes~=0.3.1",
-    "numpy<2.0.0,>=1.23.5",
-    "opt-einsum>=2.3.2",
-    "packaging",
-    "protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3",
-    "setuptools",
-    "six>=1.12.0",
-    "tensorboard<2.16,>=2.15",
-    "tensorflow-estimator<2.16,>=2.15.0",
-    "tensorflow-io-gcs-filesystem>=0.23.1",
-    "termcolor>=1.1.0",
-    "typing-extensions>=3.6.6",
-    "wrapt<1.15,>=1.11.0",
-]
-files = [
-    {file = "tensorflow_intel-2.15.1-cp310-cp310-win_amd64.whl", hash = "sha256:9f305142b3c5e239c82c463429b1f88726dd27d9f23523871f825493a9ffc5f4"},
+    {file = "tensorflow-2.19.0-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:c95604f25c3032e9591c7e01e457fdd442dde48e9cc1ce951078973ab1b4ca34"},
+    {file = "tensorflow-2.19.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2b39293cae3aeee534dc4746dc6097b48c281e5e8b9a423efbd14d4495968e5c"},
+    {file = "tensorflow-2.19.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:83e2d6c748105488205d30e43093f28fc90e8da0176db9ddee12e2784cf435e8"},
+    {file = "tensorflow-2.19.0-cp310-cp310-win_amd64.whl", hash = "sha256:d3f47452246bd08902f0c865d3839fa715f1738d801d256934b943aa21c5a1d2"},
 ]
 
 [[package]]
@@ -1792,7 +1552,7 @@ name = "tensorflow-io-gcs-filesystem"
 version = "0.37.1"
 requires_python = "<3.13,>=3.7"
 summary = "TensorFlow IO"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "tensorflow_io_gcs_filesystem-0.37.1-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:249c12b830165841411ba71e08215d0e94277a49c551e6dd5d72aab54fe5491b"},
@@ -1802,27 +1562,11 @@ files = [
 ]
 
 [[package]]
-name = "tensorflow-macos"
-version = "2.15.1"
-requires_python = ">=3.9"
-summary = "TensorFlow is an open source machine learning framework for everyone."
-groups = ["bayesflow", "full"]
-marker = "sys_platform == \"darwin\" and platform_machine == \"x86_64\" and python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "tensorflow-cpu-aws==2.15.1; (platform_machine == \"arm64\" or platform_machine == \"aarch64\") and platform_system == \"Linux\"",
-    "tensorflow-intel==2.15.1; platform_system == \"Windows\"",
-    "tensorflow-macos==2.15.1; platform_system == \"Darwin\" and platform_machine == \"arm64\"",
-]
-files = [
-    {file = "tensorflow_macos-2.15.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:b8f01d7615fe4ff3b15a12f84471bd5344fed187543c4a091da3ddca51b6dc26"},
-]
-
-[[package]]
 name = "tensorflow-probability"
-version = "0.23.0"
+version = "0.25.0"
 requires_python = ">=3.9"
 summary = "Probabilistic modeling and statistical inference in TensorFlow"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "absl-py",
@@ -1834,7 +1578,7 @@ dependencies = [
     "six>=1.10.0",
 ]
 files = [
-    {file = "tensorflow_probability-0.23.0-py2.py3-none-any.whl", hash = "sha256:dda5cacfe50cb19ecd96f3ce81e6ff8680d84213bcfe94ca0aaf6e5f51c88061"},
+    {file = "tensorflow_probability-0.25.0-py2.py3-none-any.whl", hash = "sha256:f3f4d6431656c0122906888afe1b67b4400e82bd7f254b45b92e6c5b84ea8e3e"},
 ]
 
 [[package]]
@@ -1842,23 +1586,11 @@ name = "termcolor"
 version = "2.5.0"
 requires_python = ">=3.9"
 summary = "ANSI color formatting for output in terminal"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "termcolor-2.5.0-py3-none-any.whl", hash = "sha256:37b17b5fc1e604945c2642c872a3764b5d547a48009871aea3edd3afa180afb8"},
     {file = "termcolor-2.5.0.tar.gz", hash = "sha256:998d8d27da6d48442e8e1f016119076b690d962507531df4890fcd2db2ef8a6f"},
-]
-
-[[package]]
-name = "threadpoolctl"
-version = "3.6.0"
-requires_python = ">=3.9"
-summary = "threadpoolctl"
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-files = [
-    {file = "threadpoolctl-3.6.0-py3-none-any.whl", hash = "sha256:43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb"},
-    {file = "threadpoolctl-3.6.0.tar.gz", hash = "sha256:8ab8b4aa3491d812b623328249fab5302a68d2d71745c8a4c719a2fcaba9f44e"},
 ]
 
 [[package]]
@@ -1886,18 +1618,6 @@ files = [
 ]
 
 [[package]]
-name = "toolz"
-version = "1.0.0"
-requires_python = ">=3.8"
-summary = "List processing tools and functional utilities"
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-files = [
-    {file = "toolz-1.0.0-py3-none-any.whl", hash = "sha256:292c8f1c4e7516bf9086f8850935c799a874039c8bcf959d47b600e4c44a6236"},
-    {file = "toolz-1.0.0.tar.gz", hash = "sha256:2c86e3d9a04798ac556793bced838816296a2f085017664e4995cb40a1047a02"},
-]
-
-[[package]]
 name = "towncrier"
 version = "24.8.0"
 requires_python = ">=3.8"
@@ -1917,26 +1637,11 @@ files = [
 ]
 
 [[package]]
-name = "tqdm"
-version = "4.67.1"
-requires_python = ">=3.7"
-summary = "Fast, Extensible Progress Meter"
-groups = ["bayesflow", "full"]
-marker = "python_version >= \"3.10\" and python_version < \"3.11\""
-dependencies = [
-    "colorama; platform_system == \"Windows\"",
-]
-files = [
-    {file = "tqdm-4.67.1-py3-none-any.whl", hash = "sha256:26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2"},
-    {file = "tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2"},
-]
-
-[[package]]
 name = "typing-extensions"
 version = "4.12.2"
 requires_python = ">=3.8"
 summary = "Backported and Experimental Type Hints for Python 3.8+"
-groups = ["default", "all-dev", "bayesflow", "dev", "full"]
+groups = ["default", "all-dev", "dev"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "typing_extensions-4.12.2-py3-none-any.whl", hash = "sha256:04e5ca0351e0f3f85c6853954072df659d0d13fac324d0072316b67d7794700d"},
@@ -1948,7 +1653,7 @@ name = "tzdata"
 version = "2025.1"
 requires_python = ">=2"
 summary = "Provider of IANA time zone data"
-groups = ["bayesflow", "full", "pandas", "plots"]
+groups = ["full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "tzdata-2025.1-py2.py3-none-any.whl", hash = "sha256:7e127113816800496f027041c570f50bcd464a020098a3b6b199517772303639"},
@@ -1960,7 +1665,7 @@ name = "urllib3"
 version = "2.3.0"
 requires_python = ">=3.9"
 summary = "HTTP library with thread-safe connection pooling, file post, and more."
-groups = ["default", "all-dev", "bayesflow", "docs", "full"]
+groups = ["default", "all-dev", "docs"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "urllib3-2.3.0-py3-none-any.whl", hash = "sha256:1cee9ad369867bfdbbb48b7dd50374c0967a0bb7710050facf0dd6911440e3df"},
@@ -2016,7 +1721,7 @@ name = "werkzeug"
 version = "3.1.3"
 requires_python = ">=3.9"
 summary = "The comprehensive WSGI web application library."
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "MarkupSafe>=2.1.1",
@@ -2031,7 +1736,7 @@ name = "wheel"
 version = "0.45.1"
 requires_python = ">=3.8"
 summary = "A built-package format for Python"
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "wheel-0.45.1-py3-none-any.whl", hash = "sha256:708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248"},
@@ -2040,21 +1745,23 @@ files = [
 
 [[package]]
 name = "wrapt"
-version = "1.14.1"
-requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
+version = "1.17.2"
+requires_python = ">=3.8"
 summary = "Module for decorators, wrappers and monkey patching."
-groups = ["default", "bayesflow", "full"]
+groups = ["default"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
-    {file = "wrapt-1.14.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:80bb5c256f1415f747011dc3604b59bc1f91c6e7150bd7db03b19170ee06b320"},
-    {file = "wrapt-1.14.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:07f7a7d0f388028b2df1d916e94bbb40624c59b48ecc6cbc232546706fac74c2"},
-    {file = "wrapt-1.14.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:02b41b633c6261feff8ddd8d11c711df6842aba629fdd3da10249a53211a72c4"},
-    {file = "wrapt-1.14.1-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:2fe803deacd09a233e4762a1adcea5db5d31e6be577a43352936179d14d90069"},
-    {file = "wrapt-1.14.1-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:257fd78c513e0fb5cdbe058c27a0624c9884e735bbd131935fd49e9fe719d310"},
-    {file = "wrapt-1.14.1-cp310-cp310-musllinux_1_1_aarch64.whl", hash = "sha256:4fcc4649dc762cddacd193e6b55bc02edca674067f5f98166d7713b193932b7f"},
-    {file = "wrapt-1.14.1-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:11871514607b15cfeb87c547a49bca19fde402f32e2b1c24a632506c0a756656"},
-    {file = "wrapt-1.14.1-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:8ad85f7f4e20964db4daadcab70b47ab05c7c1cf2a7c1e51087bfaa83831854c"},
-    {file = "wrapt-1.14.1-cp310-cp310-win32.whl", hash = "sha256:a9a52172be0b5aae932bef82a79ec0a0ce87288c7d132946d645eba03f0ad8a8"},
-    {file = "wrapt-1.14.1-cp310-cp310-win_amd64.whl", hash = "sha256:6d323e1554b3d22cfc03cd3243b5bb815a51f5249fdcbb86fda4bf62bab9e164"},
-    {file = "wrapt-1.14.1.tar.gz", hash = "sha256:380a85cf89e0e69b7cfbe2ea9f765f004ff419f34194018a6827ac0e3edfed4d"},
+    {file = "wrapt-1.17.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:3d57c572081fed831ad2d26fd430d565b76aa277ed1d30ff4d40670b1c0dd984"},
+    {file = "wrapt-1.17.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:b5e251054542ae57ac7f3fba5d10bfff615b6c2fb09abeb37d2f1463f841ae22"},
+    {file = "wrapt-1.17.2-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:80dd7db6a7cb57ffbc279c4394246414ec99537ae81ffd702443335a61dbf3a7"},
+    {file = "wrapt-1.17.2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0a6e821770cf99cc586d33833b2ff32faebdbe886bd6322395606cf55153246c"},
+    {file = "wrapt-1.17.2-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:b60fb58b90c6d63779cb0c0c54eeb38941bae3ecf7a73c764c52c88c2dcb9d72"},
+    {file = "wrapt-1.17.2-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b870b5df5b71d8c3359d21be8f0d6c485fa0ebdb6477dda51a1ea54a9b558061"},
+    {file = "wrapt-1.17.2-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:4011d137b9955791f9084749cba9a367c68d50ab8d11d64c50ba1688c9b457f2"},
+    {file = "wrapt-1.17.2-cp310-cp310-musllinux_1_2_i686.whl", hash = "sha256:1473400e5b2733e58b396a04eb7f35f541e1fb976d0c0724d0223dd607e0f74c"},
+    {file = "wrapt-1.17.2-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:3cedbfa9c940fdad3e6e941db7138e26ce8aad38ab5fe9dcfadfed9db7a54e62"},
+    {file = "wrapt-1.17.2-cp310-cp310-win32.whl", hash = "sha256:582530701bff1dec6779efa00c516496968edd851fba224fbd86e46cc6b73563"},
+    {file = "wrapt-1.17.2-cp310-cp310-win_amd64.whl", hash = "sha256:58705da316756681ad3c9c73fd15499aa4d8c69f9fd38dc8a35e06c12468582f"},
+    {file = "wrapt-1.17.2-py3-none-any.whl", hash = "sha256:b18f2d1533a71f069c7f82d524a52599053d4c7166e9dd374ae2136b7f40f7c8"},
+    {file = "wrapt-1.17.2.tar.gz", hash = "sha256:41388e9d4d1522446fe79d3213196bd9e3b301a336965b9e27ca2788ebd122f3"},
 ]
