@@ -15,16 +15,20 @@ from elicito import (
     types,
     utils,
 )
+from elicito.elicit import *
 
 __version__ = importlib.metadata.version("elicito")
 
 __all__ = [
+    "Elicit",
     "initialization",
     "losses",
     "networks",
     "optimization",
+    "parameter",
     "plots",
     "simulations",
+    "target",
     "targets",
     "types",
     "utils",
