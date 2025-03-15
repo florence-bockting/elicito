@@ -6,7 +6,7 @@ authors = [
     { name = "Florence Bockting", email = "florence.bockting@tu-dortmund.de" },
 ]
 license = { text = "Apache-2.0" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "tensorflow >= 2.15.1",
     "tensorflow-probability >= 0.23.0",
@@ -45,8 +45,12 @@ Issues = "https://github.com/florence-bockting/elicito/issues"
 plots = [
     "matplotlib>=3.7.1",
 ]
+bayesflow = [
+    "bayesflow==1.1.6"
+]
 full = [
     "elicito[plots]",
+    "elicito[bayesflow]"
 ]
 
 [dependency-groups]
