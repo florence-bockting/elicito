@@ -522,9 +522,10 @@ wheels = [
 
 [[package]]
 name = "elicito"
-version = "0.5.1a1"
+version = "0.5.2a1"
 source = { editable = "." }
 dependencies = [
+    { name = "joblib" },
     { name = "numpy" },
     { name = "tensorflow" },
     { name = "tensorflow-io-gcs-filesystem" },
@@ -713,6 +714,7 @@ requires-dist = [
     { name = "elicito", extras = ["pandas"], marker = "extra == 'full'" },
     { name = "elicito", extras = ["plots"], marker = "extra == 'full'" },
     { name = "elicito", extras = ["scipy"], marker = "extra == 'full'" },
+    { name = "joblib", specifier = ">=1.4.2" },
     { name = "matplotlib", marker = "extra == 'plots'", specifier = ">=3.7.1" },
     { name = "numpy", specifier = ">=1.26.4" },
     { name = "pandas", marker = "extra == 'pandas'", specifier = ">=2.2.3" },
@@ -1183,6 +1185,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/af/92/b3130cbbf5591acf9ade8708c365f3238046ac7cb8ccba6e81abccb0ccff/jinja2-3.1.5.tar.gz", hash = "sha256:8fefff8dc3034e27bb80d67c671eb8a9bc424c0ef4c0826edbff304cceff43bb", size = 244674 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/0f/2ba5fbcd631e3e88689309dbe978c5769e883e4b84ebfe7da30b43275c5a/jinja2-3.1.5-py3-none-any.whl", hash = "sha256:aba0f4dc9ed8013c424088f68a5c226f7d6097ed89b246d7749c2ec4175c6adb", size = 134596 },
+]
+
+[[package]]
+name = "joblib"
+version = "1.4.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/64/33/60135848598c076ce4b231e1b1895170f45fbcaeaa2c9d5e38b04db70c35/joblib-1.4.2.tar.gz", hash = "sha256:2382c5816b2636fbd20a09e0f4e9dad4736765fdfb7dca582943b9c1366b3f0e", size = 2116621 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/91/29/df4b9b42f2be0b623cbd5e2140cafcaa2bef0759a00b7b70104dcfe2fb51/joblib-1.4.2-py3-none-any.whl", hash = "sha256:06d478d5674cbc267e7496a410ee875abd68e4340feff4490bcb7afb88060ae6", size = 301817 },
 ]
 
 [[package]]
