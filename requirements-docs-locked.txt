@@ -75,6 +75,8 @@ requests==2.32.3
 requests-oauthlib==2.0.0
 rsa==4.9
 ruff==0.8.6
+scipy==1.13.1 ; python_full_version < '3.10'
+scipy==1.15.2 ; python_full_version >= '3.10'
 seaborn==0.13.2
 setuptools==75.6.0
 six==1.17.0
@@ -85,6 +87,7 @@ tensorflow-estimator==2.15.0
 tensorflow-io-gcs-filesystem==0.31.0
 tensorflow-probability==0.23.0
 termcolor==2.5.0
+tqdm==4.67.1
 typing-extensions==4.12.2
 tzdata==2025.1
 urllib3==2.3.0
