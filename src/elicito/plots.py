@@ -3,7 +3,7 @@ plotting helpers
 """
 
 import itertools
-from typing import Optional, Union, Any
+from typing import Any, Optional, Union
 
 import numpy as np
 import tensorflow as tf

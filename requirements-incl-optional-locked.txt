@@ -3,7 +3,6 @@
 absl-py==2.1.0
 astunparse==1.6.3
 attrs==24.3.0 ; python_full_version >= '3.10' and python_full_version < '3.13'
-cachetools==5.5.2
 certifi==2024.12.14
 charset-normalizer==3.4.1
 cloudpickle==3.1.1
@@ -17,8 +16,6 @@ dm-tree==0.1.9 ; python_full_version >= '3.10' and python_full_version < '3.13'
 flatbuffers==25.2.10
 fonttools==4.56.0
 gast==0.6.0
-google-auth==2.38.0
-google-auth-oauthlib==1.2.1
 google-pasta==0.2.0
 grpcio==1.71.0
 h5py==3.13.0
@@ -26,39 +23,39 @@ idna==3.10
 importlib-metadata==8.6.1 ; python_full_version < '3.10'
 importlib-resources==6.5.2 ; python_full_version < '3.10'
 joblib==1.4.2
-keras==2.15.0
+keras==3.9.0
 kiwisolver==1.4.7 ; python_full_version < '3.10'
 kiwisolver==1.4.8 ; python_full_version >= '3.10'
 libclang==18.1.1
 markdown==3.7
+markdown-it-py==3.0.0
 markupsafe==3.0.2
 matplotlib==3.9.4 ; python_full_version < '3.10'
 matplotlib==3.10.1 ; python_full_version >= '3.10'
-ml-dtypes==0.3.2
+mdurl==0.1.2
+ml-dtypes==0.4.1
+namex==0.0.8
 numpy==1.26.4
-oauthlib==3.2.2
 opt-einsum==3.4.0
+optree==0.14.1
 packaging==24.2
 pandas==2.2.3
 pillow==11.1.0
 protobuf==4.25.6
-pyasn1==0.6.1
-pyasn1-modules==0.4.1
+pygments==2.19.1
 pyparsing==3.2.1
 python-dateutil==2.9.0.post0
 pytz==2025.1
 requests==2.32.3
-requests-oauthlib==2.0.0
-rsa==4.9
+rich==13.9.4
 scipy==1.13.1 ; python_full_version < '3.10'
 scipy==1.15.2 ; python_full_version >= '3.10'
 seaborn==0.13.2
 setuptools==75.6.0
 six==1.17.0
-tensorboard==2.15.2
+tensorboard==2.18.0
 tensorboard-data-server==0.7.2
-tensorflow==2.15.1
-tensorflow-estimator==2.15.0
+tensorflow==2.18.1
 tensorflow-io-gcs-filesystem==0.31.0
 tensorflow-probability==0.23.0
 termcolor==2.5.0
