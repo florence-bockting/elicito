@@ -32,7 +32,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     mean: Union[float, Iterable[float]],
     radius: Union[float, Iterable[float]],
     parameters: list[Parameter],
-):
+) -> dict[str, Any]:
     """
     Sample from uniform distribution for each hyperparameter.
 
@@ -95,6 +95,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     if not isinstance(method, str):
         msg = "method must be a string."
         raise TypeError(msg)
+
     if method not in ["sobol", "lhs", "random"]:
         msg = "Unsupported method. Choose from 'sobol', 'lhs', or 'random'."
         raise ValueError(msg)
@@ -156,6 +157,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
                 "must be of type list.",
             )
             raise ValueError(msg)
+
         # initialize sampler
         if method == "sobol":
             sampler = qmc.Sobol(d=1, seed=seed)
@@ -163,18 +165,22 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
             sampler = qmc.LatinHypercube(d=1, seed=seed)
 
         for i, j, n in zip(mean, radius, hyppar):
+            i_casted = tf.cast(i, tf.float32)
+            j_casted = tf.cast(j, tf.float32)
+
             if method == "random":
                 uniform_samples = tfd.Uniform(
-                    tf.subtract(tf.cast(i, tf.float32), tf.cast(j, tf.float32)),
-                    tf.add(tf.cast(i, tf.float32), tf.cast(j, tf.float32)),
+                    tf.subtract(i_casted, j_casted),
+                    tf.add(i_casted, j_casted),
                 ).sample((n_samples, 1))
             else:
                 sample_data = sampler.random(n=n_samples)
+                tensor_data = tf.convert_to_tensor(sample_data)
                 # Inverse transform
-                sample_dat = tf.cast(tf.convert_to_tensor(sample_data), tf.float32)
+                sample_dat = tf.cast(tensor_data, tf.float32)
                 uniform_samples = tfd.Uniform(
-                    tf.subtract(tf.cast(i, tf.float32), tf.cast(j, tf.float32)),
-                    tf.add(tf.cast(i, tf.float32), tf.cast(j, tf.float32)),
+                    tf.subtract(i_casted, j_casted),
+                    tf.add(i_casted, j_casted),
                 ).quantile(sample_dat)
 
             res_dict[n] = tf.squeeze(uniform_samples, axis=-1)
