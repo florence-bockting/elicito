@@ -8,6 +8,7 @@ authors = [
 license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
 dependencies = [
+    "numpy >= 1.26.4",
     "tensorflow >= 2.15.1",
     "tensorflow-probability >= 0.23.0",
     "tensorflow-io-gcs-filesystem >= 0.31.0"
@@ -44,13 +45,18 @@ Issues = "https://github.com/florence-bockting/elicito/issues"
 [project.optional-dependencies]
 plots = [
     "matplotlib>=3.7.1",
+    "seaborn>=0.11"
+]
+pandas = [
+    "pandas>=2.2.3"
 ]
 bayesflow = [
     "bayesflow==1.1.6"
 ]
 full = [
     "elicito[plots]",
-    "elicito[bayesflow]"
+    "elicito[bayesflow]",
+    "elicito[pandas]"
 ]
 
 [dependency-groups]

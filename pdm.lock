@@ -2,10 +2,10 @@
 # It is not intended for manual editing.
 
 [metadata]
-groups = ["default", "all-dev", "bayesflow", "dev", "docs", "full", "plots", "tests", "tests-full", "tests-min"]
+groups = ["default", "all-dev", "bayesflow", "dev", "docs", "full", "pandas", "plots", "tests", "tests-full", "tests-min"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:fb26dfb215e407fdf8b4c82062d80b3d982078d79feb17534b78024c916ea1aa"
+content_hash = "sha256:9e5270d5dd5f5b5822c02193737770d4280093d05c91bb64abd2bd8e24e6bbb5"
 
 [[metadata.targets]]
 requires_python = ">=3.10,<3.11"
@@ -1101,7 +1101,7 @@ name = "numpy"
 version = "1.26.4"
 requires_python = ">=3.9"
 summary = "Fundamental package for array computing in Python"
-groups = ["default", "bayesflow", "full", "plots"]
+groups = ["default", "bayesflow", "full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "numpy-1.26.4-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:9ff0f4f29c51e2803569d7a51c2304de5554655a60c5d776e35b4a41413830d0"},
@@ -1167,7 +1167,7 @@ name = "pandas"
 version = "2.2.3"
 requires_python = ">=3.9"
 summary = "Powerful data structures for data analysis, time series, and statistics"
-groups = ["bayesflow", "full"]
+groups = ["bayesflow", "full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "numpy>=1.22.4; python_version < \"3.11\"",
@@ -1409,7 +1409,7 @@ name = "python-dateutil"
 version = "2.9.0.post0"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 summary = "Extensions to the standard Python datetime module"
-groups = ["all-dev", "bayesflow", "docs", "full", "plots"]
+groups = ["all-dev", "bayesflow", "docs", "full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "six>=1.5",
@@ -1423,7 +1423,7 @@ files = [
 name = "pytz"
 version = "2025.1"
 summary = "World timezone definitions, modern and historical"
-groups = ["bayesflow", "full"]
+groups = ["bayesflow", "full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "pytz-2025.1-py2.py3-none-any.whl", hash = "sha256:89dd22dca55b46eac6eda23b2d72721bf1bdfef212645d81513ef5d03038de57"},
@@ -1616,7 +1616,7 @@ name = "seaborn"
 version = "0.13.2"
 requires_python = ">=3.8"
 summary = "Statistical data visualization"
-groups = ["bayesflow", "full"]
+groups = ["bayesflow", "full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "matplotlib!=3.6.1,>=3.4",
@@ -1657,7 +1657,7 @@ name = "six"
 version = "1.17.0"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 summary = "Python 2 and 3 compatibility utilities"
-groups = ["default", "all-dev", "bayesflow", "docs", "full", "plots"]
+groups = ["default", "all-dev", "bayesflow", "docs", "full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"},
@@ -1948,7 +1948,7 @@ name = "tzdata"
 version = "2025.1"
 requires_python = ">=2"
 summary = "Provider of IANA time zone data"
-groups = ["bayesflow", "full"]
+groups = ["bayesflow", "full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "tzdata-2025.1-py2.py3-none-any.whl", hash = "sha256:7e127113816800496f027041c570f50bcd464a020098a3b6b199517772303639"},
