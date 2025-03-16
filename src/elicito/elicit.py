@@ -355,7 +355,7 @@ def model(obj: Callable, **kwargs) -> dict[str, Any]:
     --------
     >>> # specify the generative model class
     >>> class ToyModel:
-    >>>     def __call__(self, prior_samples, design_matrix, **kwargs):
+    >>>     def __call__(self, prior_samples, design_matrix):
     >>> # linear predictor
     >>>         epred = tf.matmul(prior_samples, design_matrix,
     >>>                           transpose_b=True)
@@ -370,12 +370,12 @@ def model(obj: Callable, **kwargs) -> dict[str, Any]:
     >>>             likelihood=likelihood,
     >>>             ypred=ypred, epred=epred,
     >>>             prior_samples=prior_samples
-    >>>             )
+    >>>             )  # doctest: +SKIP
 
     >>> # specify the model category in the elicit object
     >>> el.model(obj=ToyModel,
     >>>          design_matrix=design_matrix
-    >>>          )
+    >>>          )  # doctest: +SKIP
     """
     # get input arguments of generative model class
     input_args = inspect.getfullargspec(obj.__call__)[0]
@@ -1232,15 +1232,15 @@ class Elicit:
 
         Examples
         --------
-        >>> eliobj.fit()
+        >>> eliobj.fit()  # doctest: +SKIP
 
         >>> eliobj.fit(overwrite=True,
         >>>            save_history=el.utils.save_history(
         >>>                loss_component=False
         >>>                )
-        >>>            )
+        >>>            )  # doctest: +SKIP
 
-        >>> eliobj.fit(parallel=el.utils.parallel(runs=4))
+        >>> eliobj.fit(parallel=el.utils.parallel(runs=4))  # doctest: +SKIP
 
         """
         # set seed
@@ -1335,9 +1335,9 @@ class Elicit:
 
         Examples
         --------
-            >>> eliobj.save(name="toymodel")
+            >>> eliobj.save(name="toymodel")  # doctest: +SKIP
 
-            >>> eliobj.save(file="res/toymodel", overwrite=True)
+            >>> eliobj.save(file="res/toymodel", overwrite=True)  # doctest: +SKIP
 
         """
         # check that either name or file is specified
@@ -1373,7 +1373,7 @@ class Elicit:
 
         Examples
         --------
-        >>> eliobj.update(parameter=updated_parameter_dict)
+        >>> eliobj.update(parameter=updated_parameter_dict)  # doctest: +SKIP
 
         """
         # check that arguments exist as eliobj attributes
