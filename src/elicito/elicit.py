@@ -267,7 +267,7 @@ def parameter(
 
     Examples
     --------
-    >>> el.parameter(name="beta0",  # doctest: +Skip
+    >>> el.parameter(name="beta0",  # doctest: +SKIP
     >>>              family=tfd.Normal,  # doctest: +SKIP
     >>>              hyperparams=dict(loc=el.hyper("mu0"),  # doctest: +SKIP
     >>>                               scale=el.hyper("sigma0", lower=0)  # doctest: +SKIP
