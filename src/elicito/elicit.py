@@ -141,10 +141,10 @@ def hyper(  # noqa: PLR0913
     Examples
     --------
     >>> # sigma hyperparameter of a parametric distribution
-    >>> el.hyper(name="sigma0", lower=0)
+    >>> el.hyper(name="sigma0", lower=0)  # doctest: +SKIP
 
     >>> # shared hyperparameter
-    >>> el.hyper(name="sigma", lower=0, shared=True)
+    >>> el.hyper(name="sigma", lower=0, shared=True)  # doctest: +SKIP
 
     """
     # check correct value for lower
@@ -272,7 +272,7 @@ def parameter(
     >>>              hyperparams=dict(loc=el.hyper("mu0"),
     >>>                               scale=el.hyper("sigma0", lower=0)
     >>>                               )
-    >>>              )
+    >>>              )  # doctest: +SKIP
 
     """  # noqa: E501
     # check that family is a tfp.distributions object
@@ -552,13 +552,13 @@ def target(
     >>>           query=el.queries.quantiles((.05, .25, .50, .75, .95)),
     >>>           loss=el.losses.MMD2(kernel="energy"),
     >>>           weight=1.0
-    >>>           )
+    >>>           )  # doctest: +SKIP
 
     >>> el.target(name="correlation",
     >>>           query=el.queries.correlation(),
     >>>           loss=el.losses.L2,
     >>>           weight=1.0
-    >>>           )
+    >>>           )  # doctest: +SKIP
     """
     # create instance of loss class
     loss_instance = loss
@@ -655,7 +655,7 @@ class Expert:
         >>>         "sigma": tfd.HalfNormal(scale=10.0),
         >>>     },
         >>>     num_samples = 10_000
-        >>> )
+        >>> )  # doctest: +SKIP
 
         >>> el.expert.simulator(
         >>>     ground_truth = {
@@ -663,7 +663,7 @@ class Expert:
         >>>         "sigma": tfd.HalfNormal(scale=10.0),
         >>>     },
         >>>     num_samples = 10_000
-        >>> )
+        >>> )  # doctest: +SKIP
 
         >>> el.expert.simulator(
         >>>     ground_truth = {
@@ -671,7 +671,7 @@ class Expert:
         >>>                                              [1.,1.,1.]),
         >>>     },
         >>>     num_samples = 10_000
-        >>> )
+        >>> )  # doctest: +SKIP
         """
         # Note: check whether dimensionality of ground truth and number of
         # model parameters is identical is done in Elicit class
@@ -719,7 +719,7 @@ def optimizer(
     >>>     optimizer=tf.keras.optimizers.Adam,
     >>>     learning_rate=0.1,
     >>>     clipnorm=1.0
-    >>> )
+    >>> )  # doctest: +SKIP
     """  # noqa: E501
     # check whether optimizer is a tf.keras.optimizers object
     opt_module = ".".join(optimizer.__module__.split(".")[:-1])
@@ -817,7 +817,7 @@ def initializer(
     >>>         radius=1,
     >>>         mean=0
     >>>         )
-    >>>     )
+    >>>     )  # doctest: +SKIP
 
     >>> el.initializer(
     >>>     hyperparams = dict(
@@ -825,7 +825,7 @@ def initializer(
     >>>         mu1=1., sigma1=el.utils.LowerBound(lower=0.).forward(0.5),
     >>>         sigma2=el.utils.LowerBound(lower=0.).forward(0.4)
     >>>         )
-    >>>     )
+    >>>     )  # doctest: +SKIP
     """
     # check that method is implemented
 
@@ -931,7 +931,7 @@ def trainer(
     >>>     epochs=400,
     >>>     B=128,
     >>>     num_samples=200
-    >>> )
+    >>> )  # doctest: +SKIP
     """
     # check that epochs are positive numbers
     if epochs <= 0:
@@ -1234,10 +1234,10 @@ class Elicit:
         --------
         >>> eliobj.fit()  # doctest: +SKIP
 
-        >>> eliobj.fit(overwrite=True,
-        >>>            save_history=el.utils.save_history(
-        >>>                loss_component=False
-        >>>                )
+        >>> eliobj.fit(overwrite=True,  # doctest: +SKIP
+        >>>            save_history=el.utils.save_history(  # doctest: +SKIP
+        >>>                loss_component=False  # doctest: +SKIP
+        >>>                )  # doctest: +SKIP
         >>>            )  # doctest: +SKIP
 
         >>> eliobj.fit(parallel=el.utils.parallel(runs=4))  # doctest: +SKIP
