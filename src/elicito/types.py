@@ -2,10 +2,10 @@
 specification of custom types
 """
 
-from typing import Callable, Optional, TypedDict, Union, Any
+from typing import Any, Callable, Optional, TypedDict, Union
 
-import tensorflow_probability as tfp  # type: ignore
 import tensorflow as tf
+
 
 class Hyper(TypedDict):
     """

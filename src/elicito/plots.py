@@ -3,7 +3,7 @@ plotting helpers
 """
 
 import itertools
-from typing import Any, Optional, Union, Callable
+from typing import Any, Callable, Optional, Union
 
 import numpy as np
 import tensorflow as tf
@@ -11,11 +11,7 @@ import tensorflow as tf
 from elicito.exceptions import MissingOptionalDependencyError
 
 
-def initialization(
-        eliobj: Any,
-        cols: int = 4,
-        **kwargs: dict[Any, Any]
-) -> None:
+def initialization(eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]) -> None:
     """
     Plot the ecdf of the initialization distribution per hyperparameter
 
@@ -139,9 +135,7 @@ def initialization(
 
 
 def loss(  # noqa: PLR0912
-        eliobj: Any,
-        weighted: bool = True,
-        **kwargs: dict[Any, Any]
+    eliobj: Any, weighted: bool = True, **kwargs: dict[Any, Any]
 ) -> None:
     """
     Plot the total loss and the loss per component.
@@ -248,11 +242,7 @@ def loss(  # noqa: PLR0912
     plt.show()
 
 
-def hyperparameter(
-        eliobj: Any,
-        cols: int = 4,
-        **kwargs: dict[Any, Any]
-) -> None:
+def hyperparameter(eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]) -> None:
     """
     Plot the convergence of each hyperparameter across epochs.
 
@@ -355,9 +345,7 @@ def hyperparameter(
 
 
 def prior_joint(
-        eliobj: Any,
-        idx: Optional[Union[int, list[int]]] = None,
-        **kwargs: dict[Any, Any]
+    eliobj: Any, idx: Optional[Union[int, list[int]]] = None, **kwargs: dict[Any, Any]
 ) -> None:
     """
     Plot learned prior distributions
@@ -472,9 +460,7 @@ def prior_joint(
 
 
 def prior_marginals(  # noqa: PLR0912
-        eliobj: Any,
-        cols: int = 4,
-        **kwargs: dict[Any, Any]
+    eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]
 ) -> None:
     """
     Plot the convergence of each hyperparameter across epochs.
@@ -579,9 +565,7 @@ def prior_marginals(  # noqa: PLR0912
 
 
 def elicits(  # noqa: PLR0912, PLR0915
-        eliobj: Any,
-        cols: int = 4,
-        **kwargs: dict[Any, Any]
+    eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]
 ) -> None:
     """
     Plot the expert-elicited vs. model-simulated statistics.
@@ -766,10 +750,7 @@ def elicits(  # noqa: PLR0912, PLR0915
 
 
 def marginals(
-        eliobj: Any,
-        cols: int = 4,
-        span: int = 30,
-        **kwargs: dict[Any, Any]
+    eliobj: Any, cols: int = 4, span: int = 30, **kwargs: dict[Any, Any]
 ) -> None:
     """
     Plot convergence of mean and sd of the prior marginals
@@ -902,8 +883,8 @@ def priorpredictive(eliobj: Any, **kwargs: dict[Any, Any]) -> None:
         eliobj.results["target_quantities"]
     except KeyError:
         msg = (
-                "No information about 'target_quantities' found in 'eliobj.results'",
-                " Have you excluded 'target_quantities' from results savings?"
+            "No information about 'target_quantities' found in 'eliobj.results'",
+            " Have you excluded 'target_quantities' from results savings?",
         )
         print(msg)
 
@@ -936,7 +917,7 @@ def priorpredictive(eliobj: Any, **kwargs: dict[Any, Any]) -> None:
     plt.show()
 
 
-def prior_averaging(  # noqa: PLR0912, PLR0915
+def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
     eliobj: Any,
     cols: int = 4,
     n_sim: int = 10_000,
@@ -1087,12 +1068,8 @@ def prior_averaging(  # noqa: PLR0912, PLR0915
 
 
 def _model_averaging(
-        eliobj: Any,
-        weight_factor: float,
-        success: Any,
-        n_sim: int,
-        seed: int
-) -> tuple[Any,...]:
+    eliobj: Any, weight_factor: float, success: Any, n_sim: int, seed: int
+) -> tuple[Any, ...]:
     # compute final loss per run by averaging over last x values
     mean_losses = np.stack([np.mean(eliobj.history[i]["loss"]) for i in success])
     # retrieve min MMD
@@ -1115,9 +1092,7 @@ def _model_averaging(
         np.arange(num_success), size=n_sim, replace=True, p=w_MMD
     )
     # sample observation index
-    sampled_obs = rng.choice(
-        np.arange(n_samples), size=n_sim, replace=True
-    )
+    sampled_obs = rng.choice(np.arange(n_samples), size=n_sim, replace=True)
 
     # select prior
     averaged_priors = tf.stack(
@@ -1129,7 +1104,8 @@ def _model_averaging(
 
     return tuple((w_MMD, averaged_priors, B, n_samples))
 
-def _check_parallel(eliobj: Any) -> tuple[Any,...]:
+
+def _check_parallel(eliobj: Any) -> tuple[Any, ...]:
     eliobj_res = eliobj.results[0]
     eliobj_hist = eliobj.history[0]
 
@@ -1144,10 +1120,10 @@ def _check_parallel(eliobj: Any) -> tuple[Any,...]:
 
 
 def _quantiles(
-        axs: Any,
-        expert: tf.Tensor,
-        training: tf.Tensor,
-        labels: list[tuple[str]], # do not remove
+    axs: Any,
+    expert: tf.Tensor,
+    training: tf.Tensor,
+    labels: list[tuple[str]],  # do not remove
 ) -> tuple[Any]:
     return (
         axs.plot(
@@ -1162,11 +1138,8 @@ def _quantiles(
 
 
 def _correlation(
-        axs: Any,
-        expert: tf.Tensor,
-        training: tf.Tensor,
-        labels: list[tuple[str]]
-) -> tuple[Any,...]:
+    axs: Any, expert: tf.Tensor, training: tf.Tensor, labels: list[tuple[str]]
+) -> tuple[Any, ...]:
     return (
         axs.plot(0, expert[:, 0], "*", color="red", label=labels[0], zorder=2),
         axs.plot(
@@ -1197,11 +1170,8 @@ def _correlation(
 
 
 def _prep_subplots(
-        eliobj: Any,
-        cols: int,
-        n_quant: Any,
-        bounderies: bool=False
-) -> tuple[Any,...]:
+    eliobj: Any, cols: int, n_quant: Any, bounderies: bool = False
+) -> tuple[Any, ...]:
     # make sure that user uses only as many columns as hyperparameter
     # such that session does not crash...
     if cols > n_quant:
@@ -1303,7 +1273,7 @@ def _convergence_plot(  # noqa: PLR0913
     return axs
 
 
-def _check_NaN(eliobj: Any, n_reps: int) -> tuple[Any,...]:
+def _check_NaN(eliobj: Any, n_reps: int) -> tuple[Any, ...]:
     # check whether some replications stopped with NAN
     ep_run = [len(eliobj.history[i]["loss"]) for i in range(n_reps)]
     seed_rep = [eliobj.results[i]["seed"] for i in range(n_reps)]

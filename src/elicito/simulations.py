@@ -3,7 +3,7 @@ Simulations from prior and model
 """
 
 import inspect
-from typing import Callable, Optional, Union, Any
+from typing import Any, Callable, Optional, Union
 
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
@@ -103,7 +103,7 @@ class Priors(tf.Module):
         return prior_samples
 
 
-def intialize_priors(
+def intialize_priors(  # noqa: PLR0912
     init_matrix_slice: Optional[dict[str, tf.Tensor]],
     method: str,
     seed: int,
@@ -295,13 +295,17 @@ def sample_from_priors(  # noqa: PLR0913
         else:
             prior_samples = tf.concat(priors, axis=-1)
 
-    if (method == "deep_prior") and (not ground_truth) and initialized_priors is not None:
+    if (
+        (method == "deep_prior")
+        and (not ground_truth)
+        and initialized_priors is not None
+    ):
         # initialize base distribution
         base_dist = network["base_distribution"](num_params=len(parameters))  # type: ignore
         # sample from base distribution
         u = base_dist.sample((B, num_samples))
         # apply transformation function to samples from base distr.
-        (unconstr_priors, _) = initialized_priors(u, condition=None, inverse=False) # type: ignore
+        (unconstr_priors, _) = initialized_priors(u, condition=None, inverse=False)  # type: ignore
         # apply parameter constraints if specified
         constr_priors = []
         for j in range(len(parameters)):

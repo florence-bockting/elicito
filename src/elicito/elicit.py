@@ -153,8 +153,8 @@ def hyper(  # noqa: PLR0913
 
     if (type(lower) is str) and (lower != "-inf"):  # type: ignore
         msg = (
-                "lower must be either '-inf' or a float.",
-                "Other strings are not allowed."
+            "lower must be either '-inf' or a float.",
+            "Other strings are not allowed.",
         )
         raise ValueError(msg)
 
@@ -164,7 +164,7 @@ def hyper(  # noqa: PLR0913
     if (type(upper) is str) and (upper != "inf"):  # type: ignore
         msg = (
             "upper must be either 'inf' or a float.",
-            "Other strings are not allowed."
+            "Other strings are not allowed.",
         )
         raise ValueError(msg)
 
@@ -329,10 +329,7 @@ def parameter(
     return param_dict
 
 
-def model(
-        obj: Callable[[str], tf.Tensor],
-        **kwargs: dict[Any, Any]
-) -> dict[str, Any]:
+def model(obj: Callable[[str], tf.Tensor], **kwargs: dict[Any, Any]) -> dict[str, Any]:
     """
     Specify the generative model.
 
@@ -624,9 +621,7 @@ class Expert:
         return data_dict
 
     def simulator(
-            self,
-            ground_truth: dict[str, Any],
-            num_samples: int = 10_000
+        self, ground_truth: dict[str, Any], num_samples: int = 10_000
     ) -> ExpertDict:
         """
         Simulate data from an oracle
@@ -701,8 +696,7 @@ expert = Expert()
 
 
 def optimizer(
-        optimizer: Any = tf.keras.optimizers.Adam(),
-        **kwargs: dict[Any, Any]
+    optimizer: Any = tf.keras.optimizers.Adam(), **kwargs: dict[Any, Any]
 ) -> dict[str, Any]:
     """
     Specify optimizer and its settings for SGD.
@@ -1419,7 +1413,7 @@ class Elicit:
             # inform user about reset of results
             print("INFO: Results have been reset.")
 
-    def workflow(self, seed: int) -> tuple[Any,...]:
+    def workflow(self, seed: int) -> tuple[Any, ...]:
         """
         Build the main workflow of the prior elicitation method.
 

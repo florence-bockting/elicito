@@ -2,7 +2,7 @@
 Specification of target quantities and elicited statistics
 """
 
-from typing import Callable, Any
+from typing import Any
 
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
@@ -38,10 +38,7 @@ def pearson_correlation(prior_samples: tf.Tensor) -> tf.Tensor:
 
 
 # TODO: Update Custom Target Function
-def use_custom_functions(
-        simulations: dict[str, Any],
-        custom_func: Any
-) -> Any:
+def use_custom_functions(simulations: dict[str, Any], custom_func: Any) -> Any:
     """
     Prepare user-defined functions
 
@@ -61,6 +58,7 @@ def use_custom_functions(
     vars_from_func = custom_func.__code__.co_varnames
     res = {f"{var}": simulations[var] for var in vars_from_func if var in simulations}
     return custom_func(**res)
+
 
 def computation_elicited_statistics(
     target_quantities: dict[str, tf.Tensor],  # shape=[B, num_samples, num_obs]
@@ -116,15 +114,19 @@ def computation_elicited_statistics(
             quantiles = targets[i]["query"]["value"]
 
             # reshape target quantity
-            target_tensor =  target_quantities[targets[i]["name"]]
+            target_tensor = target_quantities[targets[i]["name"]]
             tensor_rank = tf.rank(target_tensor)
 
-            if  (tensor_rank == 3) and (target_tensor.shape[1] is not None) and (target_tensor.shape[2] is not None):  # noqa: PLR2004
-                quan_reshaped = tf.reshape(target_tensor,
+            if (
+                (tensor_rank == 3)  # noqa: PLR2004
+                and (target_tensor.shape[1] is not None)
+                and (target_tensor.shape[2] is not None)
+            ):
+                quan_reshaped = tf.reshape(
+                    target_tensor,
                     shape=(
                         target_tensor.shape[0],
-                        target_tensor.shape[1]
-                        * target_tensor.shape[2],
+                        target_tensor.shape[1] * target_tensor.shape[2],
                     ),
                 )
             elif tensor_rank == 2:  # noqa: PLR2004
@@ -133,7 +135,7 @@ def computation_elicited_statistics(
                 msg = (
                     "rank of tensor of target quantity must be <=3,",
                     f"but got {tensor_rank}.",
-                    f"for target quantity {targets[i]['name']}"
+                    f"for target quantity {targets[i]['name']}",
                 )
                 raise ValueError(msg)
 

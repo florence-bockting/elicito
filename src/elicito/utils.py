@@ -5,7 +5,7 @@ helper functions for setting up the Elicit object
 import os
 import pickle
 import warnings
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 import cloudpickle  # type: ignore
 import tensorflow as tf
@@ -369,7 +369,7 @@ class UpperBound:
 
 def one_forward_simulation(
     prior_model: Priors, model: dict[str, Any], targets: list[Target], seed: int
-) -> tuple[dict[Any,Any], tf.Tensor, dict[Any, Any], dict[Any,Any]]:
+) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any]]:
     """
     Run one forward simulation from prior samples to elicited statistics.
 
@@ -423,7 +423,7 @@ def get_expert_data(  # noqa: PLR0913
     parameters: list[Parameter],
     network: Optional[NFDict],
     seed: int,
-) -> tuple[Any,...]:
+) -> tuple[Any, ...]:
     """
     Load the training data
 
@@ -622,9 +622,7 @@ def load(file: str) -> Any:
 
 
 def parallel(
-        runs: int = 4,
-        cores: Optional[int] = None,
-        seeds: Optional[list[int]] = None
+    runs: int = 4, cores: Optional[int] = None, seeds: Optional[list[int]] = None
 ) -> Parallel:
     """
     Specify parallelization
@@ -871,7 +869,7 @@ def clean_savings(
     results: dict[str, Any],
     save_history: SaveHist,
     save_results: SaveResults,
-) -> tuple[dict[Any,Any], dict[Any,Any]]:
+) -> tuple[dict[Any, Any], dict[Any, Any]]:
     """
     clean-up result dictionaries
 

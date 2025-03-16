@@ -2,7 +2,7 @@
 Built-in loss functions
 """
 
-from typing import Optional, Union, Any
+from typing import Any, Optional, Union
 
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore

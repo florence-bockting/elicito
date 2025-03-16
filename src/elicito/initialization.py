@@ -18,7 +18,6 @@ from elicito.types import (
     Parameter,
     Target,
     Trainer,
-    Uniform,
 )
 
 tfd = tfp.distributions
@@ -197,7 +196,7 @@ def init_runs(  # noqa: PLR0913
     network: Optional[NFDict],
     expert: ExpertDict,
     seed: int,
-) -> tuple[Any,...]:
+) -> tuple[Any, ...]:
     """
     Compute the discrepancy between expert data and simulated data
 
@@ -251,8 +250,8 @@ def init_runs(  # noqa: PLR0913
         init_matrix = uniform_samples(
             seed=seed,
             hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
-            n_samples=initializer["iterations"], # type: ignore [arg-type]
-            method=initializer["method"], # type: ignore [arg-type]
+            n_samples=initializer["iterations"],  # type: ignore [arg-type]
+            method=initializer["method"],  # type: ignore [arg-type]
             mean=initializer["distribution"]["mean"],
             radius=initializer["distribution"]["radius"],
             parameters=parameters,
@@ -260,7 +259,7 @@ def init_runs(  # noqa: PLR0913
 
     print("Initialization")
 
-    for i in tqdm(range(initializer["iterations"])): # type: ignore [arg-type]
+    for i in tqdm(range(initializer["iterations"])):  # type: ignore [arg-type]
         # update seed
         seed_copy = seed_copy + 1
         # extract initial hyperparameter value for each run
@@ -309,7 +308,7 @@ def init_prior(  # noqa: PLR0913
     network: Optional[NFDict],
     expert: ExpertDict,
     seed: int,
-) -> tuple[Any,...]:
+) -> tuple[Any, ...]:
     """
     Extract target loss and initialize prior model from :func:`init_runs`.
 

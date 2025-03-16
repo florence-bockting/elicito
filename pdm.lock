@@ -5,7 +5,7 @@
 groups = ["default", "all-dev", "dev", "docs", "full", "pandas", "plots", "scipy", "tests", "tests-full", "tests-min"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:847858b3a8ef5b99e2221b30e3fa6f3a1f4fb81979207df4594d556ee2c0f6e7"
+content_hash = "sha256:cef53beaea0b2ac2363adf312075c3c80067b4d4e0e3c525becca25ce9e6781d"
 
 [[metadata.targets]]
 requires_python = ">=3.10,<3.11"
@@ -170,7 +170,7 @@ name = "contourpy"
 version = "1.3.1"
 requires_python = ">=3.10"
 summary = "Python library for calculating contours of 2D quadrilateral grids"
-groups = ["full", "plots"]
+groups = ["all-dev", "dev", "full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "numpy>=1.23",
@@ -246,7 +246,7 @@ name = "cycler"
 version = "0.12.1"
 requires_python = ">=3.8"
 summary = "Composable style cycles"
-groups = ["full", "plots"]
+groups = ["all-dev", "dev", "full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "cycler-0.12.1-py3-none-any.whl", hash = "sha256:85cef7cff222d8644161529808465972e51340599459b8ac3ccbac5a854e0d30"},
@@ -340,7 +340,7 @@ name = "fonttools"
 version = "4.56.0"
 requires_python = ">=3.8"
 summary = "Tools to manipulate font files"
-groups = ["full", "plots"]
+groups = ["all-dev", "dev", "full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "fonttools-4.56.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:331954d002dbf5e704c7f3756028e21db07097c19722569983ba4d74df014000"},
@@ -548,6 +548,21 @@ files = [
 ]
 
 [[package]]
+name = "joblib-stubs"
+version = "1.4.2.5.20240918"
+requires_python = ">=3.8"
+summary = "joblib stubs"
+groups = ["all-dev", "dev"]
+marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+dependencies = [
+    "typing-extensions>=4.4.0",
+]
+files = [
+    {file = "joblib_stubs-1.4.2.5.20240918-py3-none-any.whl", hash = "sha256:84df5e7b22955da9c9e4327b995ce6efb6b1d1c6e9e5b7b25eefb6516a554965"},
+    {file = "joblib_stubs-1.4.2.5.20240918.tar.gz", hash = "sha256:7434591e8144c79d0070153816c5cb3861a622069847300ca1f3e0d844840f62"},
+]
+
+[[package]]
 name = "keras"
 version = "2.15.0"
 requires_python = ">=3.8"
@@ -564,7 +579,7 @@ name = "kiwisolver"
 version = "1.4.8"
 requires_python = ">=3.10"
 summary = "A fast implementation of the Cassowary constraint solver"
-groups = ["full", "plots"]
+groups = ["all-dev", "dev", "full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "kiwisolver-1.4.8-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:88c6f252f6816a73b1f8c904f7bbe02fd67c09a69f7cb8a0eecdbf5ce78e63db"},
@@ -664,33 +679,33 @@ files = [
 
 [[package]]
 name = "matplotlib"
-version = "3.7.1"
-requires_python = ">=3.8"
+version = "3.10.1"
+requires_python = ">=3.10"
 summary = "Python plotting package"
-groups = ["full", "plots"]
+groups = ["all-dev", "dev", "full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "contourpy>=1.0.1",
     "cycler>=0.10",
     "fonttools>=4.22.0",
-    "importlib-resources>=3.2.0; python_version < \"3.10\"",
-    "kiwisolver>=1.0.1",
-    "numpy>=1.20",
+    "kiwisolver>=1.3.1",
+    "numpy>=1.23",
     "packaging>=20.0",
-    "pillow>=6.2.0",
+    "pillow>=8",
     "pyparsing>=2.3.1",
     "python-dateutil>=2.7",
 ]
 files = [
-    {file = "matplotlib-3.7.1-cp310-cp310-macosx_10_12_universal2.whl", hash = "sha256:95cbc13c1fc6844ab8812a525bbc237fa1470863ff3dace7352e910519e194b1"},
-    {file = "matplotlib-3.7.1-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:08308bae9e91aca1ec6fd6dda66237eef9f6294ddb17f0d0b3c863169bf82353"},
-    {file = "matplotlib-3.7.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:544764ba51900da4639c0f983b323d288f94f65f4024dc40ecb1542d74dc0500"},
-    {file = "matplotlib-3.7.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:56d94989191de3fcc4e002f93f7f1be5da476385dde410ddafbb70686acf00ea"},
-    {file = "matplotlib-3.7.1-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:e99bc9e65901bb9a7ce5e7bb24af03675cbd7c70b30ac670aa263240635999a4"},
-    {file = "matplotlib-3.7.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:eb7d248c34a341cd4c31a06fd34d64306624c8cd8d0def7abb08792a5abfd556"},
-    {file = "matplotlib-3.7.1-cp310-cp310-win32.whl", hash = "sha256:ce463ce590f3825b52e9fe5c19a3c6a69fd7675a39d589e8b5fbe772272b3a24"},
-    {file = "matplotlib-3.7.1-cp310-cp310-win_amd64.whl", hash = "sha256:3d7bc90727351fb841e4d8ae620d2d86d8ed92b50473cd2b42ce9186104ecbba"},
-    {file = "matplotlib-3.7.1.tar.gz", hash = "sha256:7b73305f25eab4541bd7ee0b96d87e53ae9c9f1823be5659b806cd85786fe882"},
+    {file = "matplotlib-3.10.1-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:ff2ae14910be903f4a24afdbb6d7d3a6c44da210fc7d42790b87aeac92238a16"},
+    {file = "matplotlib-3.10.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:0721a3fd3d5756ed593220a8b86808a36c5031fce489adb5b31ee6dbb47dd5b2"},
+    {file = "matplotlib-3.10.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d0673b4b8f131890eb3a1ad058d6e065fb3c6e71f160089b65f8515373394698"},
+    {file = "matplotlib-3.10.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8e875b95ac59a7908978fe307ecdbdd9a26af7fa0f33f474a27fcf8c99f64a19"},
+    {file = "matplotlib-3.10.1-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:2589659ea30726284c6c91037216f64a506a9822f8e50592d48ac16a2f29e044"},
+    {file = "matplotlib-3.10.1-cp310-cp310-win_amd64.whl", hash = "sha256:a97ff127f295817bc34517255c9db6e71de8eddaab7f837b7d341dee9f2f587f"},
+    {file = "matplotlib-3.10.1-pp310-pypy310_pp73-macosx_10_15_x86_64.whl", hash = "sha256:648406f1899f9a818cef8c0231b44dcfc4ff36f167101c3fd1c9151f24220fdc"},
+    {file = "matplotlib-3.10.1-pp310-pypy310_pp73-macosx_11_0_arm64.whl", hash = "sha256:02582304e352f40520727984a5a18f37e8187861f954fea9be7ef06569cf85b4"},
+    {file = "matplotlib-3.10.1-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d3809916157ba871bcdd33d3493acd7fe3037db5daa917ca6e77975a94cef779"},
+    {file = "matplotlib-3.10.1.tar.gz", hash = "sha256:e8d2d0e3881b129268585bf4765ad3ee73a4591d77b9a18c214ac7e3a79fb2ba"},
 ]
 
 [[package]]
@@ -979,7 +994,7 @@ name = "numpy"
 version = "1.26.4"
 requires_python = ">=3.9"
 summary = "Fundamental package for array computing in Python"
-groups = ["default", "full", "pandas", "plots", "scipy"]
+groups = ["default", "all-dev", "dev", "full", "pandas", "plots", "scipy"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "numpy-1.26.4-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:9ff0f4f29c51e2803569d7a51c2304de5554655a60c5d776e35b4a41413830d0"},
@@ -1022,7 +1037,7 @@ name = "packaging"
 version = "24.2"
 requires_python = ">=3.8"
 summary = "Core utilities for Python packages"
-groups = ["default", "all-dev", "docs", "full", "plots", "tests", "tests-full", "tests-min"]
+groups = ["default", "all-dev", "dev", "docs", "full", "plots", "tests", "tests-full", "tests-min"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "packaging-24.2-py3-none-any.whl", hash = "sha256:09abb1bccd265c01f4a3aa3f7a7db064b36514d2cba19a2f694fe6150451a759"},
@@ -1067,6 +1082,22 @@ files = [
 ]
 
 [[package]]
+name = "pandas-stubs"
+version = "2.2.3.250308"
+requires_python = ">=3.10"
+summary = "Type annotations for pandas"
+groups = ["all-dev", "dev"]
+marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+dependencies = [
+    "numpy>=1.23.5",
+    "types-pytz>=2022.1.1",
+]
+files = [
+    {file = "pandas_stubs-2.2.3.250308-py3-none-any.whl", hash = "sha256:a377edff3b61f8b268c82499fdbe7c00fdeed13235b8b71d6a1dc347aeddc74d"},
+    {file = "pandas_stubs-2.2.3.250308.tar.gz", hash = "sha256:3a6e9daf161f00b85c83772ed3d5cff9522028f07a94817472c07b91f46710fd"},
+]
+
+[[package]]
 name = "pathspec"
 version = "0.12.1"
 requires_python = ">=3.8"
@@ -1083,7 +1114,7 @@ name = "pillow"
 version = "11.1.0"
 requires_python = ">=3.9"
 summary = "Python Imaging Library (Fork)"
-groups = ["full", "plots"]
+groups = ["all-dev", "dev", "full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "pillow-11.1.0-cp310-cp310-macosx_10_10_x86_64.whl", hash = "sha256:e1abe69aca89514737465752b4bcaf8016de61b3be1397a8fc260ba33321b3a8"},
@@ -1239,7 +1270,7 @@ name = "pyparsing"
 version = "3.2.1"
 requires_python = ">=3.9"
 summary = "pyparsing module - Classes and methods to define and execute parsing grammars"
-groups = ["full", "plots"]
+groups = ["all-dev", "dev", "full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "pyparsing-3.2.1-py3-none-any.whl", hash = "sha256:506ff4f4386c4cec0590ec19e6302d3aedb992fdc02c761e90416f158dacf8e1"},
@@ -1287,7 +1318,7 @@ name = "python-dateutil"
 version = "2.9.0.post0"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 summary = "Extensions to the standard Python datetime module"
-groups = ["all-dev", "docs", "full", "pandas", "plots"]
+groups = ["all-dev", "dev", "docs", "full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "six>=1.5",
@@ -1514,7 +1545,7 @@ name = "six"
 version = "1.17.0"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 summary = "Python 2 and 3 compatibility utilities"
-groups = ["default", "all-dev", "docs", "full", "pandas", "plots"]
+groups = ["default", "all-dev", "dev", "docs", "full", "pandas", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"},
@@ -1714,6 +1745,94 @@ files = [
 ]
 
 [[package]]
+name = "types-protobuf"
+version = "5.29.1.20250315"
+requires_python = ">=3.9"
+summary = "Typing stubs for protobuf"
+groups = ["all-dev", "dev"]
+marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+files = [
+    {file = "types_protobuf-5.29.1.20250315-py3-none-any.whl", hash = "sha256:57efd51fd0979d1f5e1d94053d1e7cfff9c028e8d05b17e341b91a1c7fce37c4"},
+    {file = "types_protobuf-5.29.1.20250315.tar.gz", hash = "sha256:0b05bc34621d046de54b94fddd5f4eb3bf849fe2e13a50f8fb8e89f35045ff49"},
+]
+
+[[package]]
+name = "types-pytz"
+version = "2025.1.0.20250204"
+requires_python = ">=3.9"
+summary = "Typing stubs for pytz"
+groups = ["all-dev", "dev"]
+marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+files = [
+    {file = "types_pytz-2025.1.0.20250204-py3-none-any.whl", hash = "sha256:32ca4a35430e8b94f6603b35beb7f56c32260ddddd4f4bb305fdf8f92358b87e"},
+    {file = "types_pytz-2025.1.0.20250204.tar.gz", hash = "sha256:00f750132769f1c65a4f7240bc84f13985b4da774bd17dfbe5d9cd442746bd49"},
+]
+
+[[package]]
+name = "types-requests"
+version = "2.32.0.20250306"
+requires_python = ">=3.9"
+summary = "Typing stubs for requests"
+groups = ["all-dev", "dev"]
+marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+dependencies = [
+    "urllib3>=2",
+]
+files = [
+    {file = "types_requests-2.32.0.20250306-py3-none-any.whl", hash = "sha256:25f2cbb5c8710b2022f8bbee7b2b66f319ef14aeea2f35d80f18c9dbf3b60a0b"},
+    {file = "types_requests-2.32.0.20250306.tar.gz", hash = "sha256:0962352694ec5b2f95fda877ee60a159abdf84a0fc6fdace599f20acb41a03d1"},
+]
+
+[[package]]
+name = "types-seaborn"
+version = "0.13.2.20250111"
+requires_python = ">=3.9"
+summary = "Typing stubs for seaborn"
+groups = ["all-dev", "dev"]
+marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+dependencies = [
+    "matplotlib>=3.8",
+    "numpy>=1.20",
+    "pandas-stubs",
+]
+files = [
+    {file = "types_seaborn-0.13.2.20250111-py3-none-any.whl", hash = "sha256:dd7530b9b5218ef7233380eddc70db8ddea08225c808e9580ec9f1daf1fbc688"},
+    {file = "types_seaborn-0.13.2.20250111.tar.gz", hash = "sha256:27e557d48614fc0f150d24fc7d4e31957be5cf1432ec7776976005e79413da7d"},
+]
+
+[[package]]
+name = "types-tensorflow"
+version = "2.18.0.20250304"
+requires_python = ">=3.9"
+summary = "Typing stubs for tensorflow"
+groups = ["all-dev", "dev"]
+marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+dependencies = [
+    "numpy>=1.20",
+    "types-protobuf",
+    "types-requests",
+]
+files = [
+    {file = "types_tensorflow-2.18.0.20250304-py3-none-any.whl", hash = "sha256:cc38b8ea0491eb3a5196b1a30455a5d87d3df091465a3592c64c2f8ea2522a12"},
+    {file = "types_tensorflow-2.18.0.20250304.tar.gz", hash = "sha256:2637f92a1cd01489179323f386024facbcef357bfb6122b70e3d34cd7fc44eb4"},
+]
+
+[[package]]
+name = "types-tqdm"
+version = "4.67.0.20250301"
+requires_python = ">=3.9"
+summary = "Typing stubs for tqdm"
+groups = ["all-dev", "dev"]
+marker = "python_version >= \"3.10\" and python_version < \"3.11\""
+dependencies = [
+    "types-requests",
+]
+files = [
+    {file = "types_tqdm-4.67.0.20250301-py3-none-any.whl", hash = "sha256:8af97deb8e6874af833555dc1fe0fcd456b1a789470bf6cd8813d4e7ee4f6c5b"},
+    {file = "types_tqdm-4.67.0.20250301.tar.gz", hash = "sha256:5e89a38ad89b867823368eb97d9f90d2fc69806bb055dde62716a05da62b5e0d"},
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.12.2"
 requires_python = ">=3.8"
@@ -1742,7 +1861,7 @@ name = "urllib3"
 version = "2.3.0"
 requires_python = ">=3.9"
 summary = "HTTP library with thread-safe connection pooling, file post, and more."
-groups = ["default", "all-dev", "docs"]
+groups = ["default", "all-dev", "dev", "docs"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 files = [
     {file = "urllib3-2.3.0-py3-none-any.whl", hash = "sha256:1cee9ad369867bfdbbb48b7dd50374c0967a0bb7710050facf0dd6911440e3df"},
