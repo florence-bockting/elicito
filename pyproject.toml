@@ -1,6 +1,6 @@
 [project]
 name = "elicito"
-version = "0.5.13a1"
+version = "0.5.13"
 description = "A Python package for learning prior distributions based on expert knowledge"
 authors = [
     { name = "Florence Bockting", email = "florence.bockting@tu-dortmund.de" },
