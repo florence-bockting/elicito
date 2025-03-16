@@ -15,7 +15,7 @@ from elicito import (
     types,
     utils,
 )
-from elicito.elicit import *
+from elicito.elicit import Elicit, parameter, target
 
 __version__ = importlib.metadata.version("elicito")
 

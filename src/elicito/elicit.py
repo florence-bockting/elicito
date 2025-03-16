@@ -400,7 +400,7 @@ def model(obj: Callable, **kwargs) -> dict[str, Any]:
 
     generator_dict = dict(obj=obj)
 
-    for key in kwargs:
+    for key in kwargs:  # noqa: PLC0206
         generator_dict[key] = kwargs[key]
 
     return generator_dict
@@ -742,7 +742,7 @@ def optimizer(
 
     optimizer_dict = dict(optimizer=optimizer)
 
-    for key in kwargs:
+    for key in kwargs:  # noqa: PLC0206
         optimizer_dict[key] = kwargs[key]
 
     return optimizer_dict
@@ -1394,7 +1394,7 @@ class Elicit:
                 )
                 raise ValueError(msg)
 
-        for key in kwargs:
+        for key in kwargs:  # noqa: PLC0206
             setattr(self, key, kwargs[key])
             # reset results
             self.results: list = list()
