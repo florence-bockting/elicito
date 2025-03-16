@@ -49,7 +49,7 @@ def save_as_pkl(obj: Any, save_dir: str) -> None:
 
     Examples
     --------
-    >>> save_as_pkl(obj, "results/file.pkl")
+    >>> save_as_pkl(obj, "results/file.pkl")  # doctest: +SKIP
 
     """
     # if directory does not exist, create it

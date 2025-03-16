@@ -267,11 +267,11 @@ def parameter(
 
     Examples
     --------
-    >>> el.parameter(name="beta0",
-    >>>              family=tfd.Normal,
-    >>>              hyperparams=dict(loc=el.hyper("mu0"),
-    >>>                               scale=el.hyper("sigma0", lower=0)
-    >>>                               )
+    >>> el.parameter(name="beta0",  # doctest: +Skip
+    >>>              family=tfd.Normal,  # doctest: +SKIP
+    >>>              hyperparams=dict(loc=el.hyper("mu0"),  # doctest: +SKIP
+    >>>                               scale=el.hyper("sigma0", lower=0)  # doctest: +SKIP
+    >>>                               )  # doctest: +SKIP
     >>>              )  # doctest: +SKIP
 
     """  # noqa: E501
@@ -354,27 +354,28 @@ def model(obj: Callable, **kwargs) -> dict[str, Any]:
     Examples
     --------
     >>> # specify the generative model class
-    >>> class ToyModel:
-    >>>     def __call__(self, prior_samples, design_matrix):
+    >>> class ToyModel:  # doctest: +SKIP
+    >>>     def __call__(self, prior_samples, design_matrix):  # doctest: +SKIP
     >>> # linear predictor
-    >>>         epred = tf.matmul(prior_samples, design_matrix,
-    >>>                           transpose_b=True)
+    >>>         epred = tf.matmul(prior_samples, design_matrix,  # doctest: +SKIP
+    >>>                           transpose_b=True)  # doctest: +SKIP
     >>> # data-generating model
-    >>>         likelihood = tfd.Normal(
-    >>>             loc=epred, scale=tf.expand_dims(prior_samples[:, :, -1], -1)
-    >>>             )
+    >>>         likelihood = tfd.Normal(  # doctest: +SKIP
+    >>>             loc=epred,  # doctest: +SKIP
+    >>>             scale=tf.expand_dims(prior_samples[:, :, -1], -1)  # doctest: +SKIP
+    >>>             )  # doctest: +SKIP
     >>> # prior predictive distribution
-    >>>         ypred = likelihood.sample()
+    >>>         ypred = likelihood.sample()  # doctest: +SKIP
     >>>
-    >>>         return dict(
-    >>>             likelihood=likelihood,
-    >>>             ypred=ypred, epred=epred,
-    >>>             prior_samples=prior_samples
+    >>>         return dict(  # doctest: +SKIP
+    >>>             likelihood=likelihood,  # doctest: +SKIP
+    >>>             ypred=ypred, epred=epred,  # doctest: +SKIP
+    >>>             prior_samples=prior_samples  # doctest: +SKIP
     >>>             )  # doctest: +SKIP
 
     >>> # specify the model category in the elicit object
-    >>> el.model(obj=ToyModel,
-    >>>          design_matrix=design_matrix
+    >>> el.model(obj=ToyModel,  # doctest: +SKIP
+    >>>          design_matrix=design_matrix  # doctest: +SKIP
     >>>          )  # doctest: +SKIP
     """
     # get input arguments of generative model class
@@ -548,16 +549,17 @@ def target(
 
     Examples
     --------
-    >>> el.target(name="y_X0",
-    >>>           query=el.queries.quantiles((.05, .25, .50, .75, .95)),
-    >>>           loss=el.losses.MMD2(kernel="energy"),
-    >>>           weight=1.0
+    >>> el.target(name="y_X0",  # doctest: +SKIP
+    >>>           query=el.queries.quantiles(  # doctest: +SKIP
+    >>>                 (.05, .25, .50, .75, .95)),  # doctest: +SKIP
+    >>>           loss=el.losses.MMD2(kernel="energy"),  # doctest: +SKIP
+    >>>           weight=1.0  # doctest: +SKIP
     >>>           )  # doctest: +SKIP
 
-    >>> el.target(name="correlation",
-    >>>           query=el.queries.correlation(),
-    >>>           loss=el.losses.L2,
-    >>>           weight=1.0
+    >>> el.target(name="correlation",  # doctest: +SKIP
+    >>>           query=el.queries.correlation(),  # doctest: +SKIP
+    >>>           loss=el.losses.L2,  # doctest: +SKIP
+    >>>           weight=1.0  # doctest: +SKIP
     >>>           )  # doctest: +SKIP
     """
     # create instance of loss class
@@ -597,11 +599,11 @@ class Expert:
 
         Examples
         --------
-        >>> expert_dat = {
-        >>>     "quantiles_y_X0": [-12.55, -0.57, 3.29, 7.14, 19.15],
-        >>>     "quantiles_y_X1": [-11.18, 1.45, 5.06, 8.83, 20.42],
-        >>>     "quantiles_y_X2": [-9.28, 3.09, 6.83, 10.55, 23.29]
-        >>> }
+        >>> expert_dat = {  # doctest: +SKIP
+        >>>     "quantiles_y_X0": [-12.55, -0.57, 3.29, 7.14, 19.15],  # doctest: +SKIP
+        >>>     "quantiles_y_X1": [-11.18, 1.45, 5.06, 8.83, 20.42],  # doctest: +SKIP
+        >>>     "quantiles_y_X2": [-9.28, 3.09, 6.83, 10.55, 23.29]  # doctest: +SKIP
+        >>> }  # doctest: +SKIP
         """
         # Note: check for correct expert data format is done in Elicit class
         dat_prep = {
@@ -648,29 +650,30 @@ class Expert:
 
         Examples
         --------
-        >>> el.expert.simulator(
-        >>>     ground_truth = {
-        >>>         "beta0": tfd.Normal(loc=5, scale=1),
-        >>>         "beta1": tfd.Normal(loc=2, scale=1),
-        >>>         "sigma": tfd.HalfNormal(scale=10.0),
-        >>>     },
-        >>>     num_samples = 10_000
+        >>> el.expert.simulator(  # doctest: +SKIP
+        >>>     ground_truth = {  # doctest: +SKIP
+        >>>         "beta0": tfd.Normal(loc=5, scale=1),  # doctest: +SKIP
+        >>>         "beta1": tfd.Normal(loc=2, scale=1),  # doctest: +SKIP
+        >>>         "sigma": tfd.HalfNormal(scale=10.0),  # doctest: +SKIP
+        >>>     },  # doctest: +SKIP
+        >>>     num_samples = 10_000  # doctest: +SKIP
         >>> )  # doctest: +SKIP
 
-        >>> el.expert.simulator(
-        >>>     ground_truth = {
-        >>>         "betas": tfd.MultivariateNormalDiag([5.,2.], [1.,1.]),
-        >>>         "sigma": tfd.HalfNormal(scale=10.0),
-        >>>     },
-        >>>     num_samples = 10_000
+        >>> el.expert.simulator(  # doctest: +SKIP
+        >>>     ground_truth = {  # doctest: +SKIP
+        >>>         "betas": tfd.MultivariateNormalDiag(  # doctest: +SKIP
+        >>>                 [5.,2.], [1.,1.]),  # doctest: +SKIP
+        >>>         "sigma": tfd.HalfNormal(scale=10.0),  # doctest: +SKIP
+        >>>     },  # doctest: +SKIP
+        >>>     num_samples = 10_000  # doctest: +SKIP
         >>> )  # doctest: +SKIP
 
-        >>> el.expert.simulator(
-        >>>     ground_truth = {
-        >>>         "thetas": tfd.MultivariateNormalDiag([5.,2.,1.],
-        >>>                                              [1.,1.,1.]),
-        >>>     },
-        >>>     num_samples = 10_000
+        >>> el.expert.simulator(  # doctest: +SKIP
+        >>>     ground_truth = {  # doctest: +SKIP
+        >>>         "thetas": tfd.MultivariateNormalDiag([5.,2.,1.],  # doctest: +SKIP
+        >>>                                              [1.,1.,1.]),  # doctest: +SKIP
+        >>>     },  # doctest: +SKIP
+        >>>     num_samples = 10_000  # doctest: +SKIP
         >>> )  # doctest: +SKIP
         """
         # Note: check whether dimensionality of ground truth and number of
@@ -715,10 +718,10 @@ def optimizer(
 
     Examples
     --------
-    >>> optimizer=el.optimizer(
-    >>>     optimizer=tf.keras.optimizers.Adam,
-    >>>     learning_rate=0.1,
-    >>>     clipnorm=1.0
+    >>> optimizer=el.optimizer(  # doctest: +SKIP
+    >>>     optimizer=tf.keras.optimizers.Adam,  # doctest: +SKIP
+    >>>     learning_rate=0.1,  # doctest: +SKIP
+    >>>     clipnorm=1.0  # doctest: +SKIP
     >>> )  # doctest: +SKIP
     """  # noqa: E501
     # check whether optimizer is a tf.keras.optimizers object
@@ -809,22 +812,24 @@ def initializer(
 
     Examples
     --------
-    >>> el.initializer(
-    >>>     method="lhs",
-    >>>     loss_quantile=0,
-    >>>     iterations=32,
-    >>>     distribution=el.initialization.uniform(
-    >>>         radius=1,
-    >>>         mean=0
-    >>>         )
+    >>> el.initializer(  # doctest: +SKIP
+    >>>     method="lhs",  # doctest: +SKIP
+    >>>     loss_quantile=0,  # doctest: +SKIP
+    >>>     iterations=32,  # doctest: +SKIP
+    >>>     distribution=el.initialization.uniform(  # doctest: +SKIP
+    >>>         radius=1,  # doctest: +SKIP
+    >>>         mean=0   # doctest: +SKIP
+    >>>         )  # doctest: +SKIP
     >>>     )  # doctest: +SKIP
 
-    >>> el.initializer(
-    >>>     hyperparams = dict(
-    >>>         mu0=0., sigma0=el.utils.LowerBound(lower=0.).forward(0.3),
-    >>>         mu1=1., sigma1=el.utils.LowerBound(lower=0.).forward(0.5),
-    >>>         sigma2=el.utils.LowerBound(lower=0.).forward(0.4)
-    >>>         )
+    >>> el.initializer(  # doctest: +SKIP
+    >>>     hyperparams = dict(  # doctest: +SKIP
+    >>>         mu0=0.,  # doctest: +SKIP
+    >>>         sigma0=el.utils.LowerBound(lower=0.).forward(0.3),  # doctest: +SKIP
+    >>>         mu1=1.,  # doctest: +SKIP
+    >>>         sigma1=el.utils.LowerBound(lower=0.).forward(0.5),  # doctest: +SKIP
+    >>>         sigma2=el.utils.LowerBound(lower=0.).forward(0.4)  # doctest: +SKIP
+    >>>         )  # doctest: +SKIP
     >>>     )  # doctest: +SKIP
     """
     # check that method is implemented
@@ -925,12 +930,12 @@ def trainer(
 
     Examples
     --------
-    >>> el.trainer(
-    >>>     method="parametric_prior",
-    >>>     seed=0,
-    >>>     epochs=400,
-    >>>     B=128,
-    >>>     num_samples=200
+    >>> el.trainer(  # doctest: +SKIP
+    >>>     method="parametric_prior",  # doctest: +SKIP
+    >>>     seed=0,  # doctest: +SKIP
+    >>>     epochs=400,  # doctest: +SKIP
+    >>>     B=128,  # doctest: +SKIP
+    >>>     num_samples=200  # doctest: +SKIP
     >>> )  # doctest: +SKIP
     """
     # check that epochs are positive numbers

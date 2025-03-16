@@ -28,9 +28,9 @@ def initialization(eliobj, cols: int = 4, **kwargs) -> None:
 
     Examples
     --------
-    >>> el.plots.initialization(eliobj, cols=6)
+    >>> el.plots.initialization(eliobj, cols=6)  # doctest: +SKIP
 
-    >>> el.plots.initialization(eliobj, cols=4, figsize=(8, 3))
+    >>> el.plots.initialization(eliobj, cols=4, figsize=(8, 3))  # doctest: +SKIP
 
     Raises
     ------
@@ -150,7 +150,7 @@ def loss(  # noqa: PLR0912
 
     Examples
     --------
-    >>> el.plots.loss(eliobj, figsize=(8, 3))
+    >>> el.plots.loss(eliobj, figsize=(8, 3))  # doctest: +SKIP
 
     Raises
     ------
@@ -259,7 +259,7 @@ def hyperparameter(eliobj, cols: int = 4, **kwargs) -> None:
 
     Examples
     --------
-    >>> el.plots.hyperparameter(eliobj, figuresize=(8, 3))
+    >>> el.plots.hyperparameter(eliobj, figuresize=(8, 3))  # doctest: +SKIP
 
     Raises
     ------
@@ -366,7 +366,7 @@ def prior_joint(eliobj, idx: Optional[Union[int, list]] = None, **kwargs) -> Non
 
     Examples
     --------
-    >>> el.plots.prior_joint(eliobj, figsize=(4, 4))
+    >>> el.plots.prior_joint(eliobj, figsize=(4, 4))  # doctest: +SKIP
 
     Raises
     ------
@@ -476,7 +476,7 @@ def prior_marginals(  # noqa: PLR0912
 
     Examples
     --------
-    >>> el.plots.prior_marginals(eliobj, figuresize=(8, 3))
+    >>> el.plots.prior_marginals(eliobj, figuresize=(8, 3))  # doctest: +SKIP
 
     Raises
     ------
@@ -581,7 +581,7 @@ def elicits(  # noqa: PLR0912, PLR0915
 
     Examples
     --------
-    >>> el.plots.elicits(eliobj, cols=4, figsize=(7, 3))
+    >>> el.plots.elicits(eliobj, cols=4, figsize=(7, 3))  # doctest: +SKIP
 
     Raises
     ------
@@ -762,7 +762,7 @@ def marginals(eliobj, cols: int = 4, span: int = 30, **kwargs) -> None:
 
     Examples
     --------
-    >>> el.plots.marginals(eliobj, figuresize=(8, 3))
+    >>> el.plots.marginals(eliobj, figuresize=(8, 3))  # doctest: +SKIP
 
     Raises
     ------
@@ -850,7 +850,7 @@ def priorpredictive(eliobj, **kwargs) -> None:
 
     Examples
     --------
-    >>> el.plots.priorpredictive(eliobj, figuresize=(6, 2))
+    >>> el.plots.priorpredictive(eliobj, figuresize=(6, 2))  # doctest: +SKIP
 
     Raises
     ------

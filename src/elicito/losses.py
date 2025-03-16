@@ -231,9 +231,9 @@ class MMD2:
 
         Examples
         --------
-        >>> el.losses.MMD2(kernel="energy")
+        >>> el.losses.MMD2(kernel="energy")  # doctest: +SKIP
 
-        >>> el.losses.MMD2(kernel="gaussian", sigma=1.0)
+        >>> el.losses.MMD2(kernel="gaussian", sigma=1.0)  # doctest: +SKIP
 
         """
         # ensure that all additionally, required arguments are provided for
