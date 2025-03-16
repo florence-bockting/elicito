@@ -159,9 +159,9 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
 
         # initialize sampler
         if method == "sobol":
-            sampler = qmc.Sobol(d=1, seed=seed)  # type: ignore
+            sampler = qmc.Sobol(d=1, seed=seed)
         elif method == "lhs":
-            sampler = qmc.LatinHypercube(d=1, seed=seed)  # type: ignore
+            sampler = qmc.LatinHypercube(d=1, seed=seed)
 
         for i, j, n in zip(mean, radius, hyppar):
             i_casted = tf.cast(i, tf.float32)
@@ -364,11 +364,16 @@ def init_prior(  # noqa: PLR0913
             # extract pre-specified quantile loss out of all runs
             # get corresponding set of initial values
             loss_quantile = initializer["loss_quantile"]
-            index = tf.squeeze(
-                tf.where(loss_list == tfp.stats.percentile(loss_list, [loss_quantile]))
+            index = tf.cast(
+                tf.squeeze(
+                    tf.where(
+                        loss_list == tfp.stats.percentile(loss_list, [loss_quantile])
+                    )
+                ),
+                tf.int32,
             )
 
-            init_prior_model = init_prior[index.numpy()]
+            init_prior_model = init_prior[int(index)]
         else:
             # prepare generative model
             init_prior_model = el.simulations.Priors(
