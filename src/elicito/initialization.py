@@ -349,7 +349,7 @@ def init_prior(  # noqa: PLR0913
     """
     if trainer["method"] == "parametric_prior" and initializer is not None:
         if initializer["hyperparams"] is None:
-            loss_list, init_prior, init_matrix = init_runs(
+            (loss_list, init_prior, init_matrix) = init_runs(
                 expert_elicited_statistics=expert_elicited_statistics,
                 initializer=initializer,
                 parameters=parameters,
@@ -368,7 +368,7 @@ def init_prior(  # noqa: PLR0913
                 tf.where(loss_list == tfp.stats.percentile(loss_list, [loss_quantile]))
             )
 
-            init_prior_model = init_prior[int(index)]
+            init_prior_model = init_prior[index.numpy()]
         else:
             # prepare generative model
             init_prior_model = el.simulations.Priors(

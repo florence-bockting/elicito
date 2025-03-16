@@ -82,7 +82,7 @@ dev = [
     "types-tensorflow>=2.18.0",
     "types-seaborn>=0.13.2",
     "types-tqdm>=4.67.0",
-    #"scipy-stubs>=1.14",
+    "scipy-stubs>=1.14.1; python_full_version >= '3.10'",
     "joblib-stubs>=1.4.2",
     # Required for liccheck, see https://github.com/dhatim/python-license-check/pull/113
     "pip==24.3.1",
