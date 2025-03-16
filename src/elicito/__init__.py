@@ -15,21 +15,39 @@ from elicito import (
     types,
     utils,
 )
-from elicito.elicit import Elicit, parameter, target
+from elicito.elicit import (
+    Elicit,
+    expert,
+    hyper,
+    initializer,
+    model,
+    optimizer,
+    parameter,
+    queries,
+    target,
+    trainer,
+)
 
 __version__ = importlib.metadata.version("elicito")
 
 __all__ = [
     "Elicit",
+    "expert",
+    "hyper",
     "initialization",
+    "initializer",
     "losses",
+    "model",
     "networks",
     "optimization",
+    "optimizer",
     "parameter",
     "plots",
+    "queries",
     "simulations",
     "target",
     "targets",
+    "trainer",
     "types",
     "utils",
 ]
