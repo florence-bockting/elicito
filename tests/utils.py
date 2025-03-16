@@ -4,7 +4,7 @@ helper functions for tests
 
 import numpy as np
 import tensorflow as tf
-import tensorflow_probability as tfp
+import tensorflow_probability as tfp  # type: ignore
 
 import elicito as el
 

@@ -70,7 +70,7 @@ full = [
 # to give a consistent starting point when using this template.
 # They should be removed/updated/changed/loosened as suits your project.
 # (As soon as you have a lock file, you can remove all of the implied dependencies.)
-# (This is a workaround for the fact
+# (This is a workaround for the factp,
 # that we can't easily include the lock file in the copier template
 # because of how locking works and the order of operations).
 dev = [
@@ -78,6 +78,12 @@ dev = [
     # ----------------
     "liccheck==0.9.2",
     "mypy==1.14.0",
+    # Required for type-checking
+    "types-tensorflow==2.18.0",
+    "types-seaborn==0.13.2",
+    "types-tqdm==4.67.0",
+    "scipy-stubs==1.15.2",
+    "joblib-stubs==1.4.2",
     # Required for liccheck, see https://github.com/dhatim/python-license-check/pull/113
     "pip==24.3.1",
     "pre-commit==4.0.1",

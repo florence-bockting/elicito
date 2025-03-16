@@ -3,10 +3,10 @@ Simulations from prior and model
 """
 
 import inspect
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, Any
 
 import tensorflow as tf
-import tensorflow_probability as tfp
+import tensorflow_probability as tfp  # type: ignore
 
 from elicito.types import ExpertDict, NFDict, Parameter, Trainer
 
@@ -61,7 +61,8 @@ class Priors(tf.Module):
         self.parameters = parameters
         self.network = network
         self.expert = expert
-
+        # initialize new attribute
+        self.init_priors: Union[None, dict[str, tf.Tensor]]
         # set seed
         tf.random.set_seed(seed)
         # initialize hyperparameter for learning (if true hyperparameter
@@ -77,7 +78,7 @@ class Priors(tf.Module):
         else:
             self.init_priors = None
 
-    def __call__(self) -> tf.Tensor:  # shape=[B,num_samples,num_params]
+    def __call__(self) -> Any:  # shape=[B,num_samples,num_params]
         """
         Sample from the initialized prior distribution(s).
 
@@ -148,58 +149,63 @@ def intialize_priors(
         hp_keys = list()
         param_names = list()
         hp_names = list()
-        initialized_hyperparam = dict()
+        initialized_hyperparam: dict[str, Any] = dict()
 
         for i in range(len(parameters)):
             hyperparameter = parameters[i]["hyperparams"]
-            num_hyperpar = len(hyperparameter)
+            if hyperparameter is not None:
+                num_hyperpar = len(hyperparameter)
 
-            hyp_dict[f"param{i}"] = hyperparameter
-            param_names += [parameters[i]["name"]] * num_hyperpar
-            hp_keys += list(hyperparameter.keys())
-            for j in range(num_hyperpar):
-                current_key = list(hyperparameter.keys())[j]
-                hp_names.append(hyperparameter[current_key]["name"])
+                hyp_dict[f"param{i}"] = hyperparameter
+                param_names += [parameters[i]["name"]] * num_hyperpar
+                hp_keys += list(hyperparameter.keys())
+                for j in range(num_hyperpar):
+                    current_key = list(hyperparameter.keys())[j]
+                    hp_names.append(hyperparameter[current_key]["name"])
 
         checked_params = list()
         for j, (i, hp_n, hp_k) in enumerate(
             zip(tf.unique(param_names).idx, hp_names, hp_keys)
         ):
-            hp_dict = parameters[i]["hyperparams"][hp_k]
+            if parameters[i]["hyperparams"] is not None:
+                hp_dict = parameters[i]["hyperparams"][hp_k]  # type: ignore [index]
 
-            if hp_dict["shared"] and hp_dict["name"] in checked_params:
-                pass
-            else:
-                # get initial value
-                initial_value = float(init_matrix_slice[hp_n])
-                # initialize hyperparameter
-                initialized_hyperparam[f"{hp_k}_{hp_n}"] = tf.Variable(
-                    initial_value=initial_value,
-                    trainable=True,
-                    name=f"{hp_dict['constraint_name']}.{hp_n}",
-                )
+            if hp_dict is not None:
+                if hp_dict["shared"] and hp_dict["name"] in checked_params:
+                    pass
+                else:
+                    # get initial value
+                    if init_matrix_slice is not None:
+                        initial_value: Any = float(init_matrix_slice[hp_n])
+                    # initialize hyperparameter
+                    initialized_hyperparam[f"{hp_k}_{hp_n}"] = tf.Variable(
+                        initial_value=initial_value,
+                        trainable=True,
+                        name=f"{hp_dict['constraint_name']}.{hp_n}",
+                    )
 
-                # save initialized priors
-                init_prior = initialized_hyperparam
+                    # save initialized priors
+                    init_prior = initialized_hyperparam
 
-            if hp_dict["shared"]:
-                checked_params.append(hp_n)
+                if hp_dict["shared"]:
+                    checked_params.append(hp_n)
 
     if method == "deep_prior":
         # for more information see BayesFlow documentation
         # https://bayesflow.org/api/bayesflow.inference_networks.html
-        INN = network["inference_network"]
+        if network is not None:
+            INN = network["inference_network"]
 
-        invertible_neural_network = INN(**network["network_specs"])
+            invertible_neural_network = INN(**network["network_specs"])  # type: ignore [call-arg]
 
-        # save initialized priors
-        init_prior = invertible_neural_network
+            # save initialized priors
+            init_prior = invertible_neural_network
 
     return init_prior
 
 
 def sample_from_priors(  # noqa: PLR0913
-    initialized_priors: Union[dict[str, tf.Variable], Callable],
+    initialized_priors: Union[None, dict[str, tf.Tensor], Callable[[Any], Any]],
     ground_truth: bool,
     num_samples: int,
     B: int,
@@ -208,7 +214,7 @@ def sample_from_priors(  # noqa: PLR0913
     parameters: list[Parameter],
     network: Optional[NFDict],
     expert: ExpertDict,
-) -> tf.Tensor:  # shape=[B,num_samples,num_params]
+) -> Any:  # shape=[B,num_samples,num_params]
     """
     Sample from initialized prior distributions.
 
@@ -272,14 +278,14 @@ def sample_from_priors(  # noqa: PLR0913
             # get the prior distribution family as specified by the user
             prior_family = parameters[i]["family"]
 
-            hp_k = list(parameters[i]["hyperparams"].keys())
+            hp_k = list(parameters[i]["hyperparams"].keys())  # type: ignore [union-attr]
             init_dict = {}
             for k in hp_k:
-                hp_n = parameters[i]["hyperparams"][k]["name"]
-                hp_constraint = parameters[i]["hyperparams"][k]["constraint"]
+                hp_n = parameters[i]["hyperparams"][k]["name"]  # type: ignore [index]
+                hp_constraint = parameters[i]["hyperparams"][k]["constraint"]  # type: ignore [index]
                 init_key = f"{k}_{hp_n}"
                 # init_dict[f"{k}"]=initialized_priors[init_key]
-                init_dict[f"{k}"] = hp_constraint(initialized_priors[init_key])
+                init_dict[f"{k}"] = hp_constraint(initialized_priors[init_key])  # type: ignore
             # sample from the prior distribution
             priors.append(prior_family(**init_dict).sample((B, num_samples)))
         # stack all prior distributions into one tf.Tensor of
@@ -289,13 +295,13 @@ def sample_from_priors(  # noqa: PLR0913
         else:
             prior_samples = tf.concat(priors, axis=-1)
 
-    if (method == "deep_prior") and (not ground_truth):
+    if (method == "deep_prior") and (not ground_truth) and initialized_priors is not None:
         # initialize base distribution
-        base_dist = network["base_distribution"](num_params=len(parameters))
+        base_dist = network["base_distribution"](num_params=len(parameters))  # type: ignore
         # sample from base distribution
         u = base_dist.sample((B, num_samples))
         # apply transformation function to samples from base distr.
-        (unconstr_priors, _) = initialized_priors(u, condition=None, inverse=False)
+        (unconstr_priors, _) = initialized_priors(u, condition=None, inverse=False) # type: ignore
         # apply parameter constraints if specified
         constr_priors = []
         for j in range(len(parameters)):
@@ -308,8 +314,8 @@ def sample_from_priors(  # noqa: PLR0913
 def simulate_from_generator(
     prior_samples: tf.Tensor,
     seed: int,
-    model: dict,  # shape=[B,num_samples,num_params]
-) -> dict[str, tf.Tensor]:
+    model: dict[str, Any],  # shape=[B,num_samples,num_params]
+) -> Any:
     """
     Simulate data from the specified generative model.
 
@@ -337,7 +343,7 @@ def simulate_from_generator(
     add_model_args = model.copy()
     add_model_args.pop("obj")
     # simulate from generator
-    if add_model_args is None:
+    if len(add_model_args) < 1:
         model_simulations = generative_model(prior_samples)
     elif "kwargs" not in inspect.getfullargspec(GenerativeModel.__call__)[0]:
         model_simulations = generative_model(prior_samples, **add_model_args)

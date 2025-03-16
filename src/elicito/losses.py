@@ -2,10 +2,10 @@
 Built-in loss functions
 """
 
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import tensorflow as tf
-import tensorflow_probability as tfp
+import tensorflow_probability as tfp  # type: ignore
 
 from elicito.types import Target
 
@@ -42,7 +42,7 @@ def preprocess(elicited_statistics: dict[str, tf.Tensor]) -> dict[str, tf.Tensor
     # prepare dictionary for storing results
     preprocessed_elicits = dict()
     # initialize some helpers for keeping track of target quantity
-    target_control = []
+    target_control: list[str] = []
     i_target = 0
     eval_target = True
     # loop over elicited statistics
@@ -80,7 +80,7 @@ def indiv_loss(
     elicit_expert: dict[str, tf.Tensor],  # tensor shape: [1,num_stats]
     elicit_training: dict[str, tf.Tensor],  # tensor shape: [B,num_stats]
     targets: list[Target],
-) -> list[tf.Tensor]:  # tensor shape: []
+) -> list[float]:
     """
     Compute the individual loss between expert data and model-simulated data.
 
@@ -113,7 +113,7 @@ def indiv_loss(
             shape=(elicit_training[name].shape[0], elicit_expert[name].shape[1]),
         )
         # compute loss
-        indiv_loss = loss_function(elicit_expert_brdcst, elicit_training[name])
+        indiv_loss = loss_function(elicit_expert_brdcst, elicit_training[name])  # type: ignore [call-arg]
         indiv_losses.append(indiv_loss)
 
     return indiv_losses
@@ -125,7 +125,7 @@ def total_loss(
     targets: list[Target],
 ) -> tuple[
     tf.Tensor,
-    list[tf.Tensor],
+    list[float],
     dict[str, tf.Tensor],
     dict[str, tf.Tensor],
 ]:  # shape: [B,num_stats]
@@ -166,7 +166,7 @@ def total_loss(
     # compute weighted average across individual losses to get the final loss
     # TODO: check whether order of loss_per_component and target quantities
     # is equivalent!
-    loss: float = 0.0
+    loss: tf.Tensor = tf.zeros((1,))
     for i in range(len(targets)):
         loss += tf.multiply(individual_losses[i], targets[i]["weight"])
 
@@ -207,7 +207,7 @@ class MMD2:
     Maximum mean discrepancy loss
     """
 
-    def __init__(self, kernel: str = "energy", **kwargs):
+    def __init__(self, kernel: str = "energy", **kwargs: dict[Any, Any]):
         """
         Compute the biased, squared maximum mean discrepancy
 
@@ -239,17 +239,21 @@ class MMD2:
         # ensure that all additionally, required arguments are provided for
         # the respective kernel
         if (kernel == "gaussian") and ("sigma" not in list(kwargs.keys())):
-            msg = (
+            msg1: tuple[str, str] = (
                 "You need to pass a 'sigma' argument when using a gaussian",
                 "kernel in the MMD loss",
             )
-            raise ValueError(msg)
-            self.sigma = kwargs["sigma"]
+            raise ValueError(msg1)
+
         # ensure correct kernel specification
         if kernel not in ["energy", "gaussian"]:
-            msg = "'kernel' must be either 'energy' or 'gaussian' kernel."
-            raise ValueError(msg)
+            msg2: tuple[str] = (
+                "'kernel' must be either 'energy' or 'gaussian' kernel.",
+            )
+            raise ValueError(msg2)
 
+        if kernel == "gaussian":
+            self.sigma: Any = kwargs["sigma"]
         self.kernel_name = kernel
 
     def __call__(
@@ -310,7 +314,7 @@ class MMD2:
     def clip(
         self,
         u: tf.Tensor,  # shape: [B, num_stats, num_stats]
-    ) -> tf.Tensor:  # shape: [B, num_stats, num_stats]
+    ) -> Any:  # shape: [B, num_stats, num_stats]
         """
         Upper and lower clipping of value `u` to improve numerical stability
 
@@ -331,7 +335,7 @@ class MMD2:
     def diag(
         self,
         xx: tf.Tensor,  # shape: [B, num_stats, num_stats]
-    ) -> tf.Tensor:  # shape: [B, num_stats]
+    ) -> Any:  # shape: [B, num_stats]
         """
         Get diagonal elements of a matrix
 
@@ -356,7 +360,7 @@ class MMD2:
         self,
         u: tf.Tensor,
         kernel: str,  # shape: [B, num_stats, num_stats]
-    ) -> tf.Tensor:  # shape: [B, num_stats, num_stats]
+    ) -> Any:  # shape: [B, num_stats, num_stats]
         """
         Kernel used in MMD to compute discrepancy between samples.
 

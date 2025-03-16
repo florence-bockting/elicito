@@ -7,7 +7,7 @@ from typing import Annotated, Any, Callable, Optional
 
 import joblib
 import tensorflow as tf
-import tensorflow_probability as tfp
+import tensorflow_probability as tfp  # type: ignore
 
 from elicito import initialization, networks, optimization
 from elicito.types import (
@@ -148,34 +148,38 @@ def hyper(  # noqa: PLR0913
 
     """
     # check correct value for lower
-    if lower == "-inf":
+    if lower == "-inf":  # type: ignore
         lower = float("-inf")
 
-    if (type(lower) is str) and (lower != "-inf"):
-        raise ValueError(
-            "lower must be either '-inf' or a float."
-            + " Other strings are not allowed."
+    if (type(lower) is str) and (lower != "-inf"):  # type: ignore
+        msg = (
+                "lower must be either '-inf' or a float.",
+                "Other strings are not allowed."
         )
+        raise ValueError(msg)
 
     # check correct value for upper
-    if upper == "inf":
+    if upper == "inf":  # type: ignore
         upper = float("inf")
-    if (type(upper) is str) and (upper != "inf"):
-        msg = "upper must be either 'inf' or a float. Other strings are not allowed."
+    if (type(upper) is str) and (upper != "inf"):  # type: ignore
+        msg = (
+            "upper must be either 'inf' or a float.",
+            "Other strings are not allowed."
+        )
         raise ValueError(msg)
 
     if lower > upper:
-        msg = "The value for 'lower' must be smaller than the value for 'upper'."
+        msg = "The value for 'lower' must be smaller than the value for 'upper'."  # type: ignore
         raise ValueError(msg)
 
     # check values for vtype are implemented
     if vtype not in ["real", "array"]:
-        msg = f"vtype must be either 'real' or 'array'. You provided '{vtype}'."
+        msg = f"vtype must be either 'real' or 'array'. You provided '{vtype=}'."  # type: ignore
         raise ValueError(msg)
 
     # check that dimensionality is adapted when "array" is chosen
     if (vtype == "array") and dim == 1:
-        msg = "For vtype='array', the 'dim' argument must have a value greater 1."
+        msg = "For vtype='array', the 'dim' argument must have a value greater 1."  # type: ignore
         raise ValueError(msg)
 
     # constraints
@@ -196,7 +200,7 @@ def hyper(  # noqa: PLR0913
         constraint_name = "invlogit"
     # unbounded
     else:
-        transform = identity
+        transform = identity  # type: ignore
         constraint_name = "identity"
 
     # value type
@@ -216,7 +220,7 @@ def hyper(  # noqa: PLR0913
 
 def parameter(
     name: str,
-    family: Optional[tfp.distributions.Distribution] = None,
+    family: Optional[Any] = None,
     hyperparams: Optional[dict[str, Hyper]] = None,
     lower: float = float("-inf"),
     upper: float = float("inf"),
@@ -311,7 +315,7 @@ def parameter(
         constraint_name = "invlogit"
     # unbounded
     else:
-        transform = identity
+        transform = identity  # type: ignore
         constraint_name = "identity"
 
     param_dict: Parameter = dict(
@@ -319,13 +323,16 @@ def parameter(
         family=family,
         hyperparams=hyperparams,
         constraint_name=constraint_name,
-        constraint=transform,
+        constraint=transform,  # type: ignore
     )
 
     return param_dict
 
 
-def model(obj: Callable, **kwargs) -> dict[str, Any]:
+def model(
+        obj: Callable[[str], tf.Tensor],
+        **kwargs: dict[Any, Any]
+) -> dict[str, Any]:
     """
     Specify the generative model.
 
@@ -379,7 +386,7 @@ def model(obj: Callable, **kwargs) -> dict[str, Any]:
     >>>          )  # doctest: +SKIP
     """
     # get input arguments of generative model class
-    input_args = inspect.getfullargspec(obj.__call__)[0]
+    input_args = inspect.getfullargspec(obj.__call__)[0]  # type: ignore
     # check correct input form of generative model class
     if "prior_samples" not in input_args:
         msg = (
@@ -396,13 +403,13 @@ def model(obj: Callable, **kwargs) -> dict[str, Any]:
             msg = (
                 f"[section: model] The argument '{arg=}' required by the",
                 "generative model class 'obj' is missing.",
-            )
+            )  # type: ignore
             raise ValueError(msg)
 
     generator_dict = dict(obj=obj)
 
     for key in kwargs:  # noqa: PLC0206
-        generator_dict[key] = kwargs[key]
+        generator_dict[key] = kwargs[key]  # type: ignore
 
     return generator_dict
 
@@ -477,7 +484,7 @@ class Queries:
         elicit_dict: QueriesDict = dict(name="pearson_correlation", value=None)
         return elicit_dict
 
-    def custom(self, func: Callable) -> QueriesDict:
+    def custom(self, func: Callable[[Any], Any]) -> QueriesDict:
         """
         Specify a custom target method.
 
@@ -506,9 +513,9 @@ queries = Queries()
 
 def target(
     name: str,
-    loss: Callable,
+    loss: Callable[[Any], Any],
     query: QueriesDict,
-    target_method: Optional[Callable] = None,
+    target_method: Optional[Callable[[Any], Any]] = None,
     weight: float = 1.0,
 ) -> Target:
     """
@@ -580,7 +587,7 @@ class Expert:
     specify the expert data
     """
 
-    def data(self, dat: dict[str, list]) -> ExpertDict:
+    def data(self, dat: dict[str, list[tf.Tensor]]) -> ExpertDict:
         """
         Provide elicited-expert data for learning prior distributions.
 
@@ -606,7 +613,7 @@ class Expert:
         >>> }  # doctest: +SKIP
         """
         # Note: check for correct expert data format is done in Elicit class
-        dat_prep = {
+        dat_prep: dict[Any, Any] = {
             f"{key}": tf.expand_dims(
                 tf.cast(tf.convert_to_tensor(dat[key]), dtype=tf.float32), 0
             )
@@ -616,7 +623,11 @@ class Expert:
         data_dict: ExpertDict = dict(data=dat_prep)
         return data_dict
 
-    def simulator(self, ground_truth: dict, num_samples: int = 10_000) -> ExpertDict:
+    def simulator(
+            self,
+            ground_truth: dict[str, Any],
+            num_samples: int = 10_000
+    ) -> ExpertDict:
         """
         Simulate data from an oracle
 
@@ -690,7 +701,8 @@ expert = Expert()
 
 
 def optimizer(
-    optimizer: tf.keras.optimizers = tf.keras.optimizers.Adam(), **kwargs
+        optimizer: Any = tf.keras.optimizers.Adam(),
+        **kwargs: dict[Any, Any]
 ) -> dict[str, Any]:
     """
     Specify optimizer and its settings for SGD.
@@ -718,7 +730,7 @@ def optimizer(
 
     Examples
     --------
-    >>> optimizer=el.optimizer(  # doctest: +SKIP
+    >>> optimizer = el.optimizer(  # doctest: +SKIP
     >>>     optimizer=tf.keras.optimizers.Adam,  # doctest: +SKIP
     >>>     learning_rate=0.1,  # doctest: +SKIP
     >>>     clipnorm=1.0  # doctest: +SKIP
@@ -736,7 +748,7 @@ def optimizer(
     # check whether the optimizer object can be found in tf.keras.optimizers
     opt_name = str(optimizer).split(".")[-1][:-2]
     if opt_name not in dir(tf.keras.optimizers):
-        msg = (
+        msg = (  # type: ignore
             "[section: optimizer] The argument 'optimizer' has to be a",
             " tf.keras.optimizers object.",
             f" Couldn't find {opt_name=} in list of tf.keras.optimizers.",
@@ -756,7 +768,7 @@ def initializer(
     distribution: Optional[Uniform] = None,
     loss_quantile: Optional[Annotated[float, "0-1"]] = None,
     iterations: Optional[int] = None,
-    hyperparams: Optional[dict] = None,
+    hyperparams: Optional[dict[str, Any]] = None,
 ) -> Initializer:
     """
     Initialize hyperparameter values
@@ -841,7 +853,7 @@ def initializer(
                 raise ValueError(msg)
 
         if hyperparams is None:
-            msg = (
+            msg = (  # type: ignore
                 "[section: initializer] Either 'method' or 'hyperparams' has",
                 "to be specified. Use method for sampling from an",
                 "initialization distribution and 'hyperparams' for",
@@ -859,13 +871,13 @@ def initializer(
 
         # compute percentage from probability
         if loss_quantile is not None:
-            quantile_perc: Annotated[int, "0-100"] = int(loss_quantile * 100)
+            quantile_perc = int(loss_quantile * 100)
         # ensure that iterations is an integer
         if iterations is not None:
             iterations = int(iterations)
 
         if method not in ["random", "lhs", "sobol"]:
-            msg = (
+            msg = (  # type: ignore
                 "[section: initializer] Currently implemented initialization",
                 f"methods are 'random', 'sobol', and 'lhs', but got '{method=}'",
                 "as input.",
@@ -875,7 +887,7 @@ def initializer(
         # check that quantile is provided as probability
         if loss_quantile is not None:
             if (loss_quantile < 0.0) or (loss_quantile > 1.0):
-                msg = (
+                msg = (  # type: ignore
                     "[section: initializer] 'loss_quantile' must be a",
                     "value between 0",
                     f"and 1. Found 'loss_quantile={loss_quantile=}'.",
@@ -1071,7 +1083,7 @@ class Elicit:
                 num_params += expert["ground_truth"][k].sample(1).shape[-1]
 
             if len(expected_params) != num_params:
-                msg = (
+                msg = (  # type: ignore
                     "[section: expert] Dimensionality of ground truth in",
                     "'expert' is not the same  as number of model",
                     f"parameters.Got {num_params=}, expected",
@@ -1083,21 +1095,21 @@ class Elicit:
         # and initializer is none
         if trainer["method"] == "deep_prior":
             if network is None:
-                msg = (
+                msg = (  # type: ignore
                     "[section network] If method is 'deep prior',",
                     " the section 'network' can't be None.",
                 )
                 raise ValueError(msg)
 
             if initializer is not None:
-                msg = (
+                msg = (  # type: ignore
                     "[section initializer] For method 'deep_prior' the ",
                     "'initializer' is not used and should be set to None.",
                 )
                 raise ValueError(msg)
 
             if network["network_specs"]["num_params"] != len(parameters):
-                msg = (
+                msg = (  # type: ignore
                     "[section network] The number of model parameters as ",
                     "specified in the parameters section, must match the",
                     "number of parameters specified in the network (see",
@@ -1119,14 +1131,14 @@ class Elicit:
         # and network is none
         if trainer["method"] == "parametric_prior":
             if initializer is None:
-                msg = (
+                msg = (  # type: ignore
                     "[section initializer] If method is 'parametric_prior',",
                     " the section 'initializer' can't be None.",
                 )
                 raise ValueError(msg)
 
             if network is not None:
-                msg = (
+                msg = (  # type: ignore
                     "[section network] If method is 'parametric prior'",
                     "the 'network' is not used and should be set to None.",
                 )
@@ -1146,14 +1158,14 @@ class Elicit:
 
                 hyp_names.append(
                     [
-                        parameters[i]["hyperparams"][key]["name"]
-                        for key in parameters[i]["hyperparams"].keys()
+                        parameters[i]["hyperparams"][key]["name"]  # type: ignore
+                        for key in parameters[i]["hyperparams"].keys()  # type: ignore
                     ]
                 )
                 hyp_shared.append(
                     [
-                        parameters[i]["hyperparams"][key]["shared"]
-                        for key in parameters[i]["hyperparams"].keys()
+                        parameters[i]["hyperparams"][key]["shared"]  # type: ignore
+                        for key in parameters[i]["hyperparams"].keys()  # type: ignore
                     ]
                 )
             # flatten nested list
@@ -1161,7 +1173,7 @@ class Elicit:
             hyp_shared_flat = sum(hyp_shared, [])  # noqa: RUF017
 
             if initializer["method"] is None:
-                for k in initializer["hyperparams"]:
+                for k in initializer["hyperparams"]:  # type: ignore
                     if k not in hyp_names_flat:
                         msg = (
                             f"[initializer] Hyperparameter name '{k}' doesn't",
@@ -1198,8 +1210,8 @@ class Elicit:
         self.network = network
         self.initializer = initializer
 
-        self.history: list = []
-        self.results: list = []
+        self.history: list[dict[str, Any]] = []
+        self.results: list[dict[str, Any]] = []
 
         # set seed
         tf.random.set_seed(self.trainer["seed"])
@@ -1312,7 +1324,7 @@ class Elicit:
         name: Optional[str] = None,
         file: Optional[str] = None,
         overwrite: bool = False,
-    ):
+    ) -> None:
         """
         Save data on disk
 
@@ -1356,7 +1368,7 @@ class Elicit:
         # add a saving path
         return save(self, name=name, file=file, overwrite=overwrite)
 
-    def update(self, **kwargs):
+    def update(self, **kwargs: dict[Any, Any]) -> None:
         """
         Update attributes of Elicit object
 
@@ -1402,12 +1414,12 @@ class Elicit:
         for key in kwargs:  # noqa: PLC0206
             setattr(self, key, kwargs[key])
             # reset results
-            self.results: list = list()
-            self.history: list = list()
+            self.results = list()
+            self.history = list()
             # inform user about reset of results
             print("INFO: Results have been reset.")
 
-    def workflow(self, seed: int) -> tuple[dict, dict]:
+    def workflow(self, seed: int) -> tuple[Any,...]:
         """
         Build the main workflow of the prior elicitation method.
 
@@ -1478,4 +1490,4 @@ class Elicit:
             results["init_prior"] = init_prior_obj
             results["init_matrix"] = init_matrix
 
-        return results, history
+        return tuple((results, history))

@@ -2,10 +2,10 @@
 specification of custom types
 """
 
-from typing import Callable, Optional, TypedDict, Union
+from typing import Callable, Optional, TypedDict, Union, Any
 
-import tensorflow_probability as tfp
-
+import tensorflow_probability as tfp  # type: ignore
+import tensorflow as tf
 
 class Hyper(TypedDict):
     """
@@ -13,9 +13,9 @@ class Hyper(TypedDict):
     """
 
     name: str
-    constraint: Callable
+    constraint: Callable[[float], tf.Tensor]
     constraint_name: str
-    vtype: Callable
+    vtype: Callable[[Any], Any]
     dim: int
     shared: bool
 
@@ -26,10 +26,10 @@ class Parameter(TypedDict, total=False):
     """
 
     name: str
-    family: tfp.distributions.Distribution
+    family: Any
     hyperparams: Optional[dict[str, Hyper]]
     constraint_name: str
-    constraint: Callable
+    constraint: Callable[[float], float]
 
 
 class QueriesDict(TypedDict, total=False):
@@ -38,7 +38,7 @@ class QueriesDict(TypedDict, total=False):
     """
 
     name: str
-    value: Optional[Union[Callable, tuple]]
+    value: Optional[Any]
     func_name: str
 
 
@@ -49,8 +49,8 @@ class Target(TypedDict):
 
     name: str
     query: QueriesDict
-    target_method: Optional[Callable]
-    loss: Callable
+    target_method: Optional[Callable[[Any], Any]]
+    loss: Callable[[Any], float]
     weight: float
 
 
@@ -59,9 +59,9 @@ class ExpertDict(TypedDict, total=False):
     typed dictionary of specification of `expert` (set correct link, TODO)
     """
 
-    ground_truth: dict
+    ground_truth: dict[str, Any]
     num_samples: int
-    data: dict[str, list]
+    data: dict[str, list[Any]]
 
 
 class Uniform(TypedDict):
@@ -71,9 +71,9 @@ class Uniform(TypedDict):
     (set correct link, TODO)
     """
 
-    radius: Union[float, list]
-    mean: Union[float, list]
-    hyper: Optional[list]
+    radius: Union[float, list[Union[float, int]]]
+    mean: Union[float, list[Union[float, int]]]
+    hyper: Optional[list[str]]
 
 
 class Initializer(TypedDict):
@@ -85,7 +85,7 @@ class Initializer(TypedDict):
     distribution: Optional[Uniform]
     loss_quantile: Optional[float]
     iterations: Optional[int]
-    hyperparams: Optional[dict]
+    hyperparams: Optional[dict[str, Any]]
 
 
 class Trainer(TypedDict, total=False):
@@ -108,9 +108,9 @@ class NFDict(TypedDict):
     (set correct link, TODO)
     """
 
-    inference_network: Callable
-    network_specs: dict
-    base_distribution: Callable
+    inference_network: Callable[[Any], Any]
+    network_specs: dict[str, Any]
+    base_distribution: Callable[[Any], Any]
 
 
 class SaveHist(TypedDict):
@@ -150,4 +150,4 @@ class Parallel(TypedDict):
 
     runs: int
     cores: int
-    seeds: Optional[list]
+    seeds: Optional[list[int]]

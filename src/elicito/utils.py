@@ -7,9 +7,9 @@ import pickle
 import warnings
 from typing import Any, Callable, Optional
 
-import cloudpickle
+import cloudpickle  # type: ignore
 import tensorflow as tf
-import tensorflow_probability as tfp
+import tensorflow_probability as tfp  # type: ignore
 
 import elicito as el
 from elicito.exceptions import MissingOptionalDependencyError
@@ -105,7 +105,7 @@ class DoubleBound:
         self.lower = lower
         self.upper = upper
 
-    def logit(self, u: float) -> float:
+    def logit(self, u: tf.Tensor) -> tf.Tensor:
         r"""
         Implement the logit transformation for :math:`u \in (0,1)`:
 
@@ -130,7 +130,7 @@ class DoubleBound:
         v = tf.cast(v, dtype=tf.float32)
         return v
 
-    def inv_logit(self, v: float) -> float:
+    def inv_logit(self, v: float) -> tf.Tensor:
         r"""
         Implement the inverse-logit transformation
 
@@ -158,7 +158,7 @@ class DoubleBound:
         u = tf.cast(u, dtype=tf.float32)
         return u
 
-    def forward(self, x: float) -> float:
+    def forward(self, x: tf.Tensor) -> tf.Tensor:
         r"""
         Scale and translate logit transformed variable
 
@@ -186,7 +186,7 @@ class DoubleBound:
         y = tf.cast(y, dtype=tf.float32)
         return y
 
-    def inverse(self, y: float) -> float:
+    def inverse(self, y: float) -> tf.Tensor:
         r"""
         Apply inverse of the log-odds transform
 
@@ -204,7 +204,7 @@ class DoubleBound:
 
         Returns
         -------
-        x : float
+        x :
         constrained variable with lower and upper bound
 
         """
@@ -238,7 +238,7 @@ class LowerBound:
         """
         self.lower = lower
 
-    def forward(self, x: float) -> float:
+    def forward(self, x: float) -> Any:
         r"""
         Transform ``lower``-bounded x via inverse-softplus into an unconstrained y.
 
@@ -263,7 +263,7 @@ class LowerBound:
         y = tf.cast(y, dtype=tf.float32)
         return y
 
-    def inverse(self, y: float) -> float:
+    def inverse(self, y: float) -> tf.Tensor:
         r"""
         Apply softplus to unconstrained y to get ``lower``-bounded x
 
@@ -312,7 +312,7 @@ class UpperBound:
         """
         self.upper = upper
 
-    def forward(self, x: float) -> float:
+    def forward(self, x: float) -> Any:
         r"""
         Transform upper-bouned into unconstarined variable
 
@@ -339,7 +339,7 @@ class UpperBound:
         y = tf.cast(y, dtype=tf.float32)
         return y
 
-    def inverse(self, y: float) -> float:
+    def inverse(self, y: float) -> tf.Tensor:
         r"""
         Transform uncstrained into lower-bounded variable
 
@@ -369,7 +369,7 @@ class UpperBound:
 
 def one_forward_simulation(
     prior_model: Priors, model: dict[str, Any], targets: list[Target], seed: int
-) -> tuple[dict, tf.Tensor, dict, dict]:
+) -> tuple[dict[Any,Any], tf.Tensor, dict[Any, Any], dict[Any,Any]]:
     """
     Run one forward simulation from prior samples to elicited statistics.
 
@@ -423,7 +423,7 @@ def get_expert_data(  # noqa: PLR0913
     parameters: list[Parameter],
     network: Optional[NFDict],
     seed: int,
-) -> tuple[dict[str, tf.Tensor], Optional[tf.Tensor]]:
+) -> tuple[Any,...]:
     """
     Load the training data
 
@@ -487,15 +487,15 @@ def get_expert_data(  # noqa: PLR0913
         expert_data, expert_prior, *_ = one_forward_simulation(
             prior_model=prior_model, model=model, targets=targets, seed=seed
         )
-        return (expert_data, expert_prior)
+        return tuple((expert_data, expert_prior))
     else:
         # load expert data from file
         expert_data = expert["data"]
-        return (expert_data, None)
+        return tuple((expert_data, None))
 
 
 def save(
-    eliobj,
+    eliobj: Any,
     name: Optional[str] = None,
     file: Optional[str] = None,
     overwrite: bool = False,
@@ -578,7 +578,7 @@ def save(
         print(f"saved in: {path}.pkl")
 
 
-def load(file: str) -> Callable:
+def load(file: str) -> Any:
     """
     Load a saved ``eliobj`` from specified path.
 
@@ -622,7 +622,9 @@ def load(file: str) -> Callable:
 
 
 def parallel(
-    runs: int = 4, cores: Optional[int] = None, seeds: Optional[list] = None
+        runs: int = 4,
+        cores: Optional[int] = None,
+        seeds: Optional[list[int]] = None
 ) -> Parallel:
     """
     Specify parallelization
@@ -650,7 +652,7 @@ def parallel(
         dictionary containing the parallelization settings.
 
     """
-    parallel_dict: Parallel = dict(runs=runs, cores=cores, seeds=seeds)
+    parallel_dict: Parallel = dict(runs=runs, cores=cores, seeds=seeds)  # type: ignore
 
     if cores is None:
         parallel_dict["cores"] = runs
@@ -865,11 +867,11 @@ def save_results(  # noqa: PLR0913
 
 
 def clean_savings(
-    history: dict,
-    results: dict,
+    history: dict[str, Any],
+    results: dict[str, Any],
     save_history: SaveHist,
     save_results: SaveResults,
-) -> tuple[dict, dict]:
+) -> tuple[dict[Any,Any], dict[Any,Any]]:
     """
     clean-up result dictionaries
 
@@ -902,16 +904,16 @@ def clean_savings(
 
     """
     for key_hist in save_history:
-        if not save_history[key_hist]:
+        if not save_history[key_hist]:  # type: ignore
             history.pop(key_hist)
 
     for key_res in save_results:
-        if not save_results[key_res]:
+        if not save_results[key_res]:  # type: ignore
             results.pop(key_res)
     return results, history
 
 
-def get_expert_datformat(targets: list[Target]) -> dict[str, list]:
+def get_expert_datformat(targets: list[Target]) -> dict[str, list[Any]]:
     """
     Inspect which data format for the expert data is expected by the method.
 
@@ -926,7 +928,7 @@ def get_expert_datformat(targets: list[Target]) -> dict[str, list]:
         expected format of expert data.
 
     """
-    elicit_dict = dict()
+    elicit_dict: dict[str, Any] = dict()
     for tar in targets:
         query = tar["query"]["name"]
         if query == "custom":
@@ -939,8 +941,8 @@ def get_expert_datformat(targets: list[Target]) -> dict[str, list]:
 
 
 def softmax_gumbel_trick(
-    likelihood: Callable, upper_thres: float, temp: float = 1.6, **kwargs
-):
+    likelihood: Any, upper_thres: float, temp: float = 1.6, **kwargs: dict[Any, Any]
+) -> Any:
     """
     Apply softmax-gumble trick
 
@@ -1022,16 +1024,16 @@ def softmax_gumbel_trick(
 
     # check value/type of likelihood object
     if likelihood.name.lower() not in dir(tfd):
-        msg = "Likelihood in generative model must be a tfp.distribution object."
-        raise ValueError(msg)
+        msg1: str = "Likelihood in generative model must be a tfp.distribution object."
+        raise ValueError(msg1)
 
     if "seed" not in list(kwargs.keys()):
-        msg = (
+        msg2 = (
             "Please provide the **kwargs argument in the el.utils.softmax-",
             "gumble function. This is required for extracting internally",
             " information about the seed.",
         )
-        raise KeyError(msg)
+        raise KeyError(msg2)
 
     # set seed
     tf.random.set_seed(kwargs["seed"])

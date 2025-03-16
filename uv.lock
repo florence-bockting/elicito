@@ -381,7 +381,7 @@ wheels = [
 
 [[package]]
 name = "elicito"
-version = "0.5.12a1"
+version = "0.5.14a1"
 source = { editable = "." }
 dependencies = [
     { name = "joblib" },

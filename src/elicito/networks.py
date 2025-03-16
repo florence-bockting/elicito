@@ -2,10 +2,10 @@
 setup network block in Elicit object
 """
 
-from typing import Callable
+from typing import Callable, Any
 
 import tensorflow as tf
-import tensorflow_probability as tfp
+import tensorflow_probability as tfp  # type: ignore
 
 from elicito.types import NFDict
 
@@ -13,7 +13,9 @@ tfd = tfp.distributions
 
 
 def NF(
-    inference_network: Callable, network_specs: dict, base_distribution: Callable
+        inference_network: Callable[[Any], Any],
+        network_specs: dict[str, Any],
+        base_distribution: Callable[[Any], Any],
 ) -> NFDict:
     """
     Specify normalizing flow used from BayesFlow library
@@ -49,7 +51,7 @@ class BaseNormal:
     standard normal base distribution for normalizing flow
     """
 
-    def __call__(self, num_params: int) -> Callable:
+    def __call__(self, num_params: int) -> Any:
         """
         Multivariate standard normal distribution
 

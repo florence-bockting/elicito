@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from typing import Any, Optional, Union
 
 import tensorflow as tf
-import tensorflow_probability as tfp
+import tensorflow_probability as tfp  # type: ignore
 from tqdm import tqdm
 
 import elicito as el
@@ -93,7 +93,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
 
     # Validate method
     if not isinstance(method, str):
-        msg = "method must be a string."
+        msg = "method must be a string."  # type: ignore [unreachable]
         raise TypeError(msg)
 
     if method not in ["sobol", "lhs", "random"]:
@@ -106,7 +106,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     res_dict = dict()
 
     if hyppar is None:
-        if type(mean) is list:
+        if type(mean) is list:  # type: ignore [unreachable]
             msg = (
                 "If different mean values should be specified per",
                 "hyperparameter, the hyppar argument cannot be None.",
@@ -155,14 +155,14 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
             msg = (
                 "mean and radius arguments of function uniform_samples",
                 "must be of type list.",
-            )
+            )  # type: ignore
             raise ValueError(msg)
 
         # initialize sampler
         if method == "sobol":
-            sampler = qmc.Sobol(d=1, seed=seed)
+            sampler = qmc.Sobol(d=1, seed=seed)  # type: ignore
         elif method == "lhs":
-            sampler = qmc.LatinHypercube(d=1, seed=seed)
+            sampler = qmc.LatinHypercube(d=1, seed=seed)  # type: ignore
 
         for i, j, n in zip(mean, radius, hyppar):
             i_casted = tf.cast(i, tf.float32)
@@ -194,10 +194,10 @@ def init_runs(  # noqa: PLR0913
     trainer: Trainer,
     model: dict[str, Any],
     targets: list[Target],
-    network: Optional,
+    network: Optional[NFDict],
     expert: ExpertDict,
     seed: int,
-):
+) -> tuple[Any,...]:
     """
     Compute the discrepancy between expert data and simulated data
 
@@ -250,9 +250,9 @@ def init_runs(  # noqa: PLR0913
     if initializer["distribution"] is not None:
         init_matrix = uniform_samples(
             seed=seed,
-            hyppar=initializer["distribution"]["hyper"],
-            n_samples=initializer["iterations"],
-            method=initializer["method"],
+            hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
+            n_samples=initializer["iterations"], # type: ignore [arg-type]
+            method=initializer["method"], # type: ignore [arg-type]
             mean=initializer["distribution"]["mean"],
             radius=initializer["distribution"]["radius"],
             parameters=parameters,
@@ -260,7 +260,7 @@ def init_runs(  # noqa: PLR0913
 
     print("Initialization")
 
-    for i in tqdm(range(initializer["iterations"])):
+    for i in tqdm(range(initializer["iterations"])): # type: ignore [arg-type]
         # update seed
         seed_copy = seed_copy + 1
         # extract initial hyperparameter value for each run
@@ -296,7 +296,7 @@ def init_runs(  # noqa: PLR0913
         loss_list.append(loss.numpy())
 
     print(" ")
-    return loss_list, init_var_list, init_matrix
+    return tuple((loss_list, init_var_list, init_matrix))
 
 
 def init_prior(  # noqa: PLR0913
@@ -309,7 +309,7 @@ def init_prior(  # noqa: PLR0913
     network: Optional[NFDict],
     expert: ExpertDict,
     seed: int,
-):
+) -> tuple[Any,...]:
     """
     Extract target loss and initialize prior model from :func:`init_runs`.
 
@@ -397,14 +397,14 @@ def init_prior(  # noqa: PLR0913
         # initialize empty variables for avoiding return conflicts
         loss_list, init_prior, init_matrix = (None, None, None)
 
-    return init_prior_model, loss_list, init_prior, init_matrix
+    return tuple((init_prior_model, loss_list, init_prior, init_matrix))
 
 
 def uniform(
     radius: Union[float, list[float]] = 1.0,
     mean: Union[float, list[float]] = 0.0,
     hyper: Optional[list[str]] = None,
-) -> Uniform:
+) -> dict[Any, Any]:
     """
     Specify uniform initialization distribution
 
@@ -454,7 +454,7 @@ def uniform(
 
     """
     if hyper is not None:
-        if len(hyper) != len(mean):
+        if len(hyper) != len(mean):  # type: ignore [arg-type]
             msg = "`hyper`, `mean`, and `radius` must have the same length."
             raise AssertionError(msg)
 
