@@ -400,8 +400,8 @@ def model(obj: Callable, **kwargs) -> dict[str, Any]:
 
     generator_dict = dict(obj=obj)
 
-    for key, item in zip(kwargs.keys(), kwargs.items()):
-        generator_dict[key] = item
+    for key in kwargs:
+        generator_dict[key] = kwargs[key]
 
     return generator_dict
 
@@ -742,8 +742,8 @@ def optimizer(
 
     optimizer_dict = dict(optimizer=optimizer)
 
-    for key, item in zip(kwargs.keys(), kwargs.items()):
-        optimizer_dict[key] = item
+    for key in kwargs:
+        optimizer_dict[key] = kwargs[key]
 
     return optimizer_dict
 
@@ -1394,8 +1394,8 @@ class Elicit:
                 )
                 raise ValueError(msg)
 
-        for key, item in zip(kwargs.keys(), kwargs.items()):
-            setattr(self, key, item)
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
             # reset results
             self.results: list = list()
             self.history: list = list()

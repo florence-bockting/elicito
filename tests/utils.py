@@ -46,12 +46,13 @@ def log_R2(ypred: tf.Tensor, epred: tf.Tensor) -> float:
 
 # implemented, generative model
 class ToyModel2:
-    def __call__(self, prior_samples, design_matrix, **kwargs):
+    def __call__(self, prior_samples, design_matrix):
         B = prior_samples.shape[0]
         S = prior_samples.shape[1]
 
         # preprocess shape of design matrix
         X = tf.broadcast_to(design_matrix[None, None, :], (B, S, len(design_matrix)))
+
         # linear predictor (= mu)
         epred = tf.add(
             prior_samples[:, :, 0][:, :, None],

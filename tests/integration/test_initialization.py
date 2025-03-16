@@ -38,6 +38,8 @@ def parameters():
 
 
 def test_uniform_samples(parameters):
+    pytest.importorskip("scipy")
+
     seed = 1
     hyppar = None
     n_samples = 10
@@ -63,6 +65,8 @@ def test_uniform_samples(parameters):
 # %% test_uniform_samples_array
 # constants
 def test_uniform_samples_array(parameters):
+    pytest.importorskip("scipy")
+
     seed = 1
     hyppar = ["mu0", "sigma0", "mu1", "sigma1", "sigma2"]
     n_samples = 10
@@ -90,6 +94,8 @@ def test_uniform_samples_array(parameters):
 # %% test_uniform_samples_array random order
 # vary order of hyperparameter and use n_samples of 1
 def test_uniform_samples_order(parameters):
+    pytest.importorskip("scipy")
+
     seed = 1
     hyppar = ["mu0", "mu1", "sigma0", "sigma1", "sigma2"]
     n_samples = 1
@@ -118,6 +124,8 @@ def test_uniform_samples_order(parameters):
 
 
 def test_integration_initialization():
+    pytest.importorskip("scipy")
+
     # numeric, standardized predictor
     def std_predictor(N, quantiles):
         X = tf.cast(np.arange(N), tf.float32)
