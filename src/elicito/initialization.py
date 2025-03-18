@@ -373,7 +373,7 @@ def init_prior(  # noqa: PLR0913
                 tf.int32,
             )
 
-            init_prior_model = next(ini_pr for ini_pr, i in init_prior if i == idx)
+            init_prior_model = [ini_pr for ini_pr, i in init_prior if i == idx][0]  # noqa: RUF015
         else:
             # prepare generative model
             init_prior_model = el.simulations.Priors(
