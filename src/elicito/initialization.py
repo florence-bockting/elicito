@@ -295,7 +295,7 @@ def init_runs(  # noqa: PLR0913
         loss_list.append(loss.numpy())
 
     print(" ")
-    return tuple((loss_list, init_var_list, init_matrix))
+    return loss_list, init_var_list, init_matrix
 
 
 def init_prior(  # noqa: PLR0913
@@ -349,7 +349,7 @@ def init_prior(  # noqa: PLR0913
     """
     if trainer["method"] == "parametric_prior" and initializer is not None:
         if initializer["hyperparams"] is None:
-            (loss_list, init_prior, init_matrix) = init_runs(
+            loss_list, init_prior, init_matrix = init_runs(
                 expert_elicited_statistics=expert_elicited_statistics,
                 initializer=initializer,
                 parameters=parameters,
@@ -364,7 +364,7 @@ def init_prior(  # noqa: PLR0913
             # extract pre-specified quantile loss out of all runs
             # get corresponding set of initial values
             loss_quantile = initializer["loss_quantile"]
-            index = tf.cast(
+            idx = tf.cast(
                 tf.squeeze(
                     tf.where(
                         loss_list == tfp.stats.percentile(loss_list, [loss_quantile])
@@ -373,7 +373,7 @@ def init_prior(  # noqa: PLR0913
                 tf.int32,
             )
 
-            init_prior_model = init_prior[index]
+            init_prior_model = next(ini_pr for ini_pr, i in init_prior if i == idx)
         else:
             # prepare generative model
             init_prior_model = el.simulations.Priors(
