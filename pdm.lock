@@ -1832,7 +1832,7 @@ files = [
 
 [[package]]
 name = "types-tensorflow"
-version = "2.18.0.20250304"
+version = "2.18.0.20250319"
 requires_python = ">=3.9"
 summary = "Typing stubs for tensorflow"
 groups = ["all-dev", "dev"]
@@ -1843,13 +1843,13 @@ dependencies = [
     "types-requests",
 ]
 files = [
-    {file = "types_tensorflow-2.18.0.20250304-py3-none-any.whl", hash = "sha256:cc38b8ea0491eb3a5196b1a30455a5d87d3df091465a3592c64c2f8ea2522a12"},
-    {file = "types_tensorflow-2.18.0.20250304.tar.gz", hash = "sha256:2637f92a1cd01489179323f386024facbcef357bfb6122b70e3d34cd7fc44eb4"},
+    {file = "types_tensorflow-2.18.0.20250319-py3-none-any.whl", hash = "sha256:e9387e33aceef88f0557888788b182d4a03d742704d503da72fbb9c20a8bff19"},
+    {file = "types_tensorflow-2.18.0.20250319.tar.gz", hash = "sha256:e6e9cac5796b2780d184e81640e5effe3d101099b24ac5c67fb6cc13beae858d"},
 ]
 
 [[package]]
 name = "types-tqdm"
-version = "4.67.0.20250301"
+version = "4.67.0.20250319"
 requires_python = ">=3.9"
 summary = "Typing stubs for tqdm"
 groups = ["all-dev", "dev"]
@@ -1858,8 +1858,8 @@ dependencies = [
     "types-requests",
 ]
 files = [
-    {file = "types_tqdm-4.67.0.20250301-py3-none-any.whl", hash = "sha256:8af97deb8e6874af833555dc1fe0fcd456b1a789470bf6cd8813d4e7ee4f6c5b"},
-    {file = "types_tqdm-4.67.0.20250301.tar.gz", hash = "sha256:5e89a38ad89b867823368eb97d9f90d2fc69806bb055dde62716a05da62b5e0d"},
+    {file = "types_tqdm-4.67.0.20250319-py3-none-any.whl", hash = "sha256:8705ef0dd431586e5ea6e010e15b73389b09bcc18186e8c1f530a14dfaa30e09"},
+    {file = "types_tqdm-4.67.0.20250319.tar.gz", hash = "sha256:ae947a64bd8d7ed7b7d2b7369df05f9181f847ec2828fdc8a2deb0bb8701adaa"},
 ]
 
 [[package]]

@@ -327,6 +327,7 @@ authorized_licenses = [
     "bsd",
     "bsd license",
     "BSD 3-Clause",
+    "3-Clause BSD",
     "CC0",
     "apache",
     "apache 2.0",
