@@ -364,17 +364,14 @@ def init_prior(  # noqa: PLR0913
             # extract pre-specified quantile loss out of all runs
             # get corresponding set of initial values
             loss_quantile = initializer["loss_quantile"]
-            idx = tf.cast(
-                tf.squeeze(
-                    tf.where(
-                        loss_list == tfp.stats.percentile(loss_list, [loss_quantile])
-                    )
-                ),
-                tf.int32,
+
+            boolean_mask = tf.math.equal(
+                loss_list, tfp.stats.percentile(loss_list, loss_quantile)
             )
+            idx = tf.where(tf.squeeze(boolean_mask, 1))
 
             # init_prior_model = [ini_pr for ini_pr, i in init_prior if i == idx][0]
-            init_prior_model = init_prior[idx]
+            init_prior_model = init_prior[int(tf.squeeze(idx))]
         else:
             # prepare generative model
             init_prior_model = el.simulations.Priors(
