@@ -9,7 +9,7 @@ import tensorflow as tf
 
 class Hyper(TypedDict):
     """
-    Typed dictionary for specification of `hyper` (set correct link, TODO)
+    Typed dictionary for specification of [`hyper`][elicito.elicit.hyper]
     """
 
     name: str
@@ -22,7 +22,7 @@ class Hyper(TypedDict):
 
 class Parameter(TypedDict, total=False):
     """
-    Typed dictionary for specification of `parameter` (set correct link, TODO)
+    Typed dictionary for specification of [`parameter`][elicito.elicit.parameter]
     """
 
     name: str
@@ -34,7 +34,7 @@ class Parameter(TypedDict, total=False):
 
 class QueriesDict(TypedDict, total=False):
     """
-    Typed dictionary for specification of `queries` (set correct link, TODO)
+    Typed dictionary for specification of [`queries`][elicito.elicit.Queries]
     """
 
     name: str
@@ -44,7 +44,7 @@ class QueriesDict(TypedDict, total=False):
 
 class Target(TypedDict):
     """
-    typed dictionary for specification of `target` (set correct link, TODO)
+    typed dictionary for specification of [`target`][elicito.elicit.target]
     """
 
     name: str
@@ -56,7 +56,7 @@ class Target(TypedDict):
 
 class ExpertDict(TypedDict, total=False):
     """
-    typed dictionary of specification of `expert` (set correct link, TODO)
+    typed dictionary of specification of [`expert`][elicito.elicit.Expert]
     """
 
     ground_truth: dict[str, Any]
@@ -66,9 +66,10 @@ class ExpertDict(TypedDict, total=False):
 
 class Uniform(TypedDict):
     """
-    typed dictionary for specification of initialization distribution `uniform`
+    typed dictionary for specification of initialization distribution
 
-    (set correct link, TODO)
+    See [`uniform`][elicito.elicit.uniform]
+
     """
 
     radius: Union[float, list[Union[float, int]]]
@@ -78,7 +79,7 @@ class Uniform(TypedDict):
 
 class Initializer(TypedDict):
     """
-    typed dictionary for specification of initialization method (set correct link, TODO)
+    typed dictionary for specification of initialization method
     """
 
     method: Optional[str]
@@ -90,7 +91,7 @@ class Initializer(TypedDict):
 
 class Trainer(TypedDict, total=False):
     """
-    typed dictionary for specification of `trainer` (set correct link; TODO)
+    typed dictionary for specification of [`trainer`][elicito.elicit.trainer]
     """
 
     method: str
@@ -103,9 +104,10 @@ class Trainer(TypedDict, total=False):
 
 class NFDict(TypedDict):
     """
-    typed dictionary for specification of normalizing flow in `network`
+    Typed dictionary for specification of normalizing flow
 
-    (set correct link, TODO)
+    See [`network`][elicito.networks.NF]
+
     """
 
     inference_network: Callable[[Any], Any]
@@ -115,7 +117,9 @@ class NFDict(TypedDict):
 
 class SaveHist(TypedDict):
     """
-    typed dictionary for specification of saving `history` results
+    Typed dictionary for specification of saving `history` results
+
+    See [`save_history`][elicito.elicit.save_history]
     """
 
     loss: bool
@@ -127,7 +131,9 @@ class SaveHist(TypedDict):
 
 class SaveResults(TypedDict):
     """
-    typed dictionary for specification of saving `results`
+    Typed dictionary for specification of saving `results`
+
+    See [`save_results`][elicito.elicit.save_results]
     """
 
     target_quantities: bool
@@ -145,7 +151,9 @@ class SaveResults(TypedDict):
 
 class Parallel(TypedDict):
     """
-    typed dictionary for specification of parallelization `parallel`
+    Typed dictionary for specification of parallelization `parallel`
+
+    See [`parallel`][elicito.utils.parallel]
     """
 
     runs: int
