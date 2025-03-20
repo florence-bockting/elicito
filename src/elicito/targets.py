@@ -21,12 +21,12 @@ def pearson_correlation(prior_samples: tf.Tensor) -> tf.Tensor:
     Parameters
     ----------
     prior_samples
-        samples from prior distributions
+        Samples from prior distributions
 
     Returns
     -------
     correlation :
-        pearson correlation coefficient
+        Pearson correlation coefficient
     """
     corM = tfp.stats.correlation(prior_samples, sample_axis=1, event_axis=-1)
     tensor = tf.experimental.numpy.triu(corM, 1)
@@ -45,15 +45,15 @@ def use_custom_functions(simulations: dict[str, Any], custom_func: Any) -> Any:
     Parameters
     ----------
     simulations
-        simulations from generative model
+        Simulations from generative model
 
     custom_func
-        user-defined function
+        User-defined function
 
     Returns
     -------
     custom_function :
-        custom function with keyword arguments
+        Custom function with keyword arguments
     """
     vars_from_func = custom_func.__code__.co_varnames
     res = {f"{var}": simulations[var] for var in vars_from_func if var in simulations}
@@ -72,14 +72,15 @@ def computation_elicited_statistics(
 
     Parameters
     ----------
-    target_quantities : dict[str, tf.Tensor], shape: [B,num_samples,num_obs]
-        simulated target quantities.
-    targets : list[dict]
-        list of target quantities specified with :func:`elicit.elicit.target`.
+    target_quantities
+        Simulated target quantities.
+
+    targets
+        List of target quantities
 
     Returns
     -------
-    elicits_res : dict[res, tf.Tensor], shape: [B, num_stats]
+    elicits_res :
         simulated elicited statistics.
 
     """
@@ -161,18 +162,20 @@ def computation_target_quantities(
 
     Parameters
     ----------
-    model_simulations : dict[str, tf.Tensor]
-        simulations from generative model.
-    prior_samples : tf.Tensor; shape = [B, rep, num_params]
-        samples from prior distributions of model parameters. Currently only
+    model_simulations
+        Simulations from generative model.
+
+    prior_samples
+        Samples from prior distributions of model parameters. Currently only
         needed if correlations between model parameters is used as elicitation
         technique.
-    targets : list[dict]
-        list of target quantities specified with :func:`elicit.elicit.target`.
+
+    targets
+        List of target quantities
 
     Returns
     -------
-    targets_res : dict[str, tf.Tensor]
+    targets_res :
         computed target quantities.
     """
     # initialize dict for storing results
