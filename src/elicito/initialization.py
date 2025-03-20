@@ -37,30 +37,36 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
 
     Parameters
     ----------
-    seed : int
-        user-specified seed defined in :func:`elicit.elicit.trainer`.
-    hyppar : list
-        list of hyperparameter names (strings) declaring the order for the
+    seed
+        User-specified seed as defined in [`trainer`][elicito.elicit.trainer].
+
+    hyppar
+        List of hyperparameter names (strings) declaring the order for the
         list of **means** and **radius**.
         If **means** and **radius** are each a float, then this number is
         applied to all hyperparameter such that no order of hyperparameter
-        needs to be specified. In this case ``hyppar=None``
-    n_samples : int
-        number of samples from the uniform distribution for each
+        needs to be specified. In this case ``hyppar = None``
+
+    n_samples
+        Number of samples from the uniform distribution for each
         hyperparameter.
-    method : str
-        name of sampling method used for drawing samples from uniform.
+
+    method
+        Name of sampling method used for drawing samples from uniform.
         Currently implemented are "random", "lhs", and "sobol".
-    mean : float or list
+
+    mean
         Specification of the uniform distribution. The uniform distribution
-        ranges from (**mean-radius**) to (**mean+radius**).
-    radius : float or list
+        ranges from (`mean - radius`) to (`mean + radius`).
+
+    radius
         Specification of the uniform distribution. The uniform distribution
-        ranges from (**mean-radius**) to (**mean+radius**).
-    parameters : list
-        list including dictionary with all information about the (hyper-)parameters.
+        ranges from (`mean - radius`) to (`mean + radius`).
+
+    parameters
+        List including dictionary with all information about the (hyper-)parameters.
         Can be retrieved as attribute from the initialized
-        :mod:`elicit.elicit.Elicit` obj (i.e., ``eliobj.parameters``)
+        [`Elicit`][elicito.Elicit] obj (i.e., `eliobj.parameters`)
 
     Raises
     ------
@@ -72,7 +78,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
 
     Returns
     -------
-    res_dict : dict
+    res_dict :
         dictionary with *keys* being the hyperparameters and *values* the
         samples from the uniform distribution.
 
@@ -204,33 +210,42 @@ def init_runs(  # noqa: PLR0913
 
     Parameters
     ----------
-    expert_elicited_statistics : dict
-        user-specified expert data as provided by :func:`elicit.elicit.Expert`.
-    initializer : dict
-        user-input from :func:`elicit.elicit.initializer`.
-    parameters : list
-        user-input from :func:`elicit.elicit.parameter`.
-    trainer : dict
-        user-input from :func:`elicit.elicit.trainer`.
-    model : dict
-        user-input from :func:`elicit.elicit.model`.
-    targets : list
-        user-input from :func:`elicit.elicit.target`.
-    network : dict, optional
-        user-input from one of the methods implemented in the
-        :mod:`elicit.networks` module.
-    expert : dict
-        user-input from :func:`elicit.elicit.Expert`.
-    seed : int
+    expert_elicited_statistics
+        User-specified expert data as provided by [`Elicit`][elicito.elicit.Expert].
+
+    initializer
+        User-input from [`initializer`][elicito.elicit.initializer].
+
+    parameters
+        User-input from [`parameter`][elicito.elicit.parameter].
+
+    trainer
+        User-input from [`trainer`][elicito.elicit.trainer].
+
+    model
+        User-input from [`model`][elicito.elicit.model].
+
+    targets
+        User-input from [`target`][elicito.elicit.target].
+
+    network
+        User-input from one of the methods implemented in the
+        [`networks`][elicito.networks] module.
+
+    expert
+        User-input from [`Expert`][elicito.elicit.Expert].
+    seed
         internal seed for reproducible results
 
     Returns
     -------
-    loss_list : list
+    loss_list :
         list with all losses computed for each initialization run.
-    init_var_list : list
+
+    init_var_list :
         list with initializer prior model for each run.
-    init_matrix : dict
+
+    init_matrix :
         dictionary with *keys* being the hyperparameter names and *values*
         being the drawn initial values per run.
 
@@ -310,39 +325,41 @@ def init_prior(  # noqa: PLR0913
     seed: int,
 ) -> tuple[Any, ...]:
     """
-    Extract target loss and initialize prior model from :func:`init_runs`.
+    Extract target loss and initialize prior model
+
+    See [`init_runs`][elicito.initializer.init_runs].
 
     Parameters
     ----------
-    expert_elicited_statistics : dict
+    expert_elicited_statistics
         user-specified expert data as provided by :func:`elicit.elicit.Expert`.
-    initializer : dict, optional
+    initializer
         user-input from :func:`elicit.elicit.initializer`.
-    parameters : list
+    parameters
         user-input from :func:`elicit.elicit.parameter`.
-    trainer : dict
+    trainer
         user-input from :func:`elicit.elicit.trainer`.
-    model : dict
+    model
         user-input from :func:`elicit.elicit.model`.
-    targets : list
+    targets
         user-input from :func:`elicit.elicit.target`.
-    network : dict, optional
+    network
         user-input from one of the methods implemented in the
         :mod:`elicit.networks` module.
-    expert : dict
+    expert
         user-input from :func:`elicit.elicit.Expert`.
-    seed : int
+    seed
         internally used seed for reproducible results
 
     Returns
     -------
-    init_prior_model : :mod:`elicit.simulations.Priors` object
+    init_prior_model :
         initialized priors that will be used for the training phase.
-    loss_list : list
+    loss_list :
         list with all losses computed for each initialization run.
-    init_prior : list
+    init_prior :
         list with initializer prior model for each run.
-    init_matrix : dict
+    init_matrix :
         dictionary with *keys* being the hyperparameter names and *values*
         being the drawn initial values per run.
 
