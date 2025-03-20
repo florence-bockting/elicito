@@ -32,29 +32,36 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
 
     Parameters
     ----------
-    expert_elicited_statistics : dict
+    expert_elicited_statistics
         expert data or simulated data representing a prespecified ground truth.
-    prior_model_init : class instance
-        instance of a class that initializes and samples from the prior
-        distributions.
-    trainer: dict
-        dictionary including settings specified with :func:`elicit.elicit.trainer`
-    optimizer: dict
-        dictionary including settings specified with :func:`elicit.elicit.optimizer`
-    model: dict
-        dictionary including settings specified with :func:`elicit.elicit.model`
-    targets: list[dict]
-        list of target quantities specified with :func:`elicit.elicit.target`
-    parameters : list[dict]
-        list of model parameters specified with :func:`elicit.elicit.parameter`.
-    seed : int
-        internally used seed for reproducible results
+
+    prior_model_init
+        Initialisation and sampling from prior distributions.
+
+    trainer
+        Settings for optimization phase
+
+    optimizer
+        Settings for SGD-optimizer
+
+    model
+        Generative model
+
+    targets
+        List of target quantities
+
+    parameters
+        List of model parameters
+
+    seed
+        Internally used seed for reproducible results
 
     Returns
     -------
-    res_ep: dict
+    res_ep :
         results saved for each epoch (history)
-    output_res: dict
+
+    output_res :
         results saved for the last epoch (results)
 
     Raises
