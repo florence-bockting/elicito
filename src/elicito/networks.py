@@ -22,12 +22,14 @@ def NF(
 
     Parameters
     ----------
-    inference_network : callable
+    inference_network
         type of inference network as specified by bayesflow.inference_networks.
-    network_specs : dict
+
+    network_specs
         specification of normalizing flow architecture. Arguments are inherited
         from chosen bayesflow.inference_networks.
-    base_distribution : callable
+
+    base_distribution
         Base distribution from which should be sampled during learning.
         Normally the base distribution is a multivariate normal.
 
