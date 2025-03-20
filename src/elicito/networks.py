@@ -35,7 +35,7 @@ def NF(
 
     Returns
     -------
-    nf_dict : dict
+    nf_dict :
         dictionary specifying the normalizing flow settings.
 
     """
@@ -61,13 +61,12 @@ class BaseNormal:
 
         Parameters
         ----------
-        num_params : int
-            number of model parameters. Is internally specified in
-            :func:`elicit.simulations.sample_from_priors`
+        num_params
+            number of model parameters.
 
         Returns
         -------
-        callable
+        :
             tfp.distributions object.
 
         """
