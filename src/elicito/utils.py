@@ -38,14 +38,11 @@ def save_as_pkl(obj: Any, save_dir: str) -> None:
 
     Parameters
     ----------
-    obj : any
-        variable that needs to be saved.
-    save_dir : str
-        path indicating the file location.
+    obj
+        Variable that needs to be saved.
 
-    Returns
-    -------
-    None.
+    save_dir
+        Path indicating the file location.
 
     Examples
     --------
@@ -66,13 +63,13 @@ def identity(x: float) -> Any:
 
     Parameters
     ----------
-    x : any
-        arbitrary input object.
+    x
+        Input x
 
     Returns
     -------
-    x : any
-        returns the input object without any transformation.
+    x :
+        input x without transformation.
 
     """
     return x
@@ -92,14 +89,15 @@ class DoubleBound:
         via a scaled and translated log-odds transform.
 
         Basis for the here used constraints, is the
-        `constraint transforms implementation in Stan <https://mc-stan.org/docs/reference-manual/transforms.html>`_.
+        `constraint transforms implementation in [Stan](https://mc-stan.org/docs/reference-manual/transforms.html).
 
         Parameters
         ----------
-        lower : float
-            lower bound of variable x.
-        upper : float
-            upper bound of variable x.
+        lower
+            Lower bound of variable x.
+
+        upper
+            Upper bound of variable x.
 
         """
         self.lower = lower
@@ -115,13 +113,13 @@ class DoubleBound:
 
         Parameters
         ----------
-        u : float
-            variable in open unit interval.
+        u
+            Variable in open unit interval.
 
         Returns
         -------
-        v : float
-            log-odds of u.
+        v
+            Log-odds of u.
 
         """
         # log-odds definition
@@ -143,13 +141,13 @@ class DoubleBound:
 
         Parameters
         ----------
-        v : float
-            unconstrained variable
+        v
+            Unconstrained variable
 
         Returns
         -------
-        u : float
-            logistic sigmoid of the unconstrained variable
+        u
+            Logistic sigmoid of the unconstrained variable
 
         """
         # logistic sigmoid transform
@@ -171,13 +169,13 @@ class DoubleBound:
 
         Parameters
         ----------
-        x : float
-            variable with lower and upper bound.
+        x
+            Variable with lower and upper bound.
 
         Returns
         -------
-        y : float
-            unconstrained variable.
+        y
+            Unconstrained variable.
 
         """
         # scaled and translated logit transform
@@ -199,13 +197,13 @@ class DoubleBound:
 
         Parameters
         ----------
-        y : float
-            unconstrained variable
+        y
+            Unconstrained variable
 
         Returns
         -------
         x :
-        constrained variable with lower and upper bound
+            Constrained variable with lower and upper bound
 
         """
         # inverse of log-odds transform
@@ -228,12 +226,12 @@ class LowerBound:
 
         References
         ----------
-        - Stan <https://mc-stan.org/docs/reference-manual/transforms.html>`_
+        - [Stan](https://mc-stan.org/docs/reference-manual/transforms.html)
 
         Parameters
         ----------
-        lower : float
-            lower bound of variable X.
+        lower
+            Lower bound of variable X.
 
         """
         self.lower = lower
@@ -248,13 +246,13 @@ class LowerBound:
 
         Parameters
         ----------
-        x : float
-            variable with a lower bound.
+        x
+            Variable with a lower bound.
 
         Returns
         -------
-        y : float
-            unconstrained variable.
+        y :
+            Unconstrained variable.
 
         """
         # inverse softplus transform
@@ -273,13 +271,13 @@ class LowerBound:
 
         Parameters
         ----------
-        y : float
-            unconstrained variable.
+        y
+            Unconstrained variable.
 
         Returns
         -------
-        x : float
-            variable with a lower bound.
+        x :
+            Variable with a lower bound.
 
         """
         # softplus transform
@@ -302,12 +300,12 @@ class UpperBound:
 
         Parameters
         ----------
-        upper : float
-            upper bound of variable X.
+        upper
+            Upper bound of variable X.
 
         References
         ----------
-        + Stan <https://mc-stan.org/docs/reference-manual/transforms.html>`_
+        + [Stan](https://mc-stan.org/docs/reference-manual/transforms.html)
 
         """
         self.upper = upper
@@ -324,13 +322,13 @@ class UpperBound:
 
         Parameters
         ----------
-        x : float
-            variable with an upper bound.
+        x
+            Variable with an upper bound.
 
         Returns
         -------
-        y : float
-            unconstrained variable.
+        y :
+            Unconstrained variable.
 
         """
         # logarithmic transform
@@ -351,13 +349,13 @@ class UpperBound:
 
         Parameters
         ----------
-        y : float
-            unconstrained variable.
+        y
+            Unconstrained variable.
 
         Returns
         -------
-        x : float
-            variable with an upper bound.
+        x :
+            Variable with an upper bound.
 
         """
         # exponential transform
@@ -375,27 +373,33 @@ def one_forward_simulation(
 
     Parameters
     ----------
-    prior_model : instance of Priors class objects
-        initialized prior distributions which can be used for sampling.
-    model : dict
-        specification of generative model using :func:`elicit.elicit.model`.
-    targets : list
-        list of target quantities specified with :func:`elicit.elicit.target`.
-    seed: int
-        random seed.
+    prior_model
+        Initialized prior distributions which can be used for sampling.
+
+    model
+        Specification of generative model
+
+    targets
+        List of target quantities
+
+    seed
+        Random seed.
 
     Returns
     -------
-    elicited_statistics : dict
-        dictionary containing the elicited statistics that can be used to
+    elicited_statistics :
+        Dictionary containing the elicited statistics that can be used to
         compute the loss components
-    prior_samples : tf.Tensor
-        samples from prior distributions
-    model_simulations : dict
-        samples from the generative model (likelihood) given the prior samples
+
+    prior_samples :
+        Samples from prior distributions
+
+    model_simulations :
+        Samples from the generative model (likelihood) given the prior samples
         for the model parameters
-    target_quantities : dict
-        target quantities as a function of the model simulations.
+
+    target_quantities :
+        Target quantities as a function of the model simulations.
 
     """
     # set seed
@@ -431,34 +435,39 @@ def get_expert_data(  # noqa: PLR0913
 
     Parameters
     ----------
-    trainer : dict
-        specification of training settings and meta-information for
-        workflow using :func:`trainer`
-    model : dict
-        specification of generative model using :func:`elicit.elicit.model`.
-    targets : list
-        list of target quantities specified with :func:`elicit.elicit.target`.
-    expert : dict
-        provide input data from expert or simulate data from oracle with
-        either the ``data`` or ``simulator`` method of the
-        :mod:`elicit.elicit.Expert` module.
-    parameters : list
-        list of model parameters specified with :func:`elicit.elicit.parameter`.
-    network : dict, optional
-        specification of neural network using a method implemented in
-        :mod:`elicit.networks`.
+    trainer
+        Specification of training settings and meta-information for
+        workflow
+
+    model
+        Specification of generative model
+
+    targets
+        List of target quantities
+
+    expert
+        Provide input data from expert or simulate data from oracle with
+        either the ``data`` or ``simulator`` method
+
+    parameters
+        List of model parameters specified with :func:`elicit.elicit.parameter`.
+
+    network
+        Specification of neural network
         Only required for ``deep_prior`` method. For ``parametric_prior``
         use ``None``.
-    seed : int
-        internal seed for reproducible results
+
+    seed
+        Internal seed for reproducible results
 
     Returns
     -------
-    expert_data : dict
+    expert_data :
         dictionary containing the training data. Must have same form as the
         model-simulated elicited statistics. Correct specification of
         keys can be checked using :func:`elicit.utils.get_expert_datformat`
-    expert_prior : tf.Tensor, shape: [B,num_samples,num_params] or None
+
+    expert_prior :
         samples from ground truth. Exists only if expert data are simulated
         from an oracle. Otherwise this output is ``None``
 
@@ -505,21 +514,20 @@ def save(
 
     Parameters
     ----------
-    eliobj: callable
-        instance of the :func:`elicit.elicit.Elicit` class.
+    eliobj
+        Instance of the :func:`elicit.elicit.Elicit` class.
 
-    name: str, optional
-        name of the saved .pkl file.
-
+    name
+        Name of the saved .pkl file.
         File is saved as .results/{method}/{name}_{seed}.pkl
 
-    file: str, optional
-        path to file, including file name,
+    file
+        Path to file, including file name,
         e.g. file="res" (saved as res.pkl) or
         file="method1/res" (saved as method1/res.pkl)
 
-    overwrite: bool
-        whether to overwrite existing file. Default value is False.
+    overwrite
+        Whether to overwrite existing file.
 
     """
     # either name or file must be specified
@@ -584,12 +592,12 @@ def load(file: str) -> Any:
 
     Parameters
     ----------
-    file : str
+    file
         path where ``eliobj`` object is saved.
 
     Returns
     -------
-    eliobj : el.elicit.Elicit obj
+    eliobj :
         loaded ``eliobj`` object.
 
     """
@@ -632,21 +640,20 @@ def parallel(
 
     Parameters
     ----------
-    runs: int
-        Number of replication. The default is ``4``.
+    runs
+        Number of replication.
 
-    cores : int, optional
+    cores
         Number of cores that should be used.
-        The default is ``None`` which implies ``cores=runs``.
 
-    seeds : list, optional
+    seeds
         A list of seeds. If ``None`` seeds are drawn from a Uniform(0,999999)
         distribution. The seed information corresponding to each chain is
         stored in ``eliobj.results``.
 
     Returns
     -------
-    parallel_dict : dict
+    parallel_dict :
         dictionary containing the parallelization settings.
 
     """
@@ -674,25 +681,27 @@ def save_history(
 
     Parameters
     ----------
-    loss : bool
-        total loss per epoch. The default is ``True``.
-    loss_component : bool
-        loss per loss-component per epoch. The default is ``True``.
-    time : bool
-        time in sec per epoch. The default is ``True``.
-    hyperparameter : bool
+    loss
+        Total loss per epoch.
+
+    loss_component
+        Loss per loss-component per epoch.
+
+    time
+        Time in sec per epoch.
+
+    hyperparameter
         'parametric_prior' method: Trainable hyperparameters of parametric
         prior distributions.
         'deep_prior' method: Mean and standard deviation of each marginal
         from the joint prior.
-        The default is ``True``.
-    hyperparameter_gradient : bool
+
+    hyperparameter_gradient
         Gradients of the hyperparameter. Only for 'parametric_prior' method.
-        The default is ``True``.
 
     Returns
     -------
-    save_hist_dict : dict
+    save_hist_dict :
         dictionary with inclusion/exclusion settings for each sub-result in
         history object.
 
@@ -755,45 +764,49 @@ def save_results(  # noqa: PLR0913
 
     Parameters
     ----------
-    target_quantities : bool
-        simulation-based target quantities. The default is ``True``.
-    elicited_statistics : bool
-        simulation-based elicited statistics. The default is ``True``.
-    prior_samples : bool
+    target_quantities
+        simulation-based target quantities.
+
+    elicited_statistics
+        simulation-based elicited statistics.
+
+    prior_samples
         samples from simulation-based prior distributions.
-        The default is ``True``.
-    model_samples : bool
+
+    model_samples
         output variables from the simulation-based generative model.
-        The default is ``True``.
-    expert_elicited_statistics : bool
-        expert-elicited statistics. The default is ``True``.
-    expert_prior_samples : bool
+
+    expert_elicited_statistics
+        expert-elicited statistics.
+
+    expert_prior_samples
         if oracle is used: samples from the true prior distribution,
-        otherwise it is None. The default is ``True``.
-    init_loss_list : bool
+        otherwise it is None.
+
+    init_loss_list
         initialization phase: Losses related to the samples drawn from the
         initialization distribution.
         Only included for method 'parametric_prior'.
-        The default is ``True``.
-    init_prior : bool
+
+    init_prior
         initialized elicit model object including the trainable variables.
         Only included for method 'parametric_prior'.
-        The default is ``True``.
-    init_matrix : bool
+
+    init_matrix
         initialization phase: samples drawn from the initialization
         distribution for each hyperparameter.
         Only included for method 'parametric_prior'.
-        The default is ``True``.
-    loss_tensor_expert : bool
+
+    loss_tensor_expert
         expert term in loss component for computing the discrepancy.
-        The default is ``True``.
-    loss_tensor_model : bool
+
+    loss_tensor_model
         simulation-based term in loss component for computing the
-        discrepancy. The default is ``True``.
+        discrepancy.
 
     Returns
     -------
-    save_res_dict : dict
+    save_res_dict :
         dictionary with inclusion/exclusion settings for each sub-result
         in results object.
 
@@ -875,30 +888,30 @@ def clean_savings(
 
     Parameters
     ----------
-    history : dict
-        results that are saved across epochs including among others loss,
-        loss_component, time, and hyperparameter. See :func:`save_history` for
-        complete list.
-    results : dict
-        results that are saved for the last epoch only including prior_samples,
-        elicited_statistics, target_quantities, etc. See :func:`save_results`
-        for complete list.
-    save_history : dict, :func:`elicit.utils.save_history`
+    history
+        Results that are saved across epochs including among others loss,
+        loss_component, time, and hyperparameter.
+        See [`save_history`][elicito.utils.save_history] for complete list.
+
+    results
+        Results that are saved for the last epoch only including prior_samples,
+        elicited_statistics, target_quantities, etc.
+        See [`save_results`][elicito.elicit.save_results] for complete list.
+
+    save_history
         Exclude or include sub-results in the final result file.
         In the ``history`` object are all results that are saved across epochs.
-        For usage information see
-        `How-To: Save and load the eliobj <https://florence-bockting.github.io/prior_elicitation/howto/saving_loading.html>`_
-    save_results : dict, :func:`elicit.utils.save_results`
+
+    save_results
         Exclude or include sub-results in the final result file.
         In the ``results`` object are all results that are saved for the last
-        epoch only. For usage information see
-        `How-To: Save and load the eliobj <https://florence-bockting.github.io/prior_elicitation/howto/saving_loading.html>`_
+        epoch only.
 
     Returns
     -------
-    results, history : tuple[dict, dict]
+    results, history :
         final results taking in consideration exclusion criteria as specified
-        in :func:`save_history` and :func:`save_results`.
+        in `save_history` and `save_results`.
 
     """
     for key_hist in save_history:
@@ -917,12 +930,12 @@ def get_expert_datformat(targets: list[Target]) -> dict[str, list[Any]]:
 
     Parameters
     ----------
-    targets : list
-        list of target quantities specified with :func:`elicit.elicit.target`.
+    targets
+        list of target quantities
 
     Returns
     -------
-    elicit_dict : dict[str, list]
+    elicit_dict :
         expected format of expert data.
 
     """
@@ -966,29 +979,31 @@ def softmax_gumbel_trick(
 
     Parameters
     ----------
-    likelihood : Callable, tfp.distributions object
+    likelihood
         shape = [B, num_samples, num_obs, 1]
         likelihood function used in the generative model.
         Must be a tfp.distributions object.
-    upper_thres : float
+
+    upper_thres
         upper threshold at which the distribution of the outcome variable is
         truncated. For double-bounded distribution (e.g. Binomial) this is
         simply the "total count" information. Lower-bounded distribution
         (e.g. Poisson) must be truncated to create an artificial
         double-boundedness.
-    temp : float, temp > 0
+
+    temp
         temperature hyperparameter of softmax function. A temperature going
         towards zero yields approximates a categorical distribution, while
         a temperature >> 0 approximates a continuous distribution.
-        The default value is ``1.6``.
-    kwargs : any
+
+    kwargs
         additional keyword arguments including the seed information. **Note**:
         the ``**kwargs`` argument is required in this function (!) as it
         extracts internally the seed information.
 
     Returns
     -------
-    ypred : tf.Tensor
+    ypred :
         continuously approximated ypred from the discrete likelihood.
 
     Raise
