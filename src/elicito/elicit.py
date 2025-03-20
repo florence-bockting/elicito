@@ -3,7 +3,7 @@ setting-up the elicitation method with Elicit
 """
 
 import inspect
-from typing import Annotated, Any, Callable, Optional
+from typing import Any, Callable, Optional
 
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
@@ -34,15 +34,17 @@ class Dtype:
 
     Attributes
     ----------
-    vtype: str, ("real", "array")
-        Type of input parameter x.
-    dim: int
-        Dimensionality of input parameter x. For scalar: dim=1, for vector: dim>1
+    vtype
+        Type of input x.
+
+    dim
+        Dimensionality of input x.
+        Scalar: `dim = 1`; Vector: `dim > 1`
 
     Returns
     -------
-    tf.Tensor
-        Tensor of correct shape depending on vtype and dim.
+    :
+        Tensor of shape depending on `vtype` and `dim`.
     """
 
     def __init__(self, vtype: str, dim: int):
@@ -52,9 +54,10 @@ class Dtype:
         Parameters
         ----------
         vtype
-            Type of input parameter x.
+            Type of input x.
+
         dim
-            dimensionality of input parameter
+            Dimensionality of input
         """
         self.vtype = vtype
         self.dim = dim
@@ -66,12 +69,12 @@ class Dtype:
         Parameters
         ----------
         x
-            input variable
+            input x
 
         Returns
         -------
-        casted_x
-            input variable with correct type
+        :
+            input x with correct type
         """
         if self.vtype == "real":
             dtype_dim = tf.cast(x, dtype=tf.float32)
@@ -93,32 +96,35 @@ def hyper(  # noqa: PLR0913
 
     Parameters
     ----------
-    name : string
+    name
         Custom name of hyperparameter.
-    lower : float
+
+    lower
         Lower bound of hyperparameter.
-        The default is unbounded: ``float("-inf")``.
-    upper : float
+
+    upper
         Upper bound of hyperparameter.
-        The default is unbounded: ``float("inf")``.
-    vtype : string, ("real", "array")
-        Hyperparameter type. The default is ``"real"``.
-    dim : integer
-        Dimensionality of variable. Only required if vtype is "array".
-        The default is ``1``.
-    shared : bool
+
+    vtype
+        Hyperparameter type.
+
+    dim
+        Dimensionality of variable.
+        Only required if `vtype = "array"`.
+
+    shared
         Shared hyperparameter between model parameters.
-        The default is ``False``.
 
     Returns
     -------
-    hyppar_dict : dict
+    hyppar_dict :
         Dictionary including all hyperparameter settings.
 
     Raises
     ------
     ValueError
-        ``lower``, ``upper`` take only values that are float or "-inf"/"inf".
+        ``lower``, ``upper`` take only values that are float
+        or `"-inf"`or `"inf"`.
 
         ``lower`` value should not be higher than ``upper`` value.
 
@@ -218,30 +224,29 @@ def parameter(
 
     Parameters
     ----------
-    name : string
+    name
         Custom name of parameter.
-    family : tfp.distributions.Distribution, optional
+
+    family
         Prior distribution family for model parameter.
         Only required for ``parametric_prior`` method.
-        Must be an `tfp.distributions <https://www.tensorflow.org/probability/api_docs/python/tfp/distributions>`_ object.
-    hyperparams : elicit.hyper, optional
+        Must be an [`tfp.distributions`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions).
+
+    hyperparams
         Hyperparameters of distribution as specified in **family**.
         Only required for ``parametric_prior`` method.
         Structure of dictionary: *keys* must match arguments of
-        `tfp.distributions <https://www.tensorflow.org/probability/api_docs/python/tfp/distributions>`_
-        object and *values* have to be specified using the :func:`hyper`
+        [`tfp.distributions`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions)
+        object and *values* have to be specified using the [`hyper`][elicito.elicit.hyper]
         method.
-        Further details are provided in
-        `How-To specify prior hyperparameters (TODO) <url>`_.
-        Default value is ``None``.
-    lower : float
-        Only used if ``method="deep_prior"``.
+
+    lower
+        Only used if ``method = "deep_prior"``.
         Lower bound of parameter.
-        The default value is ``float("-inf")``.
-    upper : float
-        Only used if ``method="deep_prior"``.
+
+    upper
+        Only used if ``method = "deep_prior"``.
         Upper bound of parameter.
-        The default value is ``float("inf")``.
 
     Returns
     -------
@@ -323,24 +328,24 @@ def model(obj: Callable[[str], tf.Tensor], **kwargs: dict[Any, Any]) -> dict[str
 
     Parameters
     ----------
-    obj : class
-        class that implements the generative model.
-        See `How-To specify the generative_model for details (TODO) <url>`_.
-    **kwargs : keyword arguments
-        additional keyword arguments expected by **obj**.
+    obj
+        Generative model class as defined by the user.
+
+    **kwargs
+        additional keyword arguments expected by `obj`.
 
     Returns
     -------
-    generator_dict : dict
+    generator_dict :
         Dictionary including all generative model settings.
 
     Raises
     ------
     ValueError
-        generative model in ``obj`` requires the input argument
+        generative model in `obj` requires the input argument
         'prior_samples', but argument has not been found.
 
-        optional argument(s) of the generative model specified in ``obj`` are
+        optional argument(s) of the generative model specified in `obj` are
         not specified
 
     Examples
@@ -410,12 +415,12 @@ class Queries:
 
         Parameters
         ----------
-        quantiles : tuple
+        quantiles
             Tuple with respective quantiles ranging between 0 and 1.
 
         Returns
         -------
-        elicit_dict : dict
+        elicit_dict :
             Dictionary including the quantile settings.
 
         Raises
@@ -449,7 +454,7 @@ class Queries:
 
         Returns
         -------
-        elicit_dict : dict
+        elicit_dict :
             Dictionary including the identity settings.
 
         """
@@ -477,12 +482,12 @@ class Queries:
 
         Parameters
         ----------
-        func : callable
+        func
             Custom target method.
 
         Returns
         -------
-        elicit_dict : dict
+        elicit_dict :
             Dictionary including the custom settings.
 
         """
@@ -508,34 +513,32 @@ def target(
 
     Parameters
     ----------
-    name : string
+    name
         Name of the target quantity. Two approaches are possible:
         (1) Target quantity is identical to an output from the generative
         model: The name must match the output variable name. (2) Custom target
-        quantity is computed using the **target_method** argument.
-    query : dict
+        quantity is computed using the `target_method` argument.
+
+    query
         Specify the elicitation technique by using one of the methods
-        implemented in :func:`Queries`.
-        See `How-To specify custom elicitation techniques (TODO) <url>`_.
-    loss : callable
-        Loss function for computing the discrepancy between expert data and
-        model simulations. Implemented classes can be found
-        in :mod:`elicit.losses`.
-        The default is the maximum mean discrepancy with
-        an energy kernel: :func:`elicit.losses.MMD2`
-    target_method : callable, optional
+        implemented in [`Queries`][elicito.elicit.Queries].
+
+    loss
+        Lossfunction for computing the discrepancy between expert data and
+        model simulations. See [`losses`][elicito.losses].
+
+    target_method
         Custom method for computing a target quantity.
         Note: This method hasn't been implemented yet and will raise an
-        ``NotImplementedError``. See for further information the corresponding
-        `GitHub issue #34 <https://github.com/florence-bockting/prior_elicitation/issues/34>`_.
-        The default is ``None``.
-    weight : float
+        ``NotImplementedError``. See
+        [GitHub issue #34](https://github.com/florence-bockting/prior_elicitation/issues/34).
+
+    weight
         Weight of the corresponding elicited quantity in the total loss.
-        The default is ``1.0``.
 
     Returns
     -------
-    target_dict : dict
+    target_dict :
         Dictionary including all settings regarding the target quantity and
         corresponding elicitation technique.
 
@@ -578,15 +581,15 @@ class Expert:
 
         Parameters
         ----------
-        dat : dict
+        dat
             Elicited data from expert provided as dictionary. Data must be
             provided in a standardized format.
-            Use :func:`elicit.utils.get_expert_datformat` to get correct data
-            format for your method specification.
+            Use [`get_expert_datformat`][elicito.utils.get_expert_datformat]
+            to get correct data format for your method specification.
 
         Returns
         -------
-        expert_data : dict
+        expert_data :
             Expert-elicited information used for learning prior distributions.
 
         Examples
@@ -614,31 +617,29 @@ class Expert:
         """
         Simulate data from an oracle
 
-        Define a ground truth (true prior distribution(s)).
-        See `Explanation: Simulating from an oracle (TODO) <url>`_ for
-        further details.
+        Define a ground truth (i.e., specify 'true' prior distribution(s)).
 
         Parameters
         ----------
-        ground_truth : dict
+        ground_truth
             True prior distribution(s). *Keys* refer to parameter names and
             *values* to prior distributions implemented as
-            `tfp.distributions <https://www.tensorflow.org/probability/api_docs/python/tfp/distributions>`_
+            [`tfp.distributions`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions)
             object with predetermined hyperparameter values.
             You can specify a prior distribution for each model parameter or
             a joint prior for all model parameters at once or any approach in
             between. Only requirement is that the dimensionality of all priors
             in ground truth match with the number of model parameters.
             Order of priors in ground truth must match order of
-            :func:`elicit.elicit.Elicit` argument ``parameters``.
-        num_samples : int
+            [`Elicit`][elicito.Elicit] argument `parameters`.
+
+        num_samples
             Number of draws from the prior distribution.
             It is recommended to use a high value to min. sampling variation.
-            The default is ``10_000``.
 
         Returns
         -------
-        expert_data : dict
+        expert_data :
             Settings of oracle for simulating from ground truth. True elicited
             statistics are used as `expert-data` in loss function.
 
@@ -691,16 +692,16 @@ def optimizer(
 
     Parameters
     ----------
-    optimizer : callable, `tf.keras.optimizers <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers>`_ object.
+    optimizer
         Optimizer used for SGD implemented.
-        Must be an object implemented in `tf.keras.optimizers <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers>`_ object.
-        The default is ``tf.keras.optimizers.Adam``.
-    **kwargs : keyword arguments
+        Must be an object implemented in [`tf.keras.optimizers`](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers)
+
+    **kwargs
         Additional keyword arguments expected by **optimizer**.
 
     Returns
     -------
-    optimizer_dict : dict
+    optimizer_dict :
         Dictionary specifying the SGD optimizer and its additional settings.
 
     Raises
@@ -717,7 +718,7 @@ def optimizer(
     >>>     learning_rate=0.1,  # doctest: +SKIP
     >>>     clipnorm=1.0  # doctest: +SKIP
     >>> )  # doctest: +SKIP
-    """  # noqa: E501
+    """
     # check whether optimizer is a tf.keras.optimizers object
     opt_module = ".".join(optimizer.__module__.split(".")[:-1])
     if opt_module != "keras.src.optimizers":
@@ -748,51 +749,54 @@ def optimizer(
 def initializer(
     method: Optional[str] = None,
     distribution: Optional[Uniform] = None,
-    loss_quantile: Optional[Annotated[float, "0-1"]] = None,
+    loss_quantile: Optional[Any] = None,
     iterations: Optional[int] = None,
     hyperparams: Optional[dict[str, Any]] = None,
 ) -> Initializer:
     """
     Initialize hyperparameter values
 
-    Only necessary for method ``parametric_prior``:
+    Only necessary for method ``parametric_prior``.
     Two approaches are currently possible:
 
-        1. Specify specific initial values for each hyperparameter.
-        2. Use one of the implemented sampling approaches to draw initial
-           values from one of the provided initialization distributions
+    1. Specify specific initial values for each hyperparameter.
+    2. Use one of the implemented sampling approaches to draw initial
+       values from one of the provided initialization distributions
 
     In (2) initial values for each hyperparameter are drawn from a uniform
-    distribution ranging from ``mean-radius`` to ``mean+radius``.
-    Further details on the implemented initialization method can be found in
-    `Explanation: Initialization method <url>`_.
+    distribution ranging from ``mean - radius`` to ``mean + radius``.
 
     Parameters
     ----------
-    method : string, optional
-        Name of initialization method. Currently supported are "random", "lhs",
-        and "sobol".
-    distribution : dict, optional
+    method
+        Name of initialization method.
+        Currently supported are "random", "lhs", and "sobol".
+
+    distribution
         Specification of initialization distribution.
-        Currently implemented methods: :func:`elicit.initialization.uniform`
-    loss_quantile : float, optional
+        Currently implemented methods: [`uniform`][elicito.initialization.uniform]
+
+    loss_quantile
         Quantile indicating which loss value should be used for selecting the
         initial hyperparameters.Specified as probability value between 0-1.
-    iterations : int, optional
+
+    iterations
         Number of samples drawn from the initialization distribution.
-    hyperparams : dict, optional
+
+    hyperparams
         Dictionary with specific initial values per hyperparameter.
         **Note:** Initial values are considered to be on the *unconstrained
-        scale*. Use  the ``forward`` method of :func:`elicit.utils.LowerBound`,
-        :func:`elicit.utils.UpperBound` and :func:`elicit.utils.DoubleBound`
-        for transforming a constrained hyperparameter into an unconstrained one.
-        In hyperparams dictionary, *keys* refer to hyperparameter names,
-        as specified in :func:`hyper` and *values* to the respective initial
-        values.
+        scale*. Use  the ``forward`` method of [`LowerBound`][elicito.utils.LowerBound],
+        [`UpperBound`][elicito.utils.UpperBound] and
+        [`DoubleBound`][elicito.utils.DoubleBound]
+        for transforming a constrained hyperparameter into an
+        unconstrained one. In hyperparams dictionary, *keys* refer to
+        hyperparameter names, as specified in [`hyper`][elicito.elicit.hyper]
+        and *values* to the respective initial values.
 
     Returns
     -------
-    init_dict : dict
+    init_dict :
         Dictionary specifying the initialization method.
 
     Raises
@@ -895,22 +899,25 @@ def trainer(
 
     Parameters
     ----------
-    method : str
+    method
         Method for learning the prior distribution. Available is either
         ``parametric_prior`` for learning independent parametric priors
         or ``deep_prior`` for learning a joint non-parameteric prior.
-    seed : int
-        seed used for learning.
-    epochs : int
-        number of iterations until training is stopped.
-    B : int
-        batch size. The default is 128.
-    num_samples : int
-        number of samples from the prior(s). The default is 200.
+
+    seed
+        Seed used for learning.
+
+    epochs
+        Number of iterations until training is stopped.
+    B
+        Batch size.
+
+    num_samples
+        Number of samples from the prior(s).
 
     Returns
     -------
-    train_dict : dict
+    train_dict :
         dictionary specifying the training settings for learning the prior
         distribution(s).
 
