@@ -332,33 +332,43 @@ def init_prior(  # noqa: PLR0913
     Parameters
     ----------
     expert_elicited_statistics
-        user-specified expert data as provided by :func:`elicit.elicit.Expert`.
+        Expert-elicited statistics
+
     initializer
-        user-input from :func:`elicit.elicit.initializer`.
+       Initialization of hyperparameter values
+
     parameters
-        user-input from :func:`elicit.elicit.parameter`.
+        Specification of model parameters
+
     trainer
-        user-input from :func:`elicit.elicit.trainer`.
+        Specification of trainer settings for the optimization process
+
     model
-        user-input from :func:`elicit.elicit.model`.
+        Generative model
+
     targets
-        user-input from :func:`elicit.elicit.target`.
+        Elicitation techniques and target quantities
+
     network
-        user-input from one of the methods implemented in the
-        :mod:`elicit.networks` module.
+        Generative model for learning non-parametric priors
+
     expert
-        user-input from :func:`elicit.elicit.Expert`.
+        Expert specification
+
     seed
-        internally used seed for reproducible results
+        Internally used seed for reproducible results
 
     Returns
     -------
     init_prior_model :
         initialized priors that will be used for the training phase.
+
     loss_list :
         list with all losses computed for each initialization run.
+
     init_prior :
         list with initializer prior model for each run.
+
     init_matrix :
         dictionary with *keys* being the hyperparameter names and *values*
         being the drawn initial values per run.
@@ -429,13 +439,13 @@ def uniform(
 
     specify uniform used for drawing initial values for each hyperparameter.
     Initial values are drawn from a uniform distribution
-    ranging from ``mean-radius`` to ``mean+radius``.
+    ranging from ``mean - radius`` to ``mean + radius``.
 
     Parameters
     ----------
-    radius : float or list[float]
+    radius
         Initial values are drawn from a uniform distribution ranging from
-        ``mean-radius`` to ``mean+radius``.
+        ``mean - radius`` to ``mean + radius``.
         If a ``float`` is provided the same setting will be used for all
         hyperparameters.
         If different settings per hyperparameter are required, a ``list`` of
@@ -443,9 +453,10 @@ def uniform(
         The order of values should be equivalent to the order of hyperparameter
         names provided in **hyper**.
         The default is ``1.``.
-    mean : float or list[float]
+
+    mean
         Initial values are drawn from a uniform distribution ranging from
-        ``mean-radius`` to ``mean+radius``.
+        ``mean - radius`` to ``mean + radius``.
         If a ``float`` is provided the same setting will be used for all
         hyperparameters.
         If different settings per hyperparameter are required, a ``list`` of
@@ -453,8 +464,9 @@ def uniform(
         The order of values should be equivalent to the order of hyperparameter
         names provided in **hyper**.
         The default is ``0.``.
-    hyper : list[str], optional
-        List of hyperparameter names as specified in :func:`elicit.elicit.hyper`.
+
+    hyper
+        List of hyperparameter names as specified in [`hyper`][elicito.elicit.hyper].
         The values provided in **radius** and **mean** should follow the order
         of hyperparameters indicated in this list.
         If a float is passed to **radius** and **mean** this argument is not
@@ -467,7 +479,7 @@ def uniform(
 
     Returns
     -------
-    init_dict : dict
+    init_dict :
         Dictionary with all seetings of the uniform distribution used for
         initializing the hyperparameter values.
 
