@@ -42,14 +42,6 @@ from elicito.types import (
     Target,
     Trainer,
 )
-from elicito.utils import (
-    clean_savings,
-    get_expert_data,
-    get_expert_datformat,
-    save,
-    save_history,
-    save_results,
-)
 
 tfd = tfp.distributions
 
@@ -123,7 +115,7 @@ class Elicit:
 
         network
             specification of neural network using a method implemented in
-            [`networks`][elicito.elicit.networks].
+            [`networks`][elicito.networks].
             Only required for ``deep_prior`` method.
 
         initializer
@@ -172,7 +164,7 @@ class Elicit:
 
         """  # noqa: E501
         # check expert data
-        expected_dict = get_expert_datformat(targets)
+        expected_dict = utils.get_expert_datformat(targets)
         try:
             expert["ground_truth"]
         except KeyError:
@@ -328,8 +320,8 @@ class Elicit:
 
     def fit(
         self,
-        save_history: SaveHist = save_history(),
-        save_results: SaveResults = save_results(),
+        save_history: SaveHist = utils.save_history(),
+        save_results: SaveResults = utils.save_results(),
         overwrite: bool = False,
         parallel: Optional[Parallel] = None,
     ) -> None:
@@ -402,7 +394,7 @@ class Elicit:
             # include seed information into results
             results["seed"] = self.trainer["seed"]
             # remove results that user wants to exclude from saving
-            results_prep, history_prep = clean_savings(
+            results_prep, history_prep = utils.clean_savings(
                 history, results, save_history, save_results
             )
             # save results in list attribute
@@ -429,7 +421,7 @@ class Elicit:
                 self.history.append(res[i][1])
                 self.results[i]["seed"] = seed
 
-                self.results[i], self.history[i] = clean_savings(
+                self.results[i], self.history[i] = utils.clean_savings(
                     self.history[i], self.results[i], save_history, save_results
                 )
 
@@ -483,7 +475,7 @@ class Elicit:
             raise AssertionError(msg)
 
         # add a saving path
-        return save(self, name=name, file=file, overwrite=overwrite)
+        return utils.save(self, name=name, file=file, overwrite=overwrite)
 
     def update(self, **kwargs: dict[Any, Any]) -> None:
         """
@@ -556,7 +548,7 @@ class Elicit:
         """
         self.trainer["seed_chain"] = seed
         # get expert data
-        expert_elicits, expert_prior = get_expert_data(
+        expert_elicits, expert_prior = utils.get_expert_data(
             self.trainer,
             self.model,
             self.targets,
