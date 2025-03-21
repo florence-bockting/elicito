@@ -896,7 +896,7 @@ def clean_savings(
     results
         Results that are saved for the last epoch only including prior_samples,
         elicited_statistics, target_quantities, etc.
-        See [`save_results`][elicito.elicit.save_results] for complete list.
+        See [`save_results`][elicito.utils.save_results] for complete list.
 
     save_history
         Exclude or include sub-results in the final result file.

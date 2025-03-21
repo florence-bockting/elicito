@@ -68,7 +68,7 @@ class Uniform(TypedDict):
     """
     typed dictionary for specification of initialization distribution
 
-    See [`uniform`][elicito.elicit.uniform]
+    See [`uniform`][elicito.initialization.uniform]
 
     """
 
@@ -119,7 +119,7 @@ class SaveHist(TypedDict):
     """
     Typed dictionary for specification of saving `history` results
 
-    See [`save_history`][elicito.elicit.save_history]
+    See [`save_history`][elicito.utils.save_history]
     """
 
     loss: bool
@@ -133,7 +133,7 @@ class SaveResults(TypedDict):
     """
     Typed dictionary for specification of saving `results`
 
-    See [`save_results`][elicito.elicit.save_results]
+    See [`save_results`][elicito.utils.save_results]
     """
 
     target_quantities: bool
