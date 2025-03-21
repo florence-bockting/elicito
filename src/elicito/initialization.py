@@ -7,7 +7,7 @@ from typing import Any, Optional, Union
 
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
-from tqdm import tqdm
+import tqdm
 
 import elicito as el
 from elicito.exceptions import MissingOptionalDependencyError
@@ -202,7 +202,7 @@ def init_runs(  # noqa: PLR0913
     network: Optional[NFDict],
     expert: ExpertDict,
     seed: int,
-) -> tuple[Any, ...]:
+) -> tuple[list[Any], list[Any], dict[str, Any]]:
     """
     Compute the discrepancy between expert data and simulated data
 
@@ -323,11 +323,9 @@ def init_prior(  # noqa: PLR0913
     network: Optional[NFDict],
     expert: ExpertDict,
     seed: int,
-) -> tuple[Any, ...]:
+) -> tuple[Any, list[Any], list[Any], dict[str, Any]]:
     """
     Extract target loss and initialize prior model
-
-    See [`init_runs`][elicito.initializer.init_runs].
 
     Parameters
     ----------
@@ -335,7 +333,7 @@ def init_prior(  # noqa: PLR0913
         Expert-elicited statistics
 
     initializer
-       Initialization of hyperparameter values
+        Initialization of hyperparameter values
 
     parameters
         Specification of model parameters
