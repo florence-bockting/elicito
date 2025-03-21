@@ -20,29 +20,30 @@ class Priors(tf.Module):
 
     Parameters
     ----------
-    ground_truth : bool
+    ground_truth
         True if expert data are simulated from a given ground truth (oracle)
-    init_matrix_slice : dict[str, tf.Tensor], optional
-        samples drawn from the initialization distribution to initialize
+
+    init_matrix_slice
+        Samples drawn from the initialization distribution to initialize
         the hyperparameter of the parametric prior distributions
-        Only required for method="parametric_prior" otherwise None.
-    trainer : dict
-        specification of training settings and meta-information for
-        workflow using :func:`elicit.elicit.trainer`
-    parameters : list
-        list of model parameters specified with
-        :func:`elicit.elicit.parameter`.
-    network : dict, optional
-        specification of neural network using a method implemented in
-        :mod:`elicit.networks`.
-        Only required for ``deep_prior`` method. For ``parametric_prior``
-        use ``None``.
-    expert : dict
-        provide input data from expert or simulate data from oracle with
-        either the ``data`` or ``simulator`` method of the
-        :mod:`elicit.elicit.Expert` module.
-    seed : int
-        seed used for learning.
+        Only required for `method = "parametric_prior"` otherwise None.
+    trainer
+        Specification of training settings
+
+    parameters
+        List of model parameters
+
+    network
+        Specification of neural network
+        Only required for ``deep_prior`` method.
+        For ``parametric_prior`` use ``None``.
+
+    expert
+        Provide input data from expert or simulate data from oracle with
+        either the ``data`` or ``simulator`` method
+
+    seed
+        Seed used for learning.
     """
 
     def __init__(  # noqa: PLR0913
@@ -84,7 +85,7 @@ class Priors(tf.Module):
 
         Returns
         -------
-        prior_samples : tf.Tensor, shape: [B,num_samples,num_params]
+        prior_samples
             Samples from prior distribution(s).
 
         """
@@ -115,28 +116,28 @@ def intialize_priors(  # noqa: PLR0912
 
     Parameters
     ----------
-    init_matrix_slice : tf.Tensor, optional
-        samples drawn from the initialization distribution to initialize
+    init_matrix_slice
+        Samples drawn from the initialization distribution to initialize
         the hyperparameter of the parametric prior distributions
         Only for method="parametric_prior", otherwise None.
-    method : str
-        parametric_prior or deep_prior method as specified in
-        :func:`elicit.elicit.trainer`
-    seed : int
-        seed of current workflow run as specified in
-        :func:`elicit.elicit.trainer`
-    parameters : list[dict]
-        list of model parameter specifications using
-        :func:`elicit.elicit.parameter`.
-    network : dict, optional
-        specification of neural network using a method implemented in
-        :mod:`elicit.networks`.
+
+    method
+        Parametric_prior or deep_prior method
+
+    seed
+        Seed of current workflow run
+
+    parameters
+        List of model parameter
+
+    network
+        specification of neural network
         Only required for ``deep_prior`` method. For ``parametric_prior``
         use ``None``.
 
     Returns
     -------
-    init_prior : dict[str, tf.Tensor]
+    init_prior :
         returns initialized prior distributions ready for prior sampling.
 
     """
@@ -220,35 +221,39 @@ def sample_from_priors(  # noqa: PLR0913
 
     Parameters
     ----------
-    initialized_priors : dict[str, tf.Variable] or Callable
-        initialized prior distributions ready for prior sampling.
-    ground_truth : bool
+    initialized_priors
+        Initialized prior distributions ready for prior sampling.
+
+    ground_truth
         True if expert data is simulated from ground truth.
-    num_samples : int
-        number of samples from the prior(s).
-    B : int
-        batch size.
-    seed : int
-        seed used for learning.
-    method : str
-        parametric_prior or deep_prior method as specified in
-        :func:`elicit.elicit.trainer`
-    parameters : list
-        list of model parameters specified with
-        :func:`elicit.elicit.parameter`.
-    network : dict, optional
-        specification of neural network using a method implemented in
-        :mod:`elicit.networks`.
+
+    num_samples
+        Number of samples from the prior(s).
+
+    B
+        Batch size.
+
+    seed
+        Seed used for learning.
+
+    method
+        Parametric_prior or deep_prior method
+
+    parameters
+        List of model parameters
+
+    network
+        Specification of neural network
         Only required for ``deep_prior`` method. For ``parametric_prior``
         use ``None``.
-    expert : callable
-        provide input data from expert or simulate data from oracle with
-        either the ``data`` or ``simulator`` method of the
-        :mod:`elicit.elicit.Expert` module.
+
+    expert
+        Provide input data from expert or simulate data from oracle with
+        either the ``data`` or ``simulator`` method
 
     Returns
     -------
-    prior_samples : tf.Tensor, shape: [B, num_samples, num_params]
+    prior_samples :
         Samples from prior distributions.
 
     """
@@ -325,16 +330,18 @@ def simulate_from_generator(
 
     Parameters
     ----------
-    prior_samples : tf.Tensor, shape: [B, num_samples, num_params]
-        samples from prior distributions.
-    seed : int
-        seed used for learning. Specification in :func:`elicit.elicit.trainer`.
-    model : dict
-        specification of generative model using :func:`elicit.elicit.model`.
+    prior_samples
+        Samples from prior distributions.
+
+    seed
+        Seed used for learning. Specification in :func:`elicit.elicit.trainer`.
+
+    model
+        Specification of generative model using :func:`elicit.elicit.model`.
 
     Returns
     -------
-    model_simulations : dict[str, tf.Tensor]
+    model_simulations :
         simulated data from generative model.
 
     """

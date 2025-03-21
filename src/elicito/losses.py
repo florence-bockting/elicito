@@ -21,13 +21,13 @@ def preprocess(elicited_statistics: dict[str, tf.Tensor]) -> dict[str, tf.Tensor
 
     Parameters
     ----------
-    elicited_statistics : dict
-        dictionary including the elicited statistics.
+    elicited_statistics
+        Dictionary including the elicited statistics.
 
     Returns
     -------
-    preprocessed_elicits : dict
-        dictionary including all preprocessed elicited statistics which will
+    preprocessed_elicits :
+        Dictionary including all preprocessed elicited statistics which will
         enter the loss function to compute the individual loss components.
 
     Raises
@@ -86,17 +86,19 @@ def indiv_loss(
 
     Parameters
     ----------
-    elicit_expert : dict
-        dictionary including all preprocessed elicited statistics
-    elicit_training : dict
-        dictionary including all preprocessed model statistics
-    targets : list
-        user-input from :func:`elicit.elicit.target`
+    elicit_expert
+        Dictionary including all preprocessed elicited statistics
+
+    elicit_training
+        Dictionary including all preprocessed model statistics
+
+    targets
+        Target quantities and specification of elicitation technique
 
     Returns
     -------
-    indiv_losses : list
-        list of individual losses for each loss component
+    indiv_losses :
+        List of individual losses for each loss component
 
     """
     # create dictionary for storing results
@@ -137,24 +139,29 @@ def total_loss(
 
     Parameters
     ----------
-    elicit_training : dict
-        elicited statistics simulated by the model.
-    elicit_expert : dict
-        elicited statistics as queried from the expert.
-    targets : list
-        user-input from :func:`elicit.elicit.target`
+    elicit_training
+        Elicited statistics simulated by the model.
+
+    elicit_expert
+        Elicited statistics as queried from the expert.
+
+    targets
+        Specification of target quantities and elicitation techniques.
 
     Returns
     -------
-    loss : float
-        weighted average across individual losses quantifying the discrepancy
+    loss :
+        Weighted average across individual losses quantifying the discrepancy
         between expert data and model simulations.
-    individual_losses : list
-        list of individual losses for each loss component.
-    elicit_expert_prep : dict
-        dictionary including all preprocessed expert elicited statistics.
-    elicit_training_prep : dict
-        dictionary including all preprocessed model-simulated elicited
+
+    individual_losses :
+        List of individual losses for each loss component.
+
+    elicit_expert_prep :
+        Dictionary including all preprocessed expert elicited statistics.
+
+    elicit_training_prep :
+        Dictionary including all preprocessed model-simulated elicited
         statistics.
 
     """
@@ -187,13 +194,16 @@ def L2(
 
     Parameters
     ----------
-    loss_component_expert : tf.Tensor
-        preprocessed expert-elicited data
-    loss_component_training : tf.Tensor
-        preprocessed model-simulated data
-    axis : int, optional
+    loss_component_expert
+        Preprocessed expert-elicited data
+
+    loss_component_training
+        Preprocessed model-simulated data
+
+    axis
         Axis along which to compute the norm of the difference.
-    ord : int or str
+
+    ord
         Order of the norm. Supports 'euclidean' and other norms
         supported by tf.norm. Default is 'euclidean'.
     """
@@ -213,11 +223,11 @@ class MMD2:
 
         Parameters
         ----------
-        kernel : str, ("energy", "gaussian")
-            kernel type used for computing the MMD.
+        kernel
+            Kernel type used for computing the MMD.
             When using a gaussian kernel an additional 'sigma' argument has to
             be passed.
-            The default kernel is "energy".
+
         **kwargs
             additional keyword arguments that might be required by the
             different individual kernels
@@ -227,7 +237,7 @@ class MMD2:
         ValueError
             ``kernel`` must be either 'energy' or 'gaussian' kernel.
 
-            ``sigma`` argument need to be passed if ``kernel="gaussian"``
+            ``sigma`` argument need to be passed if ``kernel = "gaussian"``
 
         Examples
         --------
@@ -266,17 +276,18 @@ class MMD2:
 
         Parameters
         ----------
-        x : tensor, shape=[B, num_stats]
-            preprocessed expert-elicited statistics.
+        x
+            Preprocessed expert-elicited statistics.
             Preprocessing refers to broadcasting expert data to same shape as
             model-simulated data.
-        y : tensor, shape=[B, num_stats]
-            model-simulated statistics corresponding to expert-elicited
+
+        y
+            Model-simulated statistics corresponding to expert-elicited
             statistics
 
         Returns
         -------
-        MMD2_mean : tensor, shape=[]
+        MMD2_mean :
             Average biased, squared maximum mean discrepancy between expert-
             elicited and model simulated data.
 
@@ -320,13 +331,13 @@ class MMD2:
 
         Parameters
         ----------
-        u : tf.Tensor, shape=[B, num_stats, num_stats]
+        u
             result of prior computation.
 
         Returns
         -------
-        u_clipped : tf.Tensor, shape=[B, num_stats, num_stats]
-            clipped u value with ``min=1e-8`` and ``max=1e10``.
+        u_clipped :
+            clipped u value with ``min = 1e-8`` and ``max = 1e10``.
 
         """
         u_clipped = tf.clip_by_value(u, clip_value_min=1e-8, clip_value_max=int(1e10))
@@ -344,12 +355,12 @@ class MMD2:
 
         Parameters
         ----------
-        xx : tensor, shape=[B,num_stats,num_stats]
+        xx
             Similarity matrices with batch dimension in axis=0.
 
         Returns
         -------
-        diag : tensor, shape=[B,num_stats]
+        diag :
             diagonale elements of matrices per batch.
 
         """
@@ -366,14 +377,15 @@ class MMD2:
 
         Parameters
         ----------
-        u : tensor, shape=[B,num_stats,num_stats]
+        u
             squared distance between samples.
-        kernel : str, ("energy", "gaussian")
+
+        kernel
             name of kernel used for computing discrepancy.
 
         Returns
         -------
-        d : tensor, shape=[B,num_stats,num_stats]
+        d :
             discrepancy between samples.
 
         """

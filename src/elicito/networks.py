@@ -22,18 +22,20 @@ def NF(
 
     Parameters
     ----------
-    inference_network : callable
+    inference_network
         type of inference network as specified by bayesflow.inference_networks.
-    network_specs : dict
+
+    network_specs
         specification of normalizing flow architecture. Arguments are inherited
         from chosen bayesflow.inference_networks.
-    base_distribution : callable
+
+    base_distribution
         Base distribution from which should be sampled during learning.
         Normally the base distribution is a multivariate normal.
 
     Returns
     -------
-    nf_dict : dict
+    nf_dict :
         dictionary specifying the normalizing flow settings.
 
     """
@@ -59,13 +61,12 @@ class BaseNormal:
 
         Parameters
         ----------
-        num_params : int
-            number of model parameters. Is internally specified in
-            :func:`elicit.simulations.sample_from_priors`
+        num_params
+            number of model parameters.
 
         Returns
         -------
-        callable
+        :
             tfp.distributions object.
 
         """

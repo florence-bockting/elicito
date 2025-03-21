@@ -68,7 +68,7 @@ plugins:
             - http://xarray.pydata.org/en/stable/objects.inv
           options:
             docstring_style: numpy
-            relative_crossrefs: yes
+            relative_crossrefs: false # yes
             separate_signature: true
             show_root_heading: false
             show_signature_annotations: true
