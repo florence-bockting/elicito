@@ -7,7 +7,7 @@ from typing import Any, Optional, Union
 
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
-import tqdm
+from tqdm import tqdm
 
 import elicito as el
 from elicito.exceptions import MissingOptionalDependencyError
