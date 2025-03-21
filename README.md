@@ -54,9 +54,9 @@ don't render correctly on GitHub's viewer.
 
 ## Installation
 
-This package requires `tensorflow` and thus for Windows Native also the
-additional requirement that Microsoft Visual C++ Redistributable for VisualStudio
-are installed. See [`install tensorflow`](https://www.tensorflow.org/install/pip)
+This package requires `tensorflow` and all its dependencies
+Specifically, for Windows the Microsoft Visual C++ Redistributable for VisualStudio.
+See [`install tensorflow`](https://www.tensorflow.org/install/pip)
 
 <!--- --8<-- [start:installation] -->
 ### As an application
