@@ -140,7 +140,7 @@ class Elicit:
             the same as the number of model parameters.
 
         ValueError
-            if ``method="deep_prior"``, ``network`` can't be None and ``initialization``
+            if ``method = "deep_prior"``, ``network`` can't be None and ``initialization``
             should be None.
 
             if ``method="deep_prior"``, ``num_params`` as specified in the ``network_specs``
@@ -151,16 +151,16 @@ class Elicit:
             ``initialization`` can't be None.
 
             if ``method ="parametric_prior" and multiple hyperparameter have
-            the same name but are not shared by setting ``shared=True``."
+            the same name but are not shared by setting ``shared = True``."
 
             if ``hyperparams`` is specified in section ``initializer`` and a
             hyperparameter name (key in hyperparams dict) does not match any
-            hyperparameter name specified in :func:`hyper`.
+            hyperparameter name specified in [`hyper`][elicito.elicit.hyper].
 
         NotImplementedError
             [network] Currently only the standard normal distribution is
             implemented as base distribution. See
-            `GitHub issue #35 <https://github.com/florence-bockting/prior_elicitation/issues/35>`_.
+            [GitHub issue #35](https://github.com/florence-bockting/prior_elicitation/issues/35).
 
         """  # noqa: E501
         # check expert data
@@ -185,8 +185,8 @@ class Elicit:
                 num_params += expert["ground_truth"][k].sample(1).shape[-1]
 
             if len(expected_params) != num_params:
-                msg = (  # type: ignore
-                    "[section: expert] Dimensionality of ground truth in "
+                msg = (
+                    "[section: expert] Dimensionality of ground truth in "  # type: ignore
                     + "'expert' is not the same  as number of model "
                     + f"parameters.Got {num_params=}, expected "
                     + f"{len(expected_params)}."
@@ -197,21 +197,21 @@ class Elicit:
         # and initializer is none
         if trainer["method"] == "deep_prior":
             if network is None:
-                msg = (  # type: ignore
+                msg = (
                     "[section network] If method is 'deep prior', "
                     + " the section 'network' can't be None.",
                 )
                 raise ValueError(msg)
 
             if initializer is not None:
-                msg = (  # type: ignore
+                msg = (
                     "[section initializer] For method 'deep_prior' the "
                     + "'initializer' is not used and should be set to None.",
                 )
                 raise ValueError(msg)
 
             if network["network_specs"]["num_params"] != len(parameters):
-                msg = (  # type: ignore
+                msg = (
                     "[section network] The number of model parameters as "
                     + "specified in the parameters section, must match the "
                     + "number of parameters specified in the network (see "
@@ -233,14 +233,14 @@ class Elicit:
         # and network is none
         if trainer["method"] == "parametric_prior":
             if initializer is None:
-                msg = (  # type: ignore
+                msg = (
                     "[section initializer] If method is 'parametric_prior', "
                     + " the section 'initializer' can't be None.",
                 )
                 raise ValueError(msg)
 
             if network is not None:
-                msg = (  # type: ignore
+                msg = (
                     "[section network] If method is 'parametric prior' "
                     + "the 'network' is not used and should be set to None.",
                 )
