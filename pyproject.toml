@@ -13,7 +13,8 @@ dependencies = [
     "tensorflow == 2.15.1",
     "tensorflow-probability == 0.23.0",
     "tensorflow-io-gcs-filesystem == 0.31.0",
-    "joblib == 1.4.2"
+    "joblib == 1.4.2",
+    "notebook>=7.3.3",
 ]
 readme = "README.md"
 classifiers = [
