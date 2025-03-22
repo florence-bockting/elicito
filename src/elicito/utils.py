@@ -951,9 +951,7 @@ def get_expert_datformat(targets: list[Target]) -> dict[str, list[Any]]:
     return elicit_dict
 
 
-def softmax_gumbel_trick(
-    likelihood: Any, upper_thres: float, temp: float = 1.6, **kwargs: dict[Any, Any]
-) -> Any:
+def softmax_gumbel_trick(likelihood: Any, upper_thres: float, temp: float = 1.6) -> Any:
     """
     Apply softmax-gumble trick
 
@@ -996,11 +994,6 @@ def softmax_gumbel_trick(
         towards zero yields approximates a categorical distribution, while
         a temperature >> 0 approximates a continuous distribution.
 
-    kwargs
-        additional keyword arguments including the seed information. **Note**:
-        the ``**kwargs`` argument is required in this function (!) as it
-        extracts internally the seed information.
-
     Returns
     -------
     ypred :
@@ -1017,11 +1010,6 @@ def softmax_gumbel_trick(
 
         if likelihood is not in tfp.distributions module. The likelihood
         must be a tfp.distributions object.
-
-    KeyError
-        if ``**kwargs`` is not in function arguments. It is required to pass
-        the **kwargs argument as it is used for extracting internally
-        information about the seed.
 
     """
     # check rank of likelihood object
@@ -1040,18 +1028,10 @@ def softmax_gumbel_trick(
         msg1: str = "Likelihood in generative model must be a tfp.distribution object."
         raise ValueError(msg1)
 
-    if "seed" not in list(kwargs.keys()):
-        msg2 = (
-            "Please provide the **kwargs argument in the el.utils.softmax-",
-            "gumble function. This is required for extracting internally",
-            " information about the seed.",
-        )
-        raise KeyError(msg2)
-
     # set seed
-    tf.random.set_seed(kwargs["seed"])
+    tf.random.set_seed(el.SEED)
     # get batch size, num_samples, num_observations
-    B, S, number_obs = likelihood.batch_shape
+    B, S, number_obs, _ = likelihood.batch_shape
     # constant outcome vector (including zero outcome)
     thres = upper_thres
     c = tf.range(thres + 1, delta=1, dtype=tf.float32)

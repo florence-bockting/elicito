@@ -5,7 +5,7 @@
 groups = ["default", "all-dev", "dev", "docs", "full", "pandas", "plots", "scipy", "tests", "tests-full", "tests-min"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:599a5ebd3999828fc966d4d4637385273a8bae2d94fc9e13e7a47c2936188347"
+content_hash = "sha256:a470461aa513c32ec73146c0be4705556fb8aabbdf9294a0256090aa29b7a5b3"
 
 [[metadata.targets]]
 requires_python = ">=3.10,<3.11"
@@ -2632,7 +2632,7 @@ name = "scipy"
 version = "1.13.1"
 requires_python = ">=3.9"
 summary = "Fundamental algorithms for scientific computing in Python"
-groups = ["full", "plots", "scipy"]
+groups = ["full", "scipy"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
     "numpy<2.3,>=1.22.4",
@@ -2664,20 +2664,19 @@ files = [
 
 [[package]]
 name = "seaborn"
-version = "0.11.0"
-requires_python = ">=3.6"
-summary = "seaborn: statistical data visualization"
+version = "0.13.2"
+requires_python = ">=3.8"
+summary = "Statistical data visualization"
 groups = ["full", "plots"]
 marker = "python_version >= \"3.10\" and python_version < \"3.11\""
 dependencies = [
-    "matplotlib>=2.2",
-    "numpy>=1.15",
-    "pandas>=0.23",
-    "scipy>=1.0",
+    "matplotlib!=3.6.1,>=3.4",
+    "numpy!=1.24.0,>=1.20",
+    "pandas>=1.2",
 ]
 files = [
-    {file = "seaborn-0.11.0-py3-none-any.whl", hash = "sha256:62439a38482decdb263a8339f54ecb9823995ad8716abc830e91ca0753201e70"},
-    {file = "seaborn-0.11.0.tar.gz", hash = "sha256:390f8437b14f5ce845062f2865ad51656464c306d09bb97d7764c6cba1dd607c"},
+    {file = "seaborn-0.13.2-py3-none-any.whl", hash = "sha256:636f8336facf092165e27924f223d3c62ca560b1f2bb5dff7ab7fad265361987"},
+    {file = "seaborn-0.13.2.tar.gz", hash = "sha256:93e60a40988f4d65e9f4885df477e2fdaff6b73a9ded434c1ab356dd57eefff7"},
 ]
 
 [[package]]

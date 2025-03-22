@@ -69,6 +69,10 @@ __all__ = [
     "utils",
 ]
 
+# global variable (gets overwritten by user-defined
+# seed in Elicit object)
+SEED = 0
+
 
 class Elicit:
     """
@@ -315,8 +319,15 @@ class Elicit:
         self.history: list[dict[str, Any]] = []
         self.results: list[dict[str, Any]] = []
 
+        # overwrite global seed
+        globals()["SEED"] = self.trainer["seed"]
+
         # set seed
-        tf.random.set_seed(self.trainer["seed"])
+        tf.random.set_seed(SEED)
+
+        # add seed information into model attribute
+        # (required for discrete likelihood)
+        # self.model["seed"] = self.trainer["seed"]
 
     def fit(
         self,
@@ -546,8 +557,13 @@ class Elicit:
             results and history object of the optimization process.
 
         """
+        # overwrite global seed
+        # TODO test correct seed usage for parallel processing
+        globals()["SEED"] = seed
+
         self.trainer["seed_chain"] = seed
-        # get expert data
+        # get expert data; use trainer seed
+        # (and not seed from list)
         expert_elicits, expert_prior = utils.get_expert_data(
             self.trainer,
             self.model,

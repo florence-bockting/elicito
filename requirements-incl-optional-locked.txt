@@ -51,7 +51,7 @@ requests==2.32.3
 requests-oauthlib==2.0.0
 rsa==4.9
 scipy==1.13.1
-seaborn==0.11.0
+seaborn==0.13.2
 setuptools==75.6.0
 six==1.17.0
 tensorboard==2.15.2
