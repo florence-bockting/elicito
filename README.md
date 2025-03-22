@@ -12,10 +12,12 @@ A Python package for learning prior distributions based on expert knowledge
 [![PyPI](https://img.shields.io/pypi/v/elicito.svg)](https://pypi.org/project/elicito/)
 [![PyPI install](https://github.com/florence-bockting/elicito/actions/workflows/install-pypi.yaml/badge.svg?branch=main)](https://github.com/florence-bockting/elicito/actions/workflows/install-pypi.yaml)
 
+<!---
 **Conda :**
 [![Conda](https://img.shields.io/conda/vn/conda-forge/elicito.svg)](https://anaconda.org/conda-forge/elicito)
 [![Conda platforms](https://img.shields.io/conda/pn/conda-forge/elicito.svg)](https://anaconda.org/conda-forge/elicito)
 [![Conda install](https://github.com/florence-bockting/elicito/actions/workflows/install-conda.yaml/badge.svg?branch=main)](https://github.com/florence-bockting/elicito/actions/workflows/install-conda.yaml)
+-->
 
 **Tests :**
 [![CI](https://github.com/florence-bockting/elicito/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/florence-bockting/elicito/actions/workflows/ci.yaml)
@@ -54,8 +56,12 @@ don't render correctly on GitHub's viewer.
 
 ## Installation
 
-This package requires `tensorflow` and all its dependencies
-Specifically, for Windows the Microsoft Visual C++ Redistributable for VisualStudio.
+This package requires the user to additionally install `bayesflow == 1.1.6`.
+We will remove this dependency in near future but for the time being install first `bayesflow == 1.1.6`
+and then `elicito` (see below).
+
+Our package depends on `tensorflow` and thus all its requirements.
+Specifically, for Windows the Microsoft Visual C++ Redistributable for VisualStudio needs to be installed.
 See [`install tensorflow`](https://www.tensorflow.org/install/pip)
 
 <!--- --8<-- [start:installation] -->
@@ -69,20 +75,10 @@ because of breaking updates to dependencies.
 
 The locked version of Expert prior elicitation method can be installed with
 
-=== "mamba"
-    ```sh
-    mamba install -c conda-forge elicito-locked
-    ```
 
-=== "conda"
-    ```sh
-    conda install -c conda-forge elicito-locked
-    ```
-
-=== "pip"
-    ```sh
-    pip install 'elicito[locked]'
-    ```
+```sh
+pip install 'elicito[locked]'
+```
 
 ### As a library
 
@@ -103,41 +99,19 @@ please [raise an issue](https://github.com/florence-bockting/elicito/issues).
 
 The (non-locked) version of Expert prior elicitation method can be installed with
 
-=== "mamba"
-    ```sh
-    mamba install -c conda-forge elicito
-    ```
-
-=== "conda"
-    ```sh
-    conda install -c conda-forge elicito
-    ```
-
-=== "pip"
-    ```sh
-    pip install elicito
-    ```
+```sh
+pip install elicito
+```
 
 Additional dependencies can be installed using
 
-=== "mamba"
-    If you are installing with mamba, we recommend
-    installing the extras by hand because there is no stable
-    solution yet (see [conda issue #7502](https://github.com/conda/conda/issues/7502))
+```sh
+# To add plotting dependencies
+pip install 'elicito[plots]'
 
-=== "conda"
-    If you are installing with conda, we recommend
-    installing the extras by hand because there is no stable
-    solution yet (see [conda issue #7502](https://github.com/conda/conda/issues/7502))
-
-=== "pip"
-    ```sh
-    # To add plotting dependencies
-    pip install 'elicito[plots]'
-
-    # To add all optional dependencies
-    pip install 'elicito[full]'
-    ```
+# To add all optional dependencies
+pip install 'elicito[full]'
+```
 
 ### For developers
 
