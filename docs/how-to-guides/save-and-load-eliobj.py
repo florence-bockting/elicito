@@ -26,6 +26,8 @@
 
 # %%
 # Imports
+import copy
+import os
 from typing import Any, Union
 
 import numpy as np
@@ -36,6 +38,7 @@ import elicito as el
 
 tfd = tfp.distributions
 
+os.environ["PYTHONWARNINGS"] = "ignore"
 # %% [markdown]
 # ## Save an unfitted `eliobj` object
 # ### Step 0: Load necessary libraries and functions/classes
@@ -249,9 +252,6 @@ print(eliobj_m1.results[0].keys())
 # This can be done as follows:
 
 # %%
-import copy
-
-# copy eliobj_m1 (to keep the new and orig. object in environment)
 eliobj_m2 = copy.deepcopy(eliobj_m1)
 
 # update eliobj_m1 by changing the saving settings
@@ -285,7 +285,7 @@ eliobj_m2_reload.history[0]["loss"]
 # ### Can I fit an already fitted eliobj?
 
 # %%
-eliobj_m2_reload.fit()
+# eliobj_m2_reload.fit()
 
 # prompt:
 # elicit object is already fitted.
@@ -309,7 +309,7 @@ eliobj_m2_reload.fit(overwrite=True)
 # ### Can I overwrite an eliobj that already exits as file on disk?
 
 # %%
-eliobj_m2_reload.save(name="m2")
+# eliobj_m2_reload.save(name="m2")
 
 # prompt:
 # In provided directory exists already a file with identical name.
@@ -323,3 +323,8 @@ eliobj_m2_reload.save(name="m2")
 
 # %%
 eliobj_m2_reload.save(name="m2", overwrite=True)
+
+# remove results folder
+import shutil
+
+shutil.rmtree("results")

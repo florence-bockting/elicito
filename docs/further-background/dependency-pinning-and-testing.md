@@ -24,8 +24,7 @@ In the majority of cases, new releases do not cause issues
 so pinning simply forces users to workaround overly strict pins[^1]
 (which can be done, see
 [working around incorrectly set pins][working-around-incorrectly-set-pins]).
-The tradeoff with this approach is
-This does run the risk that,
+The tradeoff with this approach is that you run the risk that,
 if a dependency releases a breaking change,
 the function provided by our package may break too.
 
@@ -128,7 +127,7 @@ Finally, we also check the installation of the locked versions of the package,
 i.e. installation with `pip install 'elicito[locked]'`.
 These tests give us the greatest coverage of Python versions and operating systems
 and help alert us to places where users may face issues.
-Having said that, these tests do require 30 separate CI runs,
+Having said that, these tests do require 30 separate jobs,
 which is why we don't run them in CI.
 
 Through this combination of CI testing and installation testing,
@@ -136,4 +135,4 @@ we get a pretty good coverage of the different ways in which our package can be 
 It is not perfect, largely because the combinatorics don't allow for testing everything.
 If we find a particular, key, use case failing often,
 then we would happily discuss whether this should be included in the CI too,
-to catch issues earlier than at user time.
+to catch issues in advance of use.

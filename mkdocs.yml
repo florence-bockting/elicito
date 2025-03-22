@@ -39,6 +39,27 @@ plugins:
   # https://oprypin.github.io/mkdocs-literate-nav/
   - literate-nav:
       nav_file: NAVIGATION.md
+  # Notebook support.
+  # Working out how to make this play with nb-exec would be nice,
+  # then it wouldn't run every time.
+  # See also: https://github.com/danielfrg/mkdocs-jupyter/issues/161
+  # We could also get the nb-exec-table mentioned here:
+  # https://myst-nb.readthedocs.io/en/v0.12.2/use/execute.html
+  # One for another day.
+  - mkdocs-jupyter:
+      # Use filenames for titles
+      ignore_h1_titles: True
+      include: ["*.py"]
+      execute: true
+      # Toggle off for faster builds
+      # execute: false
+      allow_errors: false
+      # theme: dark
+      include_source: True
+      ignore: ["*.ipynb", "*.md", "docs/gen_doc_stubs.py"]
+      remove_tag_config:
+        remove_input_tags:
+          - remove_input
   # Docstring generation
   - mkdocstrings:
       # See https://analog-garage.github.io/mkdocstrings-python-xref/1.6.0/
@@ -64,6 +85,9 @@ plugins:
             - https://docs.scipy.org/doc/scipy/objects.inv
             - https://scitools-iris.readthedocs.io/en/stable/objects.inv
             - https://scmdata.readthedocs.io/en/stable/objects.inv
+            # # Not available for tqdm
+            # # https://github.com/tqdm/tqdm/issues/705
+            # - https://tqdm.github.io/objects.inv
             - https://validators.readthedocs.io/en/stable/objects.inv
             - http://xarray.pydata.org/en/stable/objects.inv
           options:
@@ -88,6 +112,7 @@ plugins:
 markdown_extensions:
   # https://squidfunk.github.io/mkdocs-material/setup/extensions/python-markdown/#attribute-lists
   - attr_list
+  - footnotes
   # https://squidfunk.github.io/mkdocs-material/reference/math/#katex-mkdocsyml
   - pymdownx.arithmatex:
       generic: true
