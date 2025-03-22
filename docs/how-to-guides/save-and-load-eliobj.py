@@ -13,7 +13,7 @@
 # ---
 
 # %% [markdown]
-# # Saving and Loading the eliobj
+# # Save and Load the eliobj
 #
 # Here we introduce a method for harmonising two timeseries.
 # This part may be more unusual or unfamiliar
@@ -27,7 +27,6 @@
 # %%
 # Imports
 import copy
-import os
 from typing import Any, Union
 
 import numpy as np
@@ -38,7 +37,6 @@ import elicito as el
 
 tfd = tfp.distributions
 
-os.environ["PYTHONWARNINGS"] = "ignore"
 # %% [markdown]
 # ## Save an unfitted `eliobj` object
 # ### Step 0: Load necessary libraries and functions/classes
