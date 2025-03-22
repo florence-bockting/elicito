@@ -183,7 +183,7 @@ jobs:
         run: |
           pip install --upgrade pip wheel
           pip install .
-          pip install -r requirements-only-tests-locked.txt
+          pip install -r requirements-only-tests-min-locked.txt
       - name: Run tests
         run: |
           pytest tests -r a -vv tests
@@ -199,12 +199,17 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
+      - name: Set up Python "${{ matrix.python-version }}"
+        id: setup-python
+        uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
-          uv-dependency-install-flags: "--no-dev"  # no extras is default
+          python-version: "${{ matrix.python-version }}"
+      - name: Install
+        run: |
+          pip install --upgrade pip wheel
+          pip install .
       - name: Check importable without extras
-        run: uv run python scripts/test-install.py
+        run: python scripts/test-install.py
 
   check-build:
     strategy:

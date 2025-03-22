@@ -567,7 +567,7 @@ def save(
             overwrite = False
             print("Process aborded. File is not overwritten.")
 
-    if overwrite:
+    if not os.path.isfile(path + ".pkl") or overwrite:
         storage = dict()
         # user inputs
         storage["model"] = eliobj.model

@@ -7,6 +7,7 @@ See https://oprypin.github.io/mkdocs-literate-nav/
 - [Installation](installation.md)
 - [How-to guides](how-to-guides/index.md)
     - [Do a basic calculation](how-to-guides/basic-calculation.md)
+    - [Saving and loading the eliobj](how-to-guides/save-and-load-eliobj.py)
 - [Tutorials](tutorials/index.md)
 - [Further background](further-background/index.md)
     - [Dependency pinning and testing strategy](further-background/dependency-pinning-and-testing.md)

@@ -38,7 +38,7 @@ ruff-fixes:  ## fix the code using ruff
 
 .PHONY: test
 test:  ## run the tests
-	uv run pytest src tests -r a -v --doctest-modules --cov=src
+	uv run pytest src tests -r a -v --doctest-modules --doctest-report ndiff --cov=src
 
 # Note on code coverage and testing:
 # You must specify cov=src.
