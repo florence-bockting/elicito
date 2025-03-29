@@ -1074,7 +1074,7 @@ all-dev = [
     { name = "rfc3986-validator", specifier = "==0.1.1" },
     { name = "rpds-py", specifier = "==0.22.3" },
     { name = "ruff", specifier = "==0.8.6" },
-    { name = "scipy-stubs", marker = "python_full_version >= '3.10'", specifier = ">=1.14.1" },
+    { name = "scipy-stubs", marker = "python_full_version >= '3.10'", specifier = "<1.15" },
     { name = "semantic-version", specifier = "==2.10.0" },
     { name = "send2trash", specifier = "==1.8.3" },
     { name = "setuptools", specifier = "==75.6.0" },
@@ -1120,7 +1120,7 @@ dev = [
     { name = "platformdirs", specifier = "==4.3.6" },
     { name = "pre-commit", specifier = "==4.0.1" },
     { name = "pyyaml", specifier = "==6.0.2" },
-    { name = "scipy-stubs", marker = "python_full_version >= '3.10'", specifier = ">=1.14.1" },
+    { name = "scipy-stubs", marker = "python_full_version >= '3.10'", specifier = "<1.15" },
     { name = "semantic-version", specifier = "==2.10.0" },
     { name = "setuptools", specifier = "==75.6.0" },
     { name = "toml", specifier = "==0.10.2" },
@@ -2535,7 +2535,6 @@ dependencies = [
     { name = "griffe" },
     { name = "mkdocstrings-python" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/75/79/3ee49ca07b55eb9d25fcfa38a3905cdc03af02cce5513f7a458e8211d5a9/mkdocstrings_python_xref-1.6.2.tar.gz", hash = "sha256:65e83fecc3a059d173aab9b06e4bcd50cc720b221b3cc3d6b35b11ffb6aa86d4", size = 11735 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/70/e0/dd595c056920b1cbdfd1af4372f5fc49f5fb4252072d9a07e1634146a8d1/mkdocstrings_python_xref-1.6.2-py3-none-any.whl", hash = "sha256:1492b822bcb04a9072a9b731ceabfed4b9d3f8cd23c62211cb8b22bab0cb7fc0", size = 19130 },
 ]
@@ -3561,14 +3560,14 @@ wheels = [
 
 [[package]]
 name = "scipy-stubs"
-version = "1.15.2.1"
+version = "1.14.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "optype", marker = "python_full_version >= '3.10'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/55/51/3d6dd7233d8fe19063cf0f4280fabbf5a0b0eaf270438808ca96b57eb118/scipy_stubs-1.15.2.1.tar.gz", hash = "sha256:ba9590ef3cd24511dced121ac0a9c8d9d0681ca5ac091128f0f7ba5a936a8693", size = 274081 }
+sdist = { url = "https://files.pythonhosted.org/packages/52/39/a5831a03db9c6b1a3a7fd325ccb63e3c2e050121b3eacc7115e191c37997/scipy_stubs-1.14.1.6.tar.gz", hash = "sha256:7505ea8a1624ab4c72516a04eb2838f5ae43e33ba100fc2d5c44103003dd414a", size = 235505 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/9a/1019c6177105d8a26f9b29ad17b280c4d9495eedcd78b819ef8cee6a7c28/scipy_stubs-1.15.2.1-py3-none-any.whl", hash = "sha256:10977d731ec9b3fbff95dd5868903c9cd1caf8621f4ff8b3b45ef30148337bde", size = 458329 },
+    { url = "https://files.pythonhosted.org/packages/68/a2/d6e5d390b756a3d10c856a4d1c9033427422d040dee8bc98e1ba09f91f7c/scipy_stubs-1.14.1.6-py3-none-any.whl", hash = "sha256:6f5b96aba27fd20c0bb9abfce5b3ce83fbd2fe13e803bf92796242828755fecc", size = 414795 },
 ]
 
 [[package]]

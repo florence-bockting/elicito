@@ -7,6 +7,8 @@ See https://docs.pytest.org/en/7.1.x/reference/fixtures.html#conftest-py-sharing
 import pandas as pd
 import pytest
 
+pandas = pytest.importorskip("pandas")
+
 
 @pytest.fixture(scope="session", autouse=True)
 def pandas_terminal_width():

@@ -84,7 +84,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
 
     """
     try:
-        from scipy.stats import qmc  # type: ignore
+        from scipy.stats import qmc
     except ImportError as exc:
         raise MissingOptionalDependencyError("scipy", requirement="scipy") from exc
 
@@ -135,6 +135,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
         mean = tf.cast(mean, tf.float32)
         radius = tf.cast(radius, tf.float32)
 
+        sampler: Union[qmc.LatinHypercube, qmc.Sobol]
         # Generate samples based on the chosen method
         if method == "sobol":
             sampler = qmc.Sobol(d=n_hypparam, seed=seed)
@@ -278,13 +279,14 @@ def init_runs(  # noqa: PLR0913
             parameters=parameters,
         )
 
+    epochs: Any
     if progress == 1:
         print("Initialization")
-        epochs = tqdm(range(initializer["iterations"]))
+        epochs = tqdm(range(initializer["iterations"]))  # type: ignore [arg-type]
     else:
-        epochs = range(initializer["iterations"])
+        epochs = range(initializer["iterations"])  # type: ignore [arg-type]
 
-    for i in epochs:  # type: ignore [arg-type]
+    for i in epochs:
         # update seed
         seed_copy = seed_copy + 1
         # extract initial hyperparameter value for each run
