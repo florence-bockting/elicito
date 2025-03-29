@@ -26,6 +26,10 @@
 
 # %%
 # Imports
+import os
+
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
 import copy
 from typing import Any, Union
 
@@ -176,7 +180,7 @@ optimizer = el.optimizer(
 
 
 # define the trainer model with used approach, seed, etc.
-trainer = el.trainer(method="parametric_prior", seed=0, epochs=4)
+trainer = el.trainer(method="parametric_prior", seed=0, epochs=4, progress=0)
 
 
 # specify the initialization distribution, used to draw the initial values
@@ -184,7 +188,7 @@ trainer = el.trainer(method="parametric_prior", seed=0, epochs=4)
 initializer = el.initializer(
     method="sobol",
     loss_quantile=0,
-    iterations=8,
+    iterations=32,
     distribution=el.initialization.uniform(radius=1, mean=0),
 )
 

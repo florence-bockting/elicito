@@ -586,6 +586,7 @@ class Elicit:
                 self.network,
                 self.expert,
                 seed,
+                self.trainer["progress"],
             )
         )
 
@@ -600,6 +601,7 @@ class Elicit:
             self.targets,
             self.parameters,
             seed,
+            self.trainer["progress"],
         )
         # add some additional results
         results["expert_elicited_statistics"] = expert_elicits

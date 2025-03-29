@@ -22,6 +22,10 @@
 # ## Imports
 
 # %%
+import os
+
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
 from typing import Any
 
 import numpy as np
@@ -200,15 +204,11 @@ eliobj = el.Elicit(
     optimizer=el.optimizer(
         optimizer=tf.keras.optimizers.Adam, learning_rate=0.05, clipnorm=1.0
     ),
-    trainer=el.trainer(
-        method="parametric_prior",
-        seed=0,
-        epochs=3,  # 00
-    ),
+    trainer=el.trainer(method="parametric_prior", seed=0, epochs=300, progress=0),
     initializer=el.initializer(
         method="sobol",
         loss_quantile=0,
-        iterations=3,  # 2,
+        iterations=32,
         distribution=el.initialization.uniform(radius=1.0, mean=0.0),
     ),
 )

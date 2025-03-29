@@ -891,8 +891,13 @@ def initializer(
     return init_dict
 
 
-def trainer(
-    method: str, seed: int, epochs: int, B: int = 128, num_samples: int = 200
+def trainer(  # noqa: PLR0913
+    method: str,
+    seed: int,
+    epochs: int,
+    B: int = 128,
+    num_samples: int = 200,
+    progress: int = 1,
 ) -> Trainer:
     """
     Specify training settings for learning the prior distribution(s).
@@ -909,11 +914,16 @@ def trainer(
 
     epochs
         Number of iterations until training is stopped.
+
     B
         Batch size.
 
     num_samples
         Number of samples from the prior(s).
+
+    progress
+        whether training progress should be printed. Progress is shown if
+        `progress=1` and muted if `progress=0`.
 
     Returns
     -------
@@ -929,6 +939,8 @@ def trainer(
         ``epochs`` can only take positive integers. Minimum number of epochs
         is 1.
 
+        `progress` can only be 0 (mute progress) or 1 (print progress)
+
     Examples
     --------
     >>> el.trainer(  # doctest: +SKIP
@@ -939,6 +951,9 @@ def trainer(
     >>>     num_samples=200  # doctest: +SKIP
     >>> )  # doctest: +SKIP
     """
+    # check that progress is either 0 or 1
+    if progress not in [0, 1]:
+        raise ValueError("Progress has to be either 0 or 1. " + "Got {progress=}.")
     # check that epochs are positive numbers
     if epochs <= 0:
         msg = (
@@ -961,5 +976,6 @@ def trainer(
         B=int(B),
         num_samples=int(num_samples),
         epochs=int(epochs),
+        progress=progress,
     )
     return train_dict

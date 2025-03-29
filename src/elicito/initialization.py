@@ -202,6 +202,7 @@ def init_runs(  # noqa: PLR0913
     network: Optional[NFDict],
     expert: ExpertDict,
     seed: int,
+    progress: int,
 ) -> tuple[list[Any], list[Any], dict[str, Any]]:
     """
     Compute the discrepancy between expert data and simulated data
@@ -234,8 +235,13 @@ def init_runs(  # noqa: PLR0913
 
     expert
         User-input from [`Expert`][elicito.elicit.Expert].
+
     seed
         internal seed for reproducible results
+
+    progress
+        progress is muted if `progress=0`.
+        progress is printed if `progress=1`
 
     Returns
     -------
@@ -272,9 +278,13 @@ def init_runs(  # noqa: PLR0913
             parameters=parameters,
         )
 
-    print("Initialization")
+    if progress == 1:
+        print("Initialization")
+        epochs = tqdm(range(initializer["iterations"]))
+    else:
+        epochs = range(initializer["iterations"])
 
-    for i in tqdm(range(initializer["iterations"])):  # type: ignore [arg-type]
+    for i in epochs:  # type: ignore [arg-type]
         # update seed
         seed_copy = seed_copy + 1
         # extract initial hyperparameter value for each run
@@ -308,8 +318,8 @@ def init_runs(  # noqa: PLR0913
         init_var_list.append(prior_model)
         save_prior.append(prior_model.trainable_variables)
         loss_list.append(loss.numpy())
-
-    print(" ")
+    if progress == 1:
+        print(" ")
     return loss_list, init_var_list, init_matrix
 
 
@@ -323,6 +333,7 @@ def init_prior(  # noqa: PLR0913
     network: Optional[NFDict],
     expert: ExpertDict,
     seed: int,
+    progress: int,
 ) -> tuple[Any, list[Any], list[Any], dict[str, Any]]:
     """
     Extract target loss and initialize prior model
@@ -356,6 +367,9 @@ def init_prior(  # noqa: PLR0913
     seed
         Internally used seed for reproducible results
 
+    progress
+        whether progress should be printed or muted
+
     Returns
     -------
     init_prior_model :
@@ -384,6 +398,7 @@ def init_prior(  # noqa: PLR0913
                 network=None,
                 expert=expert,
                 seed=seed,
+                progress=progress,
             )
 
             # extract pre-specified quantile loss out of all runs
