@@ -84,7 +84,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
 
     """
     try:
-        from scipy.stats import qmc
+        from scipy.stats import qmc  # type: ignore [import-untyped]
     except ImportError as exc:
         raise MissingOptionalDependencyError("scipy", requirement="scipy") from exc
 
