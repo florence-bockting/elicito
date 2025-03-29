@@ -26,6 +26,7 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
     targets: list[Target],
     parameters: list[Parameter],
     seed: int,
+    progress: int,
 ) -> tuple[dict[Any, Any], dict[Any, Any]]:
     """
     Run the optimization algorithms for E epochs.
@@ -55,6 +56,9 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
 
     seed
         Internally used seed for reproducible results
+
+    progress
+        Whether progress of training is printed
 
     Returns
     -------
@@ -98,8 +102,13 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
     sgd_optimizer = init_sgd_optimizer(**optimizer_copy)
 
     # start training loop
-    print("Training")
-    for epoch in tqdm(tf.range(trainer["epochs"])):
+    if progress == 0:
+        epochs = tf.range(trainer["epochs"])
+    else:
+        print("Training")
+        epochs = tqdm(tf.range(trainer["epochs"]))
+
+    for epoch in epochs:
         # runtime of one epoch
         epoch_time_start = time.time()
 

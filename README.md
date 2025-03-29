@@ -12,13 +12,6 @@ A Python package for learning prior distributions based on expert knowledge
 [![PyPI](https://img.shields.io/pypi/v/elicito.svg)](https://pypi.org/project/elicito/)
 [![PyPI install](https://github.com/florence-bockting/elicito/actions/workflows/install-pypi.yaml/badge.svg?branch=main)](https://github.com/florence-bockting/elicito/actions/workflows/install-pypi.yaml)
 
-<!---
-**Conda :**
-[![Conda](https://img.shields.io/conda/vn/conda-forge/elicito.svg)](https://anaconda.org/conda-forge/elicito)
-[![Conda platforms](https://img.shields.io/conda/pn/conda-forge/elicito.svg)](https://anaconda.org/conda-forge/elicito)
-[![Conda install](https://github.com/florence-bockting/elicito/actions/workflows/install-conda.yaml/badge.svg?branch=main)](https://github.com/florence-bockting/elicito/actions/workflows/install-conda.yaml)
--->
-
 **Tests :**
 [![CI](https://github.com/florence-bockting/elicito/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/florence-bockting/elicito/actions/workflows/ci.yaml)
 [![Coverage](https://codecov.io/gh/florence-bockting/elicito/branch/main/graph/badge.svg)](https://codecov.io/gh/florence-bockting/elicito)
@@ -74,7 +67,6 @@ which reduces the chance of installation issues
 because of breaking updates to dependencies.
 
 The locked version of Expert prior elicitation method can be installed with
-
 
 ```sh
 pip install 'elicito[locked]'

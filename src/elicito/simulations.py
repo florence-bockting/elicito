@@ -2,7 +2,6 @@
 Simulations from prior and model
 """
 
-import inspect
 from typing import Any, Callable, Optional, Union
 
 import tensorflow as tf
@@ -356,10 +355,7 @@ def simulate_from_generator(
     # simulate from generator
     if len(add_model_args) < 1:
         model_simulations = generative_model(prior_samples)
-    elif "kwargs" not in inspect.getfullargspec(GenerativeModel.__call__)[0]:
-        model_simulations = generative_model(prior_samples, **add_model_args)
     else:
-        add_model_args["seed"] = seed
         model_simulations = generative_model(prior_samples, **add_model_args)
 
     return model_simulations

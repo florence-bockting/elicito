@@ -100,6 +100,7 @@ class Trainer(TypedDict, total=False):
     num_samples: int
     epochs: int
     seed_chain: int
+    progress: int
 
 
 class NFDict(TypedDict):
