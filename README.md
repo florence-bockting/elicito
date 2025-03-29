@@ -49,8 +49,12 @@ don't render correctly on GitHub's viewer.
 
 ## Installation
 
-This package requires `tensorflow` and all its dependencies
-Specifically, for Windows the Microsoft Visual C++ Redistributable for VisualStudio.
+This package requires the user to additionally install `bayesflow == 1.1.6`.
+We will remove this dependency in near future but for the time being install first `bayesflow == 1.1.6`
+and then `elicito` (see below).
+
+Our package depends on `tensorflow` and thus all its requirements.
+Specifically, for Windows the Microsoft Visual C++ Redistributable for VisualStudio needs to be installed.
 See [`install tensorflow`](https://www.tensorflow.org/install/pip)
 
 <!--- --8<-- [start:installation] -->
@@ -64,10 +68,9 @@ because of breaking updates to dependencies.
 
 The locked version of Expert prior elicitation method can be installed with
 
-=== "pip"
-    ```sh
-    pip install 'elicito[locked]'
-    ```
+```sh
+pip install 'elicito[locked]'
+```
 
 ### As a library
 
@@ -88,21 +91,19 @@ please [raise an issue](https://github.com/florence-bockting/elicito/issues).
 
 The (non-locked) version of Expert prior elicitation method can be installed with
 
-=== "pip"
-    ```sh
-    pip install elicito
-    ```
+```sh
+pip install elicito
+```
 
 Additional dependencies can be installed using
 
-=== "pip"
-    ```sh
-    # To add plotting dependencies
-    pip install 'elicito[plots]'
+```sh
+# To add plotting dependencies
+pip install 'elicito[plots]'
 
-    # To add all optional dependencies
-    pip install 'elicito[full]'
-    ```
+# To add all optional dependencies
+pip install 'elicito[full]'
+```
 
 ### For developers
 
