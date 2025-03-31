@@ -14,6 +14,7 @@ dependencies = [
     "tensorflow-probability == 0.23.0",
     "tensorflow-io-gcs-filesystem == 0.31.0",
     "joblib == 1.4.2",
+    "silence_tensorflow == 1.2.3"
 ]
 readme = "README.md"
 classifiers = [

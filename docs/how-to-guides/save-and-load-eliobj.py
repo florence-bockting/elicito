@@ -28,6 +28,9 @@
 # Imports
 import os
 
+from silence_tensorflow import silence_tensorflow
+
+silence_tensorflow()
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 import copy

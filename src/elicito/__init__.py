@@ -186,7 +186,19 @@ class Elicit:
             expected_params = [param["name"] for param in parameters]
             num_params = 0
             for k in expert["ground_truth"]:
-                num_params += expert["ground_truth"][k].sample(1).shape[-1]
+                # type list can result in cases where a tfd.Sequential/
+                # Jointdistribution is used
+                if type(expert["ground_truth"][k].sample(1)) is list:
+                    num_params += sum(
+                        [
+                            param.shape[-1]
+                            for i, param in enumerate(
+                                expert["ground_truth"][k].sample(1)
+                            )
+                        ]
+                    )
+                else:
+                    num_params += expert["ground_truth"][k].sample(1).shape[-1]
 
             if len(expected_params) != num_params:
                 msg = (
