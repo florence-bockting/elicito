@@ -4,6 +4,7 @@
 # Auto-generated docs and helper files
 docs/api/*
 !docs/api/.gitkeep
+results
 
 # pdm stuff
 .pdm-python
