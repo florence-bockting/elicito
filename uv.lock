@@ -592,7 +592,6 @@ source = { editable = "." }
 dependencies = [
     { name = "joblib" },
     { name = "numpy" },
-    { name = "silence-tensorflow" },
     { name = "tensorflow" },
     { name = "tensorflow-io-gcs-filesystem" },
     { name = "tensorflow-probability" },
@@ -951,7 +950,6 @@ requires-dist = [
     { name = "pandas", marker = "extra == 'pandas'", specifier = "==2.2.3" },
     { name = "scipy", marker = "extra == 'scipy'", specifier = "==1.13.1" },
     { name = "seaborn", marker = "extra == 'plots'", specifier = ">=0.12" },
-    { name = "silence-tensorflow", specifier = "==1.2.3" },
     { name = "tensorflow", specifier = "==2.15.1" },
     { name = "tensorflow-io-gcs-filesystem", specifier = "==0.31.0" },
     { name = "tensorflow-probability", specifier = "==0.23.0" },
@@ -3615,12 +3613,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/43/54/292f26c208734e9a7
 wheels = [
     { url = "https://files.pythonhosted.org/packages/55/21/47d163f615df1d30c094f6c8bbb353619274edccf0327b185cc2493c2c33/setuptools-75.6.0-py3-none-any.whl", hash = "sha256:ce74b49e8f7110f9bf04883b730f4765b774ef3ef28f722cce7c273d253aaf7d", size = 1224032 },
 ]
-
-[[package]]
-name = "silence-tensorflow"
-version = "1.2.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a4/3f/7256c42c70c0fae58ebc7ddae9285957607578b545330f2e7cdf861a0bb5/silence_tensorflow-1.2.3.tar.gz", hash = "sha256:4c55a32951af577e68e47e48675199b49944fd0fe042a026c069148bbef1d293", size = 7179 }
 
 [[package]]
 name = "six"
