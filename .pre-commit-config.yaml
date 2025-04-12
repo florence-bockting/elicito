@@ -4,7 +4,7 @@ ci:
   autoupdate_schedule: quarterly
   autoupdate_branch: pre-commit-autoupdate
   # Currently network access isn't supported in the pre-commit CI product.
-  skip: [uv-sync, uv-lock, uv-export, pdm-lock-check]
+  skip: [uv-sync, uv-lock, uv-export]
 
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
@@ -63,19 +63,3 @@ repos:
         args: ["-o", "requirements-only-tests-locked.txt", "--no-hashes", "--no-dev", "--no-emit-project", "--only-group", "tests"]
       # # Not released yet
       # - id: uv-sync
-  - repo: https://github.com/pdm-project/pdm
-    rev: 2.22.1
-    hooks:
-      # Update the `pdm.lock` file if needed.
-      # We need the pdm lock file too
-      # so that we can build the locked version of the package.
-      - name: pdm-lock
-        id: pdm-lock-check
-        # Overwrite the hook's standard entry point to get the behaviour we want
-        entry: pdm lock
-        args: ["--group", ":all", "--strategy", "inherit_metadata"]
-        files: ^pyproject.toml$
-        pass_filenames: false
-      # Double check that the `pdm.lock` file is up to date.
-      - id: pdm-lock-check
-        args: ["--group", ":all", "--strategy", "inherit_metadata"]

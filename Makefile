@@ -17,7 +17,6 @@ for line in sys.stdin:
 endef
 export PRINT_HELP_PYSCRIPT
 
-
 .PHONY: help
 help:  ## print short description of each target
 	@python3 -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
@@ -76,12 +75,6 @@ licence-check:  ## Check that licences of the dependencies are suitable
 	uv export --no-dev > $(TEMP_FILE)
 	uv run liccheck -r $(TEMP_FILE) -R licence-check.txt
 	rm -f $(TEMP_FILE)
-
-.PHONY: pdm-lock
-pdm-lock: pdm.lock  ## create/update the `pdm.lock` file
-
-pdm.lock: pyproject.toml
-	pdm lock --group :all --strategy inherit_metadata
 
 .PHONY: virtual-environment
 virtual-environment:  ## update virtual environment, create a new one if it doesn't already exist
