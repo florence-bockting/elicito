@@ -80,6 +80,12 @@ class Dtype:
             dtype_dim = tf.cast(x, dtype=tf.float32)
         if self.vtype == "array":
             dtype_dim = tf.constant(x, dtype=tf.float32, shape=(self.dim,))
+        if self.vtype == "cov":
+            dtype_dim = tf.constant(x, dtype=tf.float32, shape=(self.dim, self.dim))
+        if self.vtype == "cov2tril":
+            dtype_dim = tf.linalg.cholesky(
+                tf.constant(x, dtype=tf.float32, shape=(self.dim, self.dim))
+            )
         return dtype_dim
 
 
@@ -106,7 +112,9 @@ def hyper(  # noqa: PLR0913
         Upper bound of hyperparameter.
 
     vtype
-        Hyperparameter type.
+        Hyperparameter type. Either "real", "array",
+        "cov" or "cov2tril" (lower triangular of
+        covariance matrix realised via cholesky(cov))
 
     dim
         Dimensionality of variable.
@@ -128,7 +136,7 @@ def hyper(  # noqa: PLR0913
 
         ``lower`` value should not be higher than ``upper`` value.
 
-        ``vtype`` value can only be either 'real' or 'array'.
+        ``vtype`` value can only be either 'real', 'array', 'cov', or 'cov2tril'
 
         ``dim`` value can't be '1' if 'vtype="array"'
 
@@ -167,8 +175,11 @@ def hyper(  # noqa: PLR0913
         raise ValueError(msg)
 
     # check values for vtype are implemented
-    if vtype not in ["real", "array"]:
-        msg = f"vtype must be either 'real' or 'array'. You provided '{vtype=}'."  # type: ignore
+    if vtype not in ["real", "array", "cov", "cov2tril"]:
+        msg = (
+            "vtype must be either 'real', 'array', 'cov', 'cov2tril'. "
+            + f"You provided '{vtype=}'."
+        )  # type: ignore
         raise ValueError(msg)
 
     # check that dimensionality is adapted when "array" is chosen
@@ -179,17 +190,17 @@ def hyper(  # noqa: PLR0913
     # constraints
     # only lower bound
     if (lower != float("-inf")) and (upper == float("inf")):
-        lower_bound = LowerBound(lower)
+        lower_bound = LowerBound(lower=lower)
         transform = lower_bound.inverse
         constraint_name = "softplusL"
     # only upper bound
     elif (upper != float("inf")) and (lower == float("-inf")):
-        upper_bound = UpperBound(upper)
+        upper_bound = UpperBound(upper=upper)
         transform = upper_bound.inverse
         constraint_name = "softplusU"
     # upper and lower bound
     elif (upper != float("inf")) and (lower != float("-inf")):
-        double_bound = DoubleBound(lower, upper)
+        double_bound = DoubleBound(lower=lower, upper=upper)
         transform = double_bound.inverse
         constraint_name = "invlogit"
     # unbounded
@@ -852,7 +863,7 @@ def initializer(
     else:
         for arg in [distribution, loss_quantile, iterations]:
             if arg is None:
-                msg = f"If method is None {arg} must be specified."
+                msg = f"If {arg=}, then method must also be None."
                 raise ValueError(msg)
 
         # compute percentage from probability

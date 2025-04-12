@@ -176,7 +176,7 @@ def intialize_priors(  # noqa: PLR0912
                 else:
                     # get initial value
                     if init_matrix_slice is not None:
-                        initial_value: Any = float(init_matrix_slice[hp_n])
+                        initial_value: Any = init_matrix_slice[hp_n]
                     # initialize hyperparameter
                     initialized_hyperparam[f"{hp_k}_{hp_n}"] = tf.Variable(
                         initial_value=initial_value,
@@ -204,7 +204,7 @@ def intialize_priors(  # noqa: PLR0912
     return init_prior
 
 
-def sample_from_priors(  # noqa: PLR0913
+def sample_from_priors(  # noqa: PLR0913, PLR0912
     initialized_priors: Union[None, dict[str, tf.Tensor], Callable[[Any], Any]],
     ground_truth: bool,
     num_samples: int,
@@ -267,12 +267,20 @@ def sample_from_priors(  # noqa: PLR0913
             # sample from the prior distribution
             prior_sample = pr.sample((1, rep_true))
             # ensure that all samples have the same shape
-            if len(prior_sample.shape) < 3:  # noqa: PLR2004
-                prior = tf.expand_dims(prior_sample, -1)
-            else:
+            try:
+                prior_sample.shape
+            except AttributeError:
                 prior = prior_sample
+            else:
+                if len(prior_sample.shape) < 3:  # noqa: PLR2004
+                    prior = tf.expand_dims(prior_sample, -1)
+                else:
+                    prior = prior_sample
+
             priors.append(prior)
         # concatenate all prior samples into one tensor
+        if type(priors[0]) is list:
+            priors = priors[0]
         prior_samples = tf.concat(priors, axis=-1)
 
     if (method == "parametric_prior") and (not ground_truth):

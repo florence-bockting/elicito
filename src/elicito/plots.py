@@ -135,15 +135,26 @@ def initialization(eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]) -> None
 
 
 def loss(  # noqa: PLR0912
-    eliobj: Any, weighted: bool = True, **kwargs: dict[Any, Any]
+    eliobj: Any,
+    weighted: bool = True,
+    save_fig: Optional[str] = None,
+    **kwargs: dict[Any, Any],
 ) -> None:
     """
     Plot the total loss and the loss per component.
 
     Parameters
     ----------
-    eliobj : instance of :func:`elicit.elicit.Elicit`
+    eliobj
         fitted ``eliobj`` object.
+
+    weighted
+        Weight the loss per component.
+
+    save_fig
+        if figure should be saved, specify path and name
+        of the figure; otherwise use 'None'
+
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -239,21 +250,31 @@ def loss(  # noqa: PLR0912
         axs[i].spines[["right", "top"]].set_visible(False)
         axs[i].tick_params(axis="y", labelsize="x-small")
         axs[i].tick_params(axis="x", labelsize="x-small")
+    if save_fig is not None:
+        plt.savefig(save_fig)
     plt.show()
 
 
-def hyperparameter(eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]) -> None:
+def hyperparameter(
+    eliobj: Any, cols: int = 4, save_fig: Optional[str] = None, **kwargs: dict[Any, Any]
+) -> None:
     """
     Plot the convergence of each hyperparameter across epochs.
 
     Parameters
     ----------
-    eliobj : instance of :func:`elicit.elicit.Elicit`
+    eliobj
         fitted ``eliobj`` object.
-    cols : int, optional
+
+    cols
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
-    **kwargs : any, optional
+
+    save_fig
+        if figure should be saved, specify path and name
+        of the figure; otherwise use 'None'
+
+    **kwargs
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
 
@@ -341,11 +362,16 @@ def hyperparameter(eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]) -> None
         for k_idx in range(k):
             axs[rows - 1, cols - k_idx - 1].set_axis_off()
     fig.suptitle("Convergence of hyperparameter", fontsize="medium")
+    if save_fig is not None:
+        plt.savefig(save_fig)
     plt.show()
 
 
 def prior_joint(
-    eliobj: Any, idx: Optional[Union[int, list[int]]] = None, **kwargs: dict[Any, Any]
+    eliobj: Any,
+    idx: Optional[Union[int, list[int]]] = None,
+    save_fig: Optional[str] = None,
+    **kwargs: dict[Any, Any],
 ) -> None:
     """
     Plot learned prior distributions
@@ -356,13 +382,18 @@ def prior_joint(
 
     Parameters
     ----------
-    eliobj : instance of :func:`elicit.elicit.Elicit`
+    eliobj
         fitted ``eliobj`` object.
-    idx : int or list or None:
+
+    idx
         only required if parallelization is used for fitting the method.
         Indexes the replications and allows to choose for which replication(s) the
         joint prior should be shown.
-    **kwargs : any, optional
+
+    save_fig
+        save the figure to this location. If not None, the figure will be saved
+
+    **kwargs
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
 
@@ -456,23 +487,30 @@ def prior_joint(
             axs[i, j].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             axs[i, j].spines[["right", "top"]].set_visible(False)
     fig.suptitle("Learned joint prior", fontsize="medium")
+    if save_fig is not None:
+        plt.savefig(save_fig)
     plt.show()
 
 
 def prior_marginals(  # noqa: PLR0912
-    eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]
+    eliobj: Any, cols: int = 4, save_fig: Optional[str] = None, **kwargs: dict[Any, Any]
 ) -> None:
     """
     Plot the convergence of each hyperparameter across epochs.
 
     Parameters
     ----------
-    eliobj : instance of :func:`elicit.elicit.Elicit`
+    eliobj
         fitted ``eliobj`` object.
-    cols : int, optional
+
+    cols
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
-    **kwargs : any, optional
+
+    save_fig
+        path to save the figure. If not specified figure is not saved.
+
+    **kwargs
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
 
@@ -561,23 +599,31 @@ def prior_marginals(  # noqa: PLR0912
         for k_idx in range(k):
             axs[rows - 1, cols - k_idx - 1].set_axis_off()
     fig.suptitle("Learned marginal priors", fontsize="medium")
+    if save_fig is not None:
+        plt.savefig(save_fig)
     plt.show()
 
 
 def elicits(  # noqa: PLR0912, PLR0915
-    eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]
+    eliobj: Any, cols: int = 4, save_fig: Optional[str] = None, **kwargs: dict[Any, Any]
 ) -> None:
     """
     Plot the expert-elicited vs. model-simulated statistics.
 
     Parameters
     ----------
-    eliobj : instance of :func:`elicit.elicit.Elicit`
+    eliobj
         fitted ``eliobj`` object.
-    cols : int, optional
+
+    cols
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
-    **kwargs : any, optional
+
+    save_fig
+        save the figure to this location. If figure should not be
+        saved use 'None' (default)
+
+    **kwargs
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
 
@@ -746,24 +792,36 @@ def elicits(  # noqa: PLR0912, PLR0915
             axs[rows - 1, cols - k_idx - 1].set_axis_off()
 
     fig.suptitle("Expert vs. model-simulated elicited statistics", fontsize="medium")
+    if save_fig is not None:
+        plt.savefig(save_fig)
     plt.show()
 
 
 def marginals(
-    eliobj: Any, cols: int = 4, span: int = 30, **kwargs: dict[Any, Any]
+    eliobj: Any,
+    cols: int = 4,
+    span: int = 30,
+    save_fig: Optional[str] = None,
+    **kwargs: dict[Any, Any],
 ) -> None:
     """
     Plot convergence of mean and sd of the prior marginals
 
-    eliobj : instance of :func:`elicit.elicit.Elicit`
+    eliobj
         fitted ``eliobj`` object.
-    cols : int, optional
+
+    cols
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
-    span : int, optional
+
+    span
         number of last epochs used to get a final averaged value for mean and
         sd of the prior marginal. The default is ``30``.
-    kwargs : any, optional
+
+    save_fig
+        path to save the figure. If ``None``, no figure will be saved.
+
+    kwargs
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
 
@@ -837,6 +895,8 @@ def marginals(
         success=success,
     )
     fig.suptitle("Convergence of prior marginals mean and sd", fontsize="medium")
+    if save_fig is not None:
+        plt.savefig(save_fig)
     plt.show()
 
 
@@ -924,6 +984,8 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
     height_ratio: list[Union[int, float]] = [1, 1.5],
     weight_factor: float = 1.0,
     seed: int = 123,
+    xlim_weights: float = 0.2,
+    save_fig: Optional[str] = None,
     **kwargs: dict[Any, Any],
 ) -> None:
     """
@@ -931,22 +993,28 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
 
     Parameters
     ----------
-    eliobj:
+    eliobj
         instance of :func:`elicit.elicit.Elicit`
 
-    cols:
+    cols
         number of columns in plot
 
-    n_sim:
+    n_sim
         number of simulations
 
-    height_ratio:
+    height_ratio
         height ratio of prior averaging plot
 
-    weight_factor:
+    weight_factor
         weighting factor of each model in prior averaging
 
-    kwargs:
+    xlim_weights
+        limit of x-axis of weights plot
+
+    save_fig
+        path to save figure. If not provided, figure will be saved
+
+    kwargs
         additional arguments passed to matplotlib
     """
     try:
@@ -1014,7 +1082,7 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
     subfig0.set_ylabel("seed", fontsize="small")
     subfig0.tick_params(axis="y", labelsize="x-small")
     subfig0.tick_params(axis="x", labelsize="x-small")
-    subfig0.set_xlim(0, df_sorted["weight"][0] + 0.1)
+    subfig0.set_xlim(0, xlim_weights)
 
     # plot individual priors and averaged prior
     if rows == 1:
@@ -1026,7 +1094,11 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
                 )
                 sns.kdeplot(prior[:, c], ax=subfig1[c], color="black", lw=2, alpha=0.5)
             avg_prior = tf.reshape(averaged_priors, (B * n_sim, n_par))
-            sns.kdeplot(avg_prior[:, c], color="red", ax=subfig1[c], label=lab)
+            if c == cols - 1:
+                sns.kdeplot(avg_prior[:, c], color="red", ax=subfig1[c], label=lab)
+                subfig1[c].legend(handlelength=0.3, fontsize="small", frameon=False)
+            else:
+                sns.kdeplot(avg_prior[:, c], color="red", ax=subfig1[c])
             subfig1[c].set_title(f"{par}", fontsize="small")
             subfig1[c].tick_params(axis="y", labelsize="x-small")
             subfig1[c].tick_params(axis="x", labelsize="x-small")
@@ -1034,7 +1106,6 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
             subfig1[c].set_ylabel("density", fontsize="small")
             subfig1[c].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             subfig1[c].spines[["right", "top"]].set_visible(False)
-            subfig1[c].legend(handlelength=0.3, fontsize="small", frameon=False)
         for k_idx in range(k):
             subfig1[cols - k_idx - 1].set_axis_off()
     else:
@@ -1050,7 +1121,11 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
                     priors[:, j], ax=subfig1[r, c], color="black", lw=2, alpha=0.5
                 )
             avg_prior = tf.reshape(averaged_priors, (B * n_sim, n_par))
-            sns.kdeplot(avg_prior[:, j], color="red", ax=subfig1[r, c], label=lab)
+            if (r == rows - 1) and (c == cols - 1):
+                sns.kdeplot(avg_prior[:, j], color="red", ax=subfig1[r, c], label=lab)
+                subfig1[r, c].legend(handlelength=0.3, fontsize="small", frameon=False)
+            else:
+                sns.kdeplot(avg_prior[:, j], color="red", ax=subfig1[r, c])
             subfig1[r, c].set_title(f"{par}", fontsize="small")
             subfig1[r, c].tick_params(axis="y", labelsize="x-small")
             subfig1[r, c].tick_params(axis="x", labelsize="x-small")
@@ -1058,12 +1133,14 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
             subfig1[r, c].set_ylabel("density", fontsize="small")
             subfig1[r, c].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             subfig1[r, c].spines[["right", "top"]].set_visible(False)
-            subfig1[r, c].legend(handlelength=0.3, fontsize="small", frameon=False)
+
         for k_idx in range(k):
             subfig1[rows - 1, cols - k_idx - 1].set_axis_off()
     subfigs[0].suptitle("Prior averaging (weights)", fontsize="small", ha="left", x=0.0)
     subfigs[1].suptitle("Prior distributions", fontsize="small", ha="left", x=0.0)
     fig.suptitle("Prior averaging", fontsize="medium")
+    if save_fig is not None:
+        plt.savefig(save_fig)
     plt.show()
 
 

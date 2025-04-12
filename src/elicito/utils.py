@@ -128,7 +128,7 @@ class DoubleBound:
         v = tf.cast(v, dtype=tf.float32)
         return v
 
-    def inv_logit(self, v: float) -> tf.Tensor:
+    def inv_logit(self, v: tf.Tensor) -> tf.Tensor:
         r"""
         Implement the inverse-logit transformation
 
@@ -184,7 +184,7 @@ class DoubleBound:
         y = tf.cast(y, dtype=tf.float32)
         return y
 
-    def inverse(self, y: float) -> tf.Tensor:
+    def inverse(self, y: tf.Tensor) -> tf.Tensor:
         r"""
         Apply inverse of the log-odds transform
 
