@@ -177,9 +177,9 @@ def hyper(  # noqa: PLR0913
     # check values for vtype are implemented
     if vtype not in ["real", "array", "cov", "cov2tril"]:
         msg = (
-            "vtype must be either 'real', 'array', 'cov', 'cov2tril'. "
+            "vtype must be either 'real', 'array', 'cov', 'cov2tril'. "  # type: ignore
             + f"You provided '{vtype=}'."
-        )  # type: ignore
+        )
         raise ValueError(msg)
 
     # check that dimensionality is adapted when "array" is chosen
@@ -201,7 +201,7 @@ def hyper(  # noqa: PLR0913
     # upper and lower bound
     elif (upper != float("inf")) and (lower != float("-inf")):
         double_bound = DoubleBound(lower=lower, upper=upper)
-        transform = double_bound.inverse
+        transform = double_bound.inverse  # type: ignore
         constraint_name = "invlogit"
     # unbounded
     else:
@@ -315,7 +315,7 @@ def parameter(
     # upper and lower bound
     elif (upper != float("inf")) and (lower != float("-inf")):
         double_bound = DoubleBound(lower, upper)
-        transform = double_bound.inverse
+        transform = double_bound.inverse  # type: ignore
         constraint_name = "invlogit"
     # unbounded
     else:
