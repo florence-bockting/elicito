@@ -21,6 +21,28 @@ from the examples given in that link.
 
 <!-- towncrier release notes start -->
 
+## Expert prior elicitation method v0.3.1 (2025-04-18)
+
+### ⚠️ Breaking Changes
+
+- Added python scripts and tests from the old package. ([#1](https://github.com/florence-bockting/elicito/pull/1))
+
+### 🐛 Bug Fixes
+
+- + fix check for number of model parameters. tfd.Sequential/Joint distributions were not considered in the initial check
+  + add tensorflow-silence as one option to mute tensorflow warnings and other log messages ([#7](https://github.com/florence-bockting/elicito/pull/7))
+
+### 📚 Improved Documentation
+
+- Adjust docstrings from Sphinx layout to Mkdocs layout ([#2](https://github.com/florence-bockting/elicito/pull/2))
+- + added further documentation files, tutorials
+  + included option to mute progress output ([#6](https://github.com/florence-bockting/elicito/pull/6))
+
+### 🔧 Trivial/Internal Changes
+
+- [#8](https://github.com/florence-bockting/elicito/pull/8)
+
+
 ## Expert prior elicitation method v0.3.0 (2025-03-31)
 
 No significant changes.
