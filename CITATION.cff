@@ -1,0 +1,40 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: elicito
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Florence
+    family-names: Bockting
+    email: florence.bockting@tu-dortmund.de
+    affiliation: TU Dortmund University
+    orcid: 'https://orcid.org/0000-0003-0924-6413'
+  - given-names: Paul-Christian
+    family-names: Bürkner
+    email: paul.buerkner@gmail.com
+    affiliation: TU Dortmund University
+    orcid: 'https://orcid.org/0000-0001-5765-8995'
+repository-code: 'https://github.com/florence-bockting/elicito'
+url: 'https://elicito.readthedocs.io/en/latest/'
+abstract: >-
+  A key challenge in Bayesian statistics is the
+  specification of prior distributions for the model
+  parameter. We focus in our work on the specification of
+  prior distributions corresponding to expert knowledge. We
+  develop a method that aims at learning prior distribution
+  for the model parameter given expert knowledge about the
+  outcome variable or other familiar quantities for a domain
+  expert.
+keywords:
+  - expert knowledge elicitation
+  - prior elicitation
+  - sgd
+  - normalizing-flow
+  - prior distribution
+  - Bayesian Statistics
+license: Apache-2.0
+version: 0.4.0
