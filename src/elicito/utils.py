@@ -553,8 +553,8 @@ def save(
     # check whether saving path is already used
     if os.path.isfile(path + ".pkl") and not overwrite:
         user_ans = input(
-            "In provided directory exists already a file with"
-            + " identical name. Do you want to overwrite it?"
+            f"{path=} is not empty."
+            + "\nDo you want to overwrite it?"
             + " Press 'y' for overwriting and 'n' for abording."
         )
         while user_ans not in ["n", "y"]:

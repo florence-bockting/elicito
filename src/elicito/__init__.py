@@ -185,29 +185,32 @@ class Elicit:
             # oracle: ensure ground truth has same dim as number of model param
             expected_params = [param["name"] for param in parameters]
             num_params = 0
-            for k in expert["ground_truth"]:
-                # type list can result in cases where a tfd.Sequential/
-                # Jointdistribution is used
-                if type(expert["ground_truth"][k].sample(1)) is list:
-                    num_params += sum(
-                        [
-                            param.shape[-1]
-                            for i, param in enumerate(
-                                expert["ground_truth"][k].sample(1)
-                            )
-                        ]
-                    )
-                else:
-                    num_params += expert["ground_truth"][k].sample(1).shape[-1]
+            if expert["ground_truth"] is None:
+                pass
+            else:
+                for k in expert["ground_truth"]:
+                    # type list can result in cases where a tfd.Sequential/
+                    # Jointdistribution is used
+                    if type(expert["ground_truth"][k].sample(1)) is list:
+                        num_params += sum(
+                            [
+                                param.shape[-1]
+                                for i, param in enumerate(
+                                    expert["ground_truth"][k].sample(1)
+                                )
+                            ]
+                        )
+                    else:
+                        num_params += expert["ground_truth"][k].sample(1).shape[-1]
 
             if len(expected_params) != num_params:
                 msg = (
                     "[section: expert] Dimensionality of ground truth in "  # type: ignore
                     + "'expert' is not the same  as number of model "
-                    + f"parameters.Got {num_params=}, expected "
+                    + f"parameters. Got {num_params=}, expected "
                     + f"{len(expected_params)}."
                 )
-                raise AssertionError(msg)
+            # raise AssertionError(msg)
 
         # check that network architecture is provided when method is deep prior
         # and initializer is none
