@@ -190,6 +190,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
                 ).quantile(sample_dat)
 
             res_dict[n] = tf.squeeze(uniform_samples, axis=-1)
+
     return res_dict
 
 

@@ -8,6 +8,7 @@ from typing import Any, Callable, Optional
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
+import elicito as el
 from elicito.types import (
     ExpertDict,
     Hyper,
@@ -19,6 +20,7 @@ from elicito.types import (
     Uniform,
 )
 from elicito.utils import (
+    CorrelationMatrix,
     DoubleBound,
     LowerBound,
     UpperBound,
@@ -136,7 +138,7 @@ def hyper(  # noqa: PLR0913
 
         ``lower`` value should not be higher than ``upper`` value.
 
-        ``vtype`` value can only be either 'real', 'array', 'cov', or 'cov2tril'
+        ``vtype`` value can only be either 'real', 'array', or 'correlation'
 
         ``dim`` value can't be '1' if 'vtype="array"'
 
@@ -175,9 +177,9 @@ def hyper(  # noqa: PLR0913
         raise ValueError(msg)
 
     # check values for vtype are implemented
-    if vtype not in ["real", "array", "cov", "cov2tril"]:
+    if vtype not in ["real", "array", "correlation"]:
         msg = (
-            "vtype must be either 'real', 'array', 'cov', 'cov2tril'. "  # type: ignore
+            "vtype must be either 'real', 'array', or 'correlation' "  # type: ignore
             + f"You provided '{vtype=}'."
         )
         raise ValueError(msg)
@@ -203,6 +205,10 @@ def hyper(  # noqa: PLR0913
         double_bound = DoubleBound(lower=lower, upper=upper)
         transform = double_bound.inverse  # type: ignore
         constraint_name = "invlogit"
+    elif vtype == "correlation":
+        cor = CorrelationMatrix(K=dim)
+        transform = cor.inverse
+        constraint_name = "invCor"
     # unbounded
     else:
         transform = identity  # type: ignore
@@ -285,10 +291,12 @@ def parameter(
     """  # noqa: E501
     # check that family is a tfp.distributions object
     if family is not None:
-        if family.__module__.split(".")[-1] not in dir(tfd):
+        if (family.__module__.split(".")[-1] not in dir(tfd)) and (
+            family != el.utils.MultivariateNormal
+        ):
             raise ValueError(
                 "[section: parameters] The argument 'family'"
-                + "has to be a tfp.distributions object."
+                + " has to be a tfp.distributions object."
             )
 
     # check whether keys of hyperparams dict correspond to arguments of family

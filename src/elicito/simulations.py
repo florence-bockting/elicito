@@ -177,6 +177,9 @@ def intialize_priors(  # noqa: PLR0912
                     # get initial value
                     if init_matrix_slice is not None:
                         initial_value: Any = init_matrix_slice[hp_n]
+
+                    if len(initial_value) == 0:
+                        initial_value = tf.expand_dims(initial_value, 0)
                     # initialize hyperparameter
                     initialized_hyperparam[f"{hp_k}_{hp_n}"] = tf.Variable(
                         initial_value=initial_value,

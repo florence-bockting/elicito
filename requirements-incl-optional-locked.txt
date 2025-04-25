@@ -17,7 +17,7 @@ dm-tree==0.1.9 ; python_full_version >= '3.10'
 flatbuffers==25.2.10
 fonttools==4.56.0
 gast==0.6.0
-google-auth==2.38.0
+google-auth==2.39.0
 google-auth-oauthlib==1.2.1
 google-pasta==0.2.0
 grpcio==1.71.0
@@ -43,13 +43,13 @@ pandas==2.2.3
 pillow==11.1.0
 protobuf==4.25.6
 pyasn1==0.6.1
-pyasn1-modules==0.4.1
+pyasn1-modules==0.4.2
 pyparsing==3.2.1
 python-dateutil==2.9.0.post0
 pytz==2025.1
 requests==2.32.3
 requests-oauthlib==2.0.0
-rsa==4.9
+rsa==4.9.1
 scipy==1.13.1
 seaborn==0.13.2
 setuptools==75.6.0
