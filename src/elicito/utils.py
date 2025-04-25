@@ -2,6 +2,8 @@
 helper functions for setting up the Elicit object
 """
 
+from __future__ import annotations
+
 import os
 import pickle
 import warnings
@@ -10,6 +12,7 @@ from typing import Any, Optional
 import cloudpickle  # type: ignore
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
+from attrs import define
 
 import elicito as el
 from elicito.exceptions import MissingOptionalDependencyError
@@ -1055,3 +1058,238 @@ def softmax_gumbel_trick(likelihood: Any, upper_thres: float, temp: float = 1.6)
     # reparameterization/linear transformation
     ypred = tf.reduce_sum(tf.multiply(w, c), axis=-1)
     return ypred
+
+
+@define
+class CorrelationMatrix:
+    """
+    compute transformations for learning a correlation matrix
+
+    learning should happen on the unconstrained space
+    """
+
+    K: int
+    """
+    dimensionality of correlation matrix
+    """
+
+    def forward(self, cor: tf.Tensor) -> tf.Tensor:
+        """
+        Transform correlation values to unconstained values
+
+        Parameters
+        ----------
+        cor
+            correlation matrix
+
+        Returns
+        -------
+        :
+            correlation matrix with unconstrained values
+        """
+        LU = tf.transpose(tf.linalg.cholesky(cor))
+        z_i = []
+        for i in range(self.K):
+            row = []
+            for j in range(self.K):
+                if i >= j:
+                    row.append(0.0)
+                elif (i == 0) & (i < j):
+                    row.append(LU[i, j].numpy())
+                elif (i > 0) & (i < j):
+                    row.append(
+                        LU[i, j]
+                        * tf.reduce_prod(
+                            [
+                                (1 - tf.square(z_i[k][j])) ** (-1 / 2)
+                                for k in range(len(z_i))
+                            ]
+                        )
+                    )
+            z_i.append(row)
+
+        Z = tf.reshape(z_i, (self.K, self.K))
+
+        # unconstrained values
+        Y = tf.atanh(Z)
+
+        # get upper triangular values from matrix
+        return self._get_upper_triangular(Y)
+
+    def inverse(self, y: tf.Tensor) -> tf.Tensor:
+        """
+        Transform correlation values to constrained values
+
+        Parameters
+        ----------
+        y
+            unconstrained correlation matrix
+
+        Returns
+        -------
+        :
+            correlation matrix with constrained values
+        """
+        # map vector of reals to a vector of partial correlations
+        y_tanh = tf.math.tanh(y)
+
+        # create a matrix with partial correlation in upper tri
+        # diag elements are ones
+        eyes = tf.eye(self.K)
+        indices = self._get_indices()
+        z = tf.tensor_scatter_nd_update(eyes, indices, y_tanh)
+
+        # map matrix with partial correlations to the upper
+        # triangular Cholesky of a correlation matrix
+        z_i = []
+        for i in range(self.K):
+            row = []
+            for j in range(self.K):
+                if i > j:
+                    row.append(0.0)
+                elif (i == 0) & (i == j):
+                    row.append(1)
+                elif (i == 0) & (i < j):
+                    row.append(z[i, j])
+                elif (i > 0) & (i <= j):
+                    row.append(
+                        tf.divide(z[i, j], z[i - 1, j])
+                        * z_i[i - 1][j]
+                        * (1 - tf.square(z[i - 1, j])) ** (1 / 2)
+                    )
+            z_i.append(row)
+        Z = tf.reshape(z_i, (self.K, self.K))
+
+        # use matrix multiplication to compute the correlation matrix
+        cor = tf.transpose(Z) @ Z
+        return cor
+
+    def _get_indices(self):
+        res = []
+        for i in range(1, self.K):
+            for j in range(0, self.K - 1):
+                if (i != j) and (i > j):
+                    res.append([j, i])
+        return res
+
+    def _get_upper_triangular(self, X):
+        upper_tri = []
+        for col in range(1, len(X)):
+            for row in range(len(X) - 1):
+                if col > row:
+                    upper_tri.append(X[row, col])
+        return tf.stack(upper_tri, 0)
+
+
+@define
+class CovarianceMatrix:
+    """
+    transformations for learning a covariance matrix
+    """
+
+    K: int
+    """
+    dimensionality of covariance matrix
+    """
+
+    def forward(self, cov: tf.Tensor) -> tf.Tensor:
+        """
+        Transform covariance values to unconstrained values
+
+        Parameters
+        ----------
+        cov
+            covariance matrix with constrained values
+
+        Returns
+        -------
+        :
+            covariance matrix with unconstrained values
+        """
+        z = tf.linalg.cholesky(cov)
+
+        unconstrained_z = []
+        for row in range(self.K):
+            for col in range(self.K):
+                if row < col:
+                    unconstrained_z.append(0.0)
+                elif row == col:
+                    unconstrained_z.append(tf.math.log(z[row, col]))
+                elif row > col:
+                    unconstrained_z.append(z[row, col])
+
+        return tf.reshape(unconstrained_z, (self.K, self.K))
+
+    def inverse(self, y):
+        """
+        Transform covariance values to constrained values
+
+        Parameters
+        ----------
+        y
+            covariance matrix with unconstrained values
+
+        Returns
+        -------
+        :
+            covariance matrix with constrained values
+        """
+        constrained_x = []
+        for row in range(self.K):
+            for col in range(self.K):
+                if row < col:
+                    constrained_x.append(0.0)
+                if row == col:
+                    constrained_x.append(tf.exp(y[row, col]))
+                if row > col:
+                    constrained_x.append(y[row, col])
+
+        X = tf.reshape(constrained_x, (self.K, self.K))
+
+        return X @ tf.transpose(X)
+
+
+@define
+class MultivariateNormal:
+    """
+    adaptor for MultivariateNormalTriL
+
+    parameterized in terms of location, scale and correlation
+    """
+
+    loc: tf.Tensor
+    """
+    location vector
+    """
+    scale: tf.Tensor
+    """
+    vector with standard deviations of marginals
+    """
+    cor: tf.Tensor
+    """
+    vector of correlation values between marginals (TODO orientation)
+    """
+
+    def sample(self, sample_shape: tuple[int]) -> tf.Tensor:
+        """
+        Sample from a MultivariateNormalTriL
+
+        Parameters
+        ----------
+        sample_shape
+            shape of samples from distribution (batch, number_samples)
+
+        Returns
+        -------
+        :
+            Tensor with samples from multivariate normal distribution
+        """
+        cov = (tf.linalg.diag(self.scale) @ self.cor) @ tf.linalg.diag(self.scale)
+        if not all(tf.linalg.eigvalsh(cov) > 0.0):
+            raise ValueError("covariance matrix is not positive definite.")  # noqa: TRY003
+
+        scale_tril = tf.linalg.cholesky(cov)
+
+        return tfd.MultivariateNormalTriL(loc=self.loc, scale_tril=scale_tril).sample(
+            sample_shape
+        )

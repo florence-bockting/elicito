@@ -37,7 +37,7 @@ fonttools==4.56.0
 fqdn==1.5.1
 gast==0.6.0
 ghp-import==2.1.0
-google-auth==2.38.0
+google-auth==2.39.0
 google-auth-oauthlib==1.2.1
 google-pasta==0.2.0
 griffe==1.5.4
@@ -124,7 +124,7 @@ psutil==6.1.1
 ptyprocess==0.7.0 ; (python_full_version < '3.10' and sys_platform == 'emscripten') or os_name != 'nt' or (sys_platform != 'emscripten' and sys_platform != 'win32')
 pure-eval==0.2.3
 pyasn1==0.6.1
-pyasn1-modules==0.4.1
+pyasn1-modules==0.4.2
 pycparser==2.22
 pygments==2.19.1
 pymdown-extensions==10.13
@@ -144,7 +144,7 @@ requests-oauthlib==2.0.0
 rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
 rpds-py==0.22.3
-rsa==4.9
+rsa==4.9.1
 ruff==0.8.6
 scipy==1.13.1
 seaborn==0.13.2
