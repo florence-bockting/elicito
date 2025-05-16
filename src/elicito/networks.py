@@ -5,6 +5,8 @@ imported code from BayesFlow==1.1.6 with approval by author Stefan Radev
 Code needs to be adjusted to elicito structure
 """
 
+from __future__ import annotations
+
 import copy
 from typing import Any, Callable, Optional
 
@@ -24,14 +26,14 @@ tfd = tfp.distributions
 class MetaDictSetting:
     """Implement interface for a default meta_dict"""
 
-    def __init__(self, meta_dict: dict, mandatory_fields: list = []):
+    def __init__(self, meta_dict: dict[str, Any], mandatory_fields: list[str] = []):
         """Configure meta dict with mandatory arguments
 
         Parameters
         ----------
-        meta_dict        : dict
+        meta_dict
             Default dictionary.
-        mandatory_fields : list, default: []
+        mandatory_fields
             List of keys in `meta_dict` that need to be provided by the user.
         """
         self.meta_dict = meta_dict
@@ -160,27 +162,29 @@ class BaseNormal:
 base_normal = BaseNormal()
 
 
-class DenseCouplingNet(tf.keras.Model):
+class DenseCouplingNet(tf.keras.Model):  # type: ignore
     """Implement a conditional version of a standard fully connected network.
 
     Would also work as an unconditional estimator.
     """
 
-    def __init__(self, settings, dim_out, **kwargs):
+    def __init__(
+        self, settings: dict[str, Any], dim_out: int, **kwargs: dict[str, Any]
+    ):
         """Create a conditional coupling net (FC neural network).
 
         Parameters
         ----------
-        settings : dict
+        settings
             A dictionary holding arguments for a dense layer:
             See https://www.tensorflow.org/api_docs/python/tf/keras/layers/Dense
 
             As well as custom arguments for settings such as residual networks,
             dropout, and spectral normalization.
-        dim_out  : int
+        dim_out
             Number of outputs of the coupling net. Determined internally by the
             consumer classes.
-        **kwargs : dict, optional, default: {}
+        **kwargs
             Optional keyword arguments passed to the `tf.keras.Model` constructor.
         """
         super().__init__(**kwargs)
@@ -189,7 +193,7 @@ class DenseCouplingNet(tf.keras.Model):
         self.fc = Sequential()
         for _ in range(settings["num_dense"]):
             # Create dense layer with dict kwargs
-            layer = Dense(**settings["dense_args"])
+            layer: Any = Dense(**settings["dense_args"])
 
             # Wrap in spectral normalization, if specified
             if settings.get("spec_norm") is True:
@@ -225,31 +229,42 @@ class DenseCouplingNet(tf.keras.Model):
             self.residual_output = Dense(dim_out, kernel_initializer="zeros")
         else:
             self.fc.add(Dense(dim_out, kernel_initializer="zeros"))
-            self.residual_output = None
+            self.residual_output = None  # type: ignore
 
         self.fc.build(input_shape=())
 
-    def call(self, target, condition, **kwargs):
+    def call(  # type: ignore
+        self,
+        target: tf.Tensor,
+        condition: Optional[tf.Tensor],
+        **kwargs: dict[str, Any],
+    ) -> Any:
         r"""Concatenate target and condition (forward mode)
 
         Parameters
         ----------
-        target      : tf.Tensor
+        target
           The split estimation quntities, for instance,
           parameters :math:`\\theta \\sim p(\\theta)` of interest,
           shape (batch_size, ...)
-        condition   : tf.Tensor or None
+        condition
             the conditioning vector of interest, for instance ``x = summary(x)``,
             shape (batch_size, summary_dim)
+
+        Returns
+        -------
+        out :
+            residual output
         """
         # Handle case no condition
         if condition is None:
             if self.residual_output is not None:
                 return self.residual_output(
-                    self.fc(target, **kwargs) + target, **kwargs
+                    self.fc(target, **kwargs) + target,
+                    **kwargs,  # type: ignore
                 )
             else:
-                return self.fc(target, **kwargs)
+                return self.fc(target, **kwargs)  # type: ignore
 
         # Handle 3D case for a set-flow and repeat condition over
         # the second `time` or `n_observations` axis of `target``
@@ -257,15 +272,15 @@ class DenseCouplingNet(tf.keras.Model):
             shape = tf.shape(target)
             condition = tf.expand_dims(condition, 1)
             condition = tf.tile(condition, [1, shape[1], 1])
-        inp = tf.concat((target, condition), axis=-1)
+        inp = tf.concat((target, condition), axis=-1)  # type: ignore
         out = self.fc(inp, **kwargs)
 
         if self.residual_output is not None:
-            out = self.residual_output(out + target, **kwargs)
+            out = self.residual_output(out + target, **kwargs)  # type: ignore
         return out
 
 
-class SpectralNormalization(tf.keras.layers.Wrapper):
+class SpectralNormalization(tf.keras.layers.Wrapper):  # type: ignore
     """Performs spectral normalization on neural network weights.
 
     Adapted from:
@@ -278,7 +293,7 @@ class SpectralNormalization(tf.keras.layers.Wrapper):
     See [Spectral Normalization for Generative Adversarial Networks](https://arxiv.org/abs/1802.05957).
     """
 
-    def __init__(self, layer, power_iterations=1, **kwargs):
+    def __init__(self, layer: Any, power_iterations: int = 1, **kwargs: dict[Any, Any]):
         super().__init__(layer, **kwargs)
         if power_iterations <= 0:
             raise ValueError(  # noqa: TRY003
@@ -288,7 +303,7 @@ class SpectralNormalization(tf.keras.layers.Wrapper):
         self.power_iterations = power_iterations
         self._initialized = False
 
-    def build(self, input_shape):
+    def build(self, input_shape: Any) -> None:
         """Build `Layer`"""
         # Register input shape
         super().build(input_shape)
@@ -314,20 +329,21 @@ class SpectralNormalization(tf.keras.layers.Wrapper):
             dtype=self.w.dtype,
         )
 
-    def call(self, inputs, training=False):
+    def call(self, inputs: tf.Tensor, training: bool = False) -> Any:
         """Call `Layer`
 
         Parameters
         ----------
-        inputs : tf.Tensor of shape (None,...,condition_dim + target_dim)
-            The inputs to the corresponding layer.
+        inputs
+            The inputs to the corresponding layer,
+            shape (None,...,condition_dim + target_dim).
         """
         if training:
             self.normalize_weights()
         output = self.layer(inputs)
         return output
 
-    def normalize_weights(self):
+    def normalize_weights(self) -> None:
         """Generate spectral normalized weights.
 
         This method will update the value of `self.w` with the
@@ -348,13 +364,13 @@ class SpectralNormalization(tf.keras.layers.Wrapper):
                 tf.cast(tf.reshape(self.w / sigma, self.w_shape), self.w.dtype)
             )
 
-    def get_config(self):  # noqa: D102
+    def get_config(self) -> dict[Any, Any]:  # noqa: D102
         config = {"power_iterations": self.power_iterations}
         base_config = super().get_config()
         return {**base_config, **config}
 
 
-class Permutation(tf.keras.Model):
+class Permutation(tf.keras.Model[Any, Any]):
     """Implement a permutation layer
 
     layer to permute the inputs entering a (conditional) coupling layer.
@@ -362,12 +378,12 @@ class Permutation(tf.keras.Model):
     learned permutations.
     """
 
-    def __init__(self, input_dim):
+    def __init__(self, input_dim: int):
         """Create an invertible permutation layer
 
         Parameters
         ----------
-        input_dim  : int
+        input_dim
             Ihe dimensionality of the input to the (conditional)
             coupling layer.
         """
@@ -376,32 +392,32 @@ class Permutation(tf.keras.Model):
         permutation_vec = np.random.permutation(input_dim)  # noqa: NPY002
         inv_permutation_vec = np.argsort(permutation_vec)
         self.permutation = tf.Variable(
-            initial_value=permutation_vec,
+            initial_value=permutation_vec,  # type: ignore
             trainable=False,
             dtype=tf.int32,
             name="permutation",
         )
         self.inv_permutation = tf.Variable(
-            initial_value=inv_permutation_vec,
+            initial_value=inv_permutation_vec,  # type: ignore
             trainable=False,
             dtype=tf.int32,
             name="inv_permutation",
         )
 
-    def call(self, target, inverse=False):
+    def call(self, target: tf.Tensor, inverse: bool = False) -> Any:  # type: ignore[override]
         """Permute a batch of target vectors over the last axis.
 
         Parameters
         ----------
-        target   : tf.Tensor of shape (batch_size, ...)
+        target
             The target vector to be permuted over its last axis.
-        inverse  : bool, optional, default: False
+        inverse
             Controls if the current pass is forward (``inverse=False``)
             or inverse (``inverse=True``).
 
         Returns
         -------
-        out      : tf.Tensor of the same shape as `target`.
+        out      :
             The (un-)permuted target vector.
         """
         if not inverse:
@@ -409,16 +425,16 @@ class Permutation(tf.keras.Model):
         else:
             return self._inverse(target)
 
-    def _forward(self, target):
+    def _forward(self, target: Any) -> Any:
         """Perform a fixed permutation over the last axis."""
         return tf.gather(target, self.permutation, axis=-1)
 
-    def _inverse(self, target):
+    def _inverse(self, target: Any) -> Any:
         """Undo the fixed permutation over the last axis."""
         return tf.gather(target, self.inv_permutation, axis=-1)
 
 
-class Orthogonal(tf.keras.Model):
+class Orthogonal(tf.keras.Model):  # type: ignore
     """Implement a learnable orthogonal transformation
 
     Implementation according to [1]. Can be used as an alternative
@@ -429,12 +445,12 @@ class Orthogonal(tf.keras.Model):
     processing systems, 31.
     """
 
-    def __init__(self, input_dim):
+    def __init__(self, input_dim: int):
         """Create an invertible orthogonal transformation
 
         Parameters
         ----------
-        input_dim  : int
+        input_dim
             The dimensionality of the input to the (conditional)
             coupling layer.
         """
@@ -448,7 +464,7 @@ class Orthogonal(tf.keras.Model):
             name="learnable_permute",
         )
 
-    def call(self, target, inverse=False):
+    def call(self, target: tf.Tensor, inverse: bool = False) -> Any:  # type: ignore[override]
         """Transform a batch of target vectors
 
         Transformation over the last axis through an approximately
@@ -456,15 +472,15 @@ class Orthogonal(tf.keras.Model):
 
         Parameters
         ----------
-        target   : tf.Tensor of shape (batch_size, ...)
+        target
             The target vector to be rotated over its last axis.
-        inverse  : bool, optional, default: False
+        inverse
             Controls if the current pass is forward (``inverse=False``)
             or inverse (``inverse=True``).
 
         Returns
         -------
-        out      : tf.Tensor of the same shape as `target`.
+        out      :
             The (un-)rotated target vector.
         """
         if not inverse:
@@ -472,7 +488,7 @@ class Orthogonal(tf.keras.Model):
         else:
             return self._inverse(target)
 
-    def _forward(self, target):
+    def _forward(self, target: tf.Tensor) -> Any:
         """Perform a learnable generalized permutation over the last axis."""
         shape = tf.shape(target)
         rank = len(shape)
@@ -484,7 +500,7 @@ class Orthogonal(tf.keras.Model):
             log_det = tf.cast(shape[1], tf.float32) * log_det
         return z, log_det
 
-    def _inverse(self, z):
+    def _inverse(self, z: tf.Tensor) -> Any:
         """Undo the learnable permutation over the last axis."""
         W_inv = tf.linalg.inv(self.W)
         rank = len(tf.shape(z))
@@ -493,7 +509,7 @@ class Orthogonal(tf.keras.Model):
         return tf.tensordot(z, W_inv, [[rank - 1], [0]])
 
 
-class MCDropout(tf.keras.Model):
+class MCDropout(tf.keras.Model):  # type: ignore
     """Implement Monte Carlo Dropout
 
     Dropout is implemented as a Bayesian approximation according to [1].
@@ -503,30 +519,30 @@ class MCDropout(tf.keras.Model):
     In international conference on machine learning (pp. 1050-1059). PMLR.
     """
 
-    def __init__(self, dropout_prob=0.1, **kwargs):
+    def __init__(self, dropout_prob: float = 0.1, **kwargs: dict[str, Any]):
         """Create a custom instance of an MC Dropout layer.
 
         Will be used both during training and inference.
 
         Parameters
         ----------
-        dropout_prob  : float, optional, default: 0.1
+        dropout_prob
             The dropout rate to be passed to ``tf.keras.layers.Dropout()``.
         """
         super().__init__(**kwargs)
         self.drop = Dropout(dropout_prob)
 
-    def call(self, inputs):
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:  # type: ignore
         """Set randomly elements of ``inputs`` to zero.
 
         Parameters
         ----------
-        inputs : tf.Tensor
+        inputs
             Input of shape (batch_size, ...)
 
         Returns
         -------
-        out    : tf.Tensor
+        out    :
             Output of shape (batch_size, ...), same as ``inputs``.
 
         """
@@ -534,7 +550,7 @@ class MCDropout(tf.keras.Model):
         return out
 
 
-class ActNorm(tf.keras.Model):
+class ActNorm(tf.keras.Model[Any, Any]):
     """Implement an Activation Normalization (ActNorm) Layer.
 
     Activation Normalization is learned invertible normalization,
@@ -563,7 +579,12 @@ class ActNorm(tf.keras.Model):
        Advances in neural information processing systems 29 (2016): 901-909.
     """
 
-    def __init__(self, latent_dim: int, act_norm_init: np.ndarray, **kwargs):
+    def __init__(
+        self,
+        latent_dim: int,
+        act_norm_init: Optional[np.ndarray[Any, Any]],
+        **kwargs: dict[str, Any],
+    ):
         """Create an instance of an ActNorm Layer as proposed by [1].
 
         Parameters
@@ -581,17 +602,17 @@ class ActNorm(tf.keras.Model):
         # Initialize scale and bias with zeros and ones if no batch for
         # initialization was provided.
         if act_norm_init is None:
-            self.scale = tf.Variable(
+            self.scale: Any = tf.Variable(
                 tf.ones((latent_dim,)), trainable=True, name="act_norm_scale"
             )
 
-            self.bias = tf.Variable(
+            self.bias: Any = tf.Variable(
                 tf.zeros((latent_dim,)), trainable=True, name="act_norm_bias"
             )
         else:
-            self._initalize_parameters_data_dependent(act_norm_init)
+            self._initalize_parameters_data_dependent(act_norm_init)  # type: ignore
 
-    def call(self, target: tf.Tensor, inverse: bool = False) -> tuple[Any]:
+    def call(self, target: tf.Tensor, inverse: bool = False) -> tuple[Any]:  # type: ignore[override]
         r"""Perform one pass through the actnorm layer
 
         (either inverse or forward) and normalizes the last axis of
@@ -624,19 +645,19 @@ class ActNorm(tf.keras.Model):
         if not inverse:
             return self._forward(target)
         else:
-            return self._inverse(target)
+            return self._inverse(target)  # type: ignore
 
-    def _forward(self, target):
+    def _forward(self, target: tf.Tensor) -> tuple[Any]:
         """Perform a forward pass through the layer."""
         z = self.scale * target + self.bias
         ldj = tf.math.reduce_sum(tf.math.log(tf.math.abs(self.scale)), axis=-1)
-        return z, ldj
+        return z, ldj  # type: ignore
 
-    def _inverse(self, target):
+    def _inverse(self, target: tf.Tensor) -> Any:
         """Perform an inverse pass through the layer."""
         return (target - self.bias) / self.scale
 
-    def _initalize_parameters_data_dependent(self, init_data: tf.Tensor):
+    def _initalize_parameters_data_dependent(self, init_data: tf.Tensor) -> None:
         """Perform a data dependent initalization of the scale and bias.
 
         Initalize the scale and bias vector as proposed by [1], such that the
@@ -665,7 +686,7 @@ class ActNorm(tf.keras.Model):
             std = tf.math.reduce_std(init_data, axis=(0, 1))
         # Raise other cases
         else:
-            raise ValueError(  # type: ignore
+            raise ValueError(
                 "Currently, ActNorm supports only 2D and 3D Tensors, "
                 + "but act_norm_init contains data with shape {init_data.shape}."
             )
@@ -677,7 +698,7 @@ class ActNorm(tf.keras.Model):
         self.bias = tf.Variable(bias, trainable=True, name="act_norm_bias")
 
 
-class InvertibleNetwork(tf.keras.Model):
+class InvertibleNetwork(tf.keras.Model[Any, Any]):
     """Implement a chain of conditional invertible coupling layers
 
     Implementation for conditional density estimation.
@@ -689,14 +710,14 @@ class InvertibleNetwork(tf.keras.Model):
         self,
         num_params: int,
         num_coupling_layers: int = 6,
-        coupling_design: str | Callable = "affine",
+        coupling_design: str | Callable[[Any], Any] = "affine",
         coupling_settings: Optional[dict[str, Any]] = None,
         permutation: Optional[str] = "fixed",
         use_act_norm: bool = True,
-        act_norm_init: Optional[np.ndarray] = None,
+        act_norm_init: Optional[np.ndarray[Any, Any]] = None,
         use_soft_flow: bool = False,
         soft_flow_bounds: tuple[float, float] = (1e-3, 5e-2),
-        **kwargs,
+        **kwargs: dict[Any, Any],
     ):
         """Create a chain of coupling layers
 
@@ -801,8 +822,12 @@ class InvertibleNetwork(tf.keras.Model):
         self.use_act_norm = use_act_norm
         self.latent_dim = num_params
 
-    def call(
-        self, targets: tf.Tensor, condition: tf.Tensor, inverse: bool = False, **kwargs
+    def call(  # type: ignore[override]
+        self,
+        targets: tf.Tensor,
+        condition: tf.Tensor,
+        inverse: bool = False,
+        **kwargs: dict[Any, Any],
     ) -> tuple[Any, tf.Tensor]:
         r"""Perform one pass through an invertible chain
 
@@ -837,10 +862,12 @@ class InvertibleNetwork(tf.keras.Model):
         If ``inverse=True``, the return is ``target``.
         """
         if inverse:
-            return self.inverse(targets, condition, **kwargs)
+            return self.inverse(targets, condition, **kwargs)  # type: ignore
         return self.forward(targets, condition, **kwargs)
 
-    def forward(self, targets, condition, **kwargs):
+    def forward(
+        self, targets: tf.Tensor, condition: tf.Tensor, **kwargs: dict[Any, Any]
+    ) -> tuple[tf.Tensor, tf.Tensor]:
         """Perform a forward pass through the chain."""
         # Add noise to target if using SoftFlow, use explicitly
         # not in call(), since methods are public
@@ -853,7 +880,7 @@ class InvertibleNetwork(tf.keras.Model):
             if len(condition_shape) == 2:  # noqa: PLR2004
                 shape_scale = (condition_shape[0], 1)
             else:
-                shape_scale = (condition_shape[0], condition_shape[1], 1)
+                shape_scale = (condition_shape[0], condition_shape[1], 1)  # type: ignore
 
             # Case training mode
             if kwargs.get("training"):
@@ -886,7 +913,9 @@ class InvertibleNetwork(tf.keras.Model):
         log_det_J = tf.add_n(log_det_Js)
         return z, log_det_J
 
-    def inverse(self, z, condition, **kwargs):
+    def inverse(
+        self, z: tf.Tensor, condition: tf.Tensor, **kwargs: dict[Any, Any]
+    ) -> tf.Tensor:
         """Perform a reverse pass through the chain.
 
         Assumes that it is only used in inference mode, so
@@ -913,8 +942,11 @@ class InvertibleNetwork(tf.keras.Model):
 
     @staticmethod
     def _create_coupling_layers(
-        settings, coupling_settings, coupling_design, num_coupling_layers
-    ):
+        settings: Any,
+        coupling_settings: Any,
+        coupling_design: Any,
+        num_coupling_layers: int,
+    ) -> list[Any]:
         """Create a list of coupling layers.
 
         Takes care of the different options for coupling design.
@@ -957,7 +989,7 @@ class InvertibleNetwork(tf.keras.Model):
         return coupling_layers
 
     @classmethod
-    def create_config(cls, **kwargs):
+    def create_config(cls, **kwargs: dict[Any, Any]) -> dict[Any, Any]:
         """Create the settings dictionary
 
         Used for the internal networks of the invertible network.
@@ -968,7 +1000,7 @@ class InvertibleNetwork(tf.keras.Model):
         return settings
 
 
-class AffineCoupling(tf.keras.Model):
+class AffineCoupling(tf.keras.Model[Any, Any]):
     """Implement a conditional affine coupling block
 
     Implementation according to [1, 2], with additional
@@ -984,7 +1016,9 @@ class AffineCoupling(tf.keras.Model):
     arXiv preprint arXiv:1907.02392.
     """
 
-    def __init__(self, dim_out: int, settings_dict: dict[str, Any], **kwargs):
+    def __init__(
+        self, dim_out: int, settings_dict: dict[str, Any], **kwargs: dict[Any, Any]
+    ):
         """Create one half of an affine coupling layer
 
         To be used as part of a ``CouplingLayer`` in an
@@ -1040,16 +1074,16 @@ class AffineCoupling(tf.keras.Model):
             s_settings, t_settings = settings_dict, settings_dict
 
         # Internal network (learnable scale and translation)
-        self.scale = DenseCouplingNet(s_settings, dim_out)
-        self.translate = DenseCouplingNet(t_settings, dim_out)
+        self.scale = DenseCouplingNet(s_settings, dim_out)  # type: ignore
+        self.translate = DenseCouplingNet(t_settings, dim_out)  # type: ignore
 
-    def call(
+    def call(  # type: ignore
         self,
         split1: tf.Tensor,
         split2: tf.Tensor,
         condition: Optional[tf.Tensor],
         inverse: Optional[bool] = False,
-        **kwargs,
+        **kwargs: dict[Any, Any],
     ) -> tuple[Any, tf.Tensor]:
         """Perform one pass through an affine coupling layer
 
@@ -1084,10 +1118,14 @@ class AffineCoupling(tf.keras.Model):
         """
         if not inverse:
             return self._forward(split1, split2, condition, **kwargs)
-        return self._inverse(split1, split2, condition, **kwargs)
+        return self._inverse(split1, split2, condition, **kwargs)  # type: ignore
 
     def _forward(
-        self, u1: tf.Tensor, u2: tf.Tensor, condition: Optional[tf.Tensor], **kwargs
+        self,
+        u1: tf.Tensor,
+        u2: tf.Tensor,
+        condition: Optional[tf.Tensor],
+        **kwargs: dict[Any, Any],
     ) -> tuple[tf.Tensor, tf.Tensor]:
         """Perform a forward pass through the coupling layer.
 
@@ -1112,16 +1150,20 @@ class AffineCoupling(tf.keras.Model):
             The transformed input and the corresponding
             Jacobian of the transformation.
         """
-        s = self.scale(u2, condition, **kwargs)
+        s = self.scale(u2, condition, **kwargs)  # type: ignore
         if self.soft_clamp is not None:
             s = (2.0 * self.soft_clamp / PI_CONST) * tf.math.atan(s / self.soft_clamp)
-        t = self.translate(u2, condition, **kwargs)
+        t = self.translate(u2, condition, **kwargs)  # type: ignore
         v = u1 * tf.math.exp(s) + t
         log_det_J = tf.reduce_sum(s, axis=-1)
         return v, log_det_J
 
     def _inverse(
-        self, v1: tf.Tensor, v2: tf.Tensor, condition: Optional[tf.Tensor], **kwargs
+        self,
+        v1: tf.Tensor,
+        v2: tf.Tensor,
+        condition: Optional[tf.Tensor],
+        **kwargs: dict[Any, Any],
     ) -> tf.Tensor:
         """Perform an inverse pass through the affine coupling block.
 
@@ -1145,15 +1187,15 @@ class AffineCoupling(tf.keras.Model):
         u :
             The back-transformed input.
         """
-        s = self.scale(v1, condition, **kwargs)
+        s = self.scale(v1, condition, **kwargs)  # type: ignore
         if self.soft_clamp is not None:
             s = (2.0 * self.soft_clamp / PI_CONST) * tf.math.atan(s / self.soft_clamp)
-        t = self.translate(v1, condition, **kwargs)
+        t = self.translate(v1, condition, **kwargs)  # type: ignore
         u = (v2 - t) * tf.math.exp(-s)
-        return u
+        return u  # type: ignore
 
 
-class SplineCoupling(tf.keras.Model):
+class SplineCoupling(tf.keras.Model[Any, Any]):
     """Implement a conditional spline coupling block
 
     Implementation according to [1, 2], with additional
@@ -1171,7 +1213,9 @@ class SplineCoupling(tf.keras.Model):
     lead to stable training.
     """
 
-    def __init__(self, dim_out: int, settings_dict: dict[str, Any], **kwargs):
+    def __init__(
+        self, dim_out: int, settings_dict: dict[str, Any], **kwargs: dict[Any, Any]
+    ):
         """Create one half of a spline coupling layer
 
         To be used as part of a ``CouplingLayer`` in an
@@ -1216,13 +1260,13 @@ class SplineCoupling(tf.keras.Model):
         # Internal network (learnable spline parameters)
         self.net = DenseCouplingNet(settings_dict, self.num_total_spline_params)
 
-    def call(
+    def call(  # type: ignore[override]
         self,
         split1: tf.Tensor,
         split2: tf.Tensor,
         condition: Optional[tf.Tensor],
         inverse: bool = False,
-        **kwargs,
+        **kwargs: dict[Any, Any],
     ) -> tuple[Any, tf.Tensor]:
         """Perform one pass through a spline coupling layer
 
@@ -1259,10 +1303,14 @@ class SplineCoupling(tf.keras.Model):
         """
         if not inverse:
             return self._forward(split1, split2, condition, **kwargs)
-        return self._inverse(split1, split2, condition, **kwargs)
+        return self._inverse(split1, split2, condition, **kwargs)  # type: ignore
 
     def _forward(
-        self, u1: tf.Tensor, u2: tf.Tensor, condition: Optional[tf.Tensor], **kwargs
+        self,
+        u1: tf.Tensor,
+        u2: tf.Tensor,
+        condition: Optional[tf.Tensor],
+        **kwargs: dict[Any, Any],
     ) -> tuple[tf.Tensor, tf.Tensor]:
         """Perform a forward pass through the spline coupling layer.
 
@@ -1287,37 +1335,43 @@ class SplineCoupling(tf.keras.Model):
             The transformed input and the corresponding
             Jacobian of the transformation.
         """
-        spline_params = self.net(u2, condition, **kwargs)
+        spline_params = self.net(u2, condition, **kwargs)  # type: ignore
         spline_params = self._semantic_spline_parameters(spline_params)
         spline_params = self._constrain_parameters(spline_params)
         v, log_det_J = self._calculate_spline(u1, spline_params, inverse=False)
         return v, log_det_J
 
-    def _inverse(self, v1, v2, condition, **kwargs):
+    def _inverse(
+        self,
+        v1: tf.Tensor,
+        v2: tf.Tensor,
+        condition: tf.Tensor,
+        **kwargs: dict[Any, Any],
+    ) -> tf.Tensor:
         """Perform an inverse pass through the coupling block.
 
         Used internally by the instance.
 
         Parameters
         ----------
-        v1        : tf.Tensor of shape (batch_size, ..., dim_1)
+        v1
             The first partition of the latent vector
-        v2        : tf.Tensor of shape (batch_size, ..., dim_2)
+        v2
             The second partition of the latent vector
-        condition : tf.Tensor of shape (batch_size, ..., dim_condition)
-            The optional conditioning vector. Batch size must match the batch size
-            of the partitions.
+        condition
+            The optional conditioning vector.
+            Batch size must match the batch size of the partitions.
 
         Returns
         -------
-        u  :  tf.Tensor of shape (batch_size, ..., dim_1)
+        u  :
             The back-transformed input.
         """
-        spline_params = self.net(v1, condition, **kwargs)
+        spline_params = self.net(v1, condition, **kwargs)  # type: ignore
         spline_params = self._semantic_spline_parameters(spline_params)
         spline_params = self._constrain_parameters(spline_params)
         u = self._calculate_spline(v2, spline_params, inverse=True)
-        return u
+        return u  # type: ignore
 
     def _calculate_spline(  # noqa: PLR0915
         self, target: tf.Tensor, spline_params: tuple[Any], inverse: bool = False
@@ -1356,7 +1410,7 @@ class SplineCoupling(tf.keras.Model):
             shape (batch_size, ..., dim_2)
         """
         # Extract all learnable parameters
-        left_edge, bottom_edge, widths, heights, derivatives = spline_params
+        left_edge, bottom_edge, widths, heights, derivatives = spline_params  # type: ignore
 
         # Placeholders for results
         result = tf.zeros_like(target)
@@ -1377,12 +1431,12 @@ class SplineCoupling(tf.keras.Model):
             target_in_domain = tf.logical_and(
                 knots_x[..., 0] < target, target <= knots_x[..., -1]
             )
-            higher_indices = tf.searchsorted(knots_x, target[..., None])
+            higher_indices = tf.searchsorted(knots_x, target[..., None])  # type: ignore
         else:
             target_in_domain = tf.logical_and(
                 knots_y[..., 0] < target, target <= knots_y[..., -1]
             )
-            higher_indices = tf.searchsorted(knots_y, target[..., None])
+            higher_indices = tf.searchsorted(knots_y, target[..., None])  # type: ignore
         target_in = target[target_in_domain]
         target_in_idx = tf.where(target_in_domain)
         target_out = target[~target_in_domain]
@@ -1450,7 +1504,7 @@ class SplineCoupling(tf.keras.Model):
             shift_out = tf.gather_nd(shift, target_out_idx)
 
             if not inverse:
-                result_out = scale_out * target_out[..., None] + shift_out
+                result_out = scale_out * target_out[..., None] + shift_out  # type: ignore
                 # Log Jacobian for out-of-domain points
                 log_jac_out = tf.math.log(scale_out + 1e-10)
                 log_jac_out = tf.squeeze(log_jac_out, axis=-1)
@@ -1458,14 +1512,14 @@ class SplineCoupling(tf.keras.Model):
                     log_jac, target_out_idx, log_jac_out
                 )
             else:
-                result_out = (target_out[..., None] - shift_out) / scale_out
+                result_out = (target_out[..., None] - shift_out) / scale_out  # type: ignore
 
             result_out = tf.squeeze(result_out, axis=-1)
             result = tf.tensor_scatter_nd_update(result, target_out_idx, result_out)
 
         if not inverse:
             return result, tf.reduce_sum(log_jac, axis=-1)
-        return result
+        return result  # type: ignore
 
     def _semantic_spline_parameters(self, parameters: tf.Tensor) -> tuple[Any]:
         """Build a tuple of tensors from the output of the coupling net.
@@ -1488,7 +1542,7 @@ class SplineCoupling(tf.keras.Model):
         if rank == 2:  # noqa: PLR2004
             new_shape = (shape[0], self.dim_out, -1)
         elif rank == 3:  # noqa: PLR2004
-            new_shape = (shape[0], shape[1], self.dim_out, -1)
+            new_shape = (shape[0], shape[1], self.dim_out, -1)  # type: ignore
         else:
             raise NotImplementedError(
                 "Spline flows can currently only operate on 2D and 3D inputs!"
@@ -1497,7 +1551,7 @@ class SplineCoupling(tf.keras.Model):
         parameters = tf.split(
             parameters, list(self.spline_params_counts.values()), axis=-1
         )
-        return parameters
+        return parameters  # type: ignore
 
     def _constrain_parameters(self, parameters: tuple[Any]) -> tuple[Any]:
         """Take care of zero spline parameters
@@ -1515,7 +1569,7 @@ class SplineCoupling(tf.keras.Model):
         parameters :
             The constrained spline parameters.
         """
-        left_edge, bottom_edge, widths, heights, derivatives = parameters
+        left_edge, bottom_edge, widths, heights, derivatives = parameters  # type: ignore
 
         # Set lower corners of domain relative to default domain
         left_edge = left_edge + self.default_domain[0]
@@ -1542,21 +1596,21 @@ class SplineCoupling(tf.keras.Model):
         total_width = tf.reduce_sum(widths, axis=-1, keepdims=True)
         scale = total_height / total_width
         derivatives = tf.concat([scale, derivatives, scale], axis=-1)
-        return left_edge, bottom_edge, widths, heights, derivatives
+        return left_edge, bottom_edge, widths, heights, derivatives  # type: ignore
 
 
-class CouplingLayer(tf.keras.Model):
+class CouplingLayer(tf.keras.Model[Any, Any]):
     """General wrapper for a coupling layer with different settings."""
 
     def __init__(  # noqa: PLR0913
         self,
         latent_dim: int,
         coupling_settings: Optional[dict[str, Any]] = None,
-        coupling_design: str | Callable = "affine",
+        coupling_design: str | Callable[[Any], Any] = "affine",
         permutation: Optional[str] = "fixed",
         use_act_norm: bool = True,
-        act_norm_init: Optional[np.ndarray] = None,
-        **kwargs,
+        act_norm_init: Optional[np.ndarray[Any, Any]] = None,
+        **kwargs: dict[Any, Any],
     ):
         """Create an invertible coupling layers instance
 
@@ -1620,7 +1674,7 @@ class CouplingLayer(tf.keras.Model):
                 user_dict=user_dict, default_setting=DEFAULT_SETTING_AFFINE_COUPLING
             )
         elif coupling_design == "spline":
-            coupling_type = SplineCoupling
+            coupling_type = SplineCoupling  # type: ignore
             coupling_settings = build_meta_dict(
                 user_dict=user_dict, default_setting=DEFAULT_SETTING_SPLINE_COUPLING
             )
@@ -1640,22 +1694,22 @@ class CouplingLayer(tf.keras.Model):
             self.permutation = Permutation(self.latent_dim)
             self.permutation.trainable = False
         elif permutation == "learnable":
-            self.permutation = Orthogonal(self.latent_dim)
+            self.permutation = Orthogonal(self.latent_dim)  # type: ignore
         else:
-            self.permutation = None
+            self.permutation = None  # type: ignore
 
         # Optional learnable activation normalization
         if use_act_norm:
             self.act_norm = ActNorm(latent_dim, act_norm_init)
         else:
-            self.act_norm = None
+            self.act_norm = None  # type: ignore
 
-    def call(
+    def call(  # type: ignore[override]
         self,
         target_or_z: tf.Tensor,
         condition: Optional[tf.Tensor],
         inverse: bool = False,
-        **kwargs,
+        **kwargs: dict[Any, Any],
     ) -> tuple[Any, tf.Tensor]:
         r"""Perform one pass through the affine coupling layer.
 
@@ -1692,10 +1746,13 @@ class CouplingLayer(tf.keras.Model):
         """
         if not inverse:
             return self.forward(target_or_z, condition, **kwargs)
-        return self.inverse(target_or_z, condition, **kwargs)
+        return self.inverse(target_or_z, condition, **kwargs)  # type: ignore
 
     def forward(
-        self, target: tf.Tensor, condition: Optional[tf.Tensor], **kwargs
+        self,
+        target: tf.Tensor,
+        condition: Optional[tf.Tensor],
+        **kwargs: dict[Any, Any],
     ) -> tuple[tf.Tensor, tf.Tensor]:
         """Perform a forward pass through a coupling layer
 
@@ -1730,16 +1787,19 @@ class CouplingLayer(tf.keras.Model):
         if self.permutation is not None:
             target = self.permutation(target)
         if self.permutation.trainable:
-            target, log_det_J_p = target
+            target, log_det_J_p = target  # type: ignore
             log_det_Js += log_det_J_p
 
         # Pass through coupling layer
-        latent, log_det_J_c = self._forward(target, condition, **kwargs)
+        latent, log_det_J_c = self._forward(target, condition, **kwargs)  # type: ignore
         log_det_Js += log_det_J_c
         return latent, log_det_Js
 
     def inverse(
-        self, latent: tf.Tensor, condition: Optional[tf.Tensor], **kwargs
+        self,
+        latent: tf.Tensor,
+        condition: Optional[tf.Tensor],
+        **kwargs: dict[Any, Any],
     ) -> tf.Tensor:
         """Perform an inverse pass through a coupling layer
 
@@ -1763,22 +1823,24 @@ class CouplingLayer(tf.keras.Model):
         """
         target = self._inverse(latent, condition, **kwargs)
         if self.permutation is not None:
-            target = self.permutation(target, inverse=True)
+            target = self.permutation(target, inverse=True)  # type: ignore
         if self.act_norm is not None:
-            target = self.act_norm(target, inverse=True)
+            target = self.act_norm(target, inverse=True)  # type: ignore
         return target
 
-    def _forward(self, target, condition, **kwargs):
+    def _forward(
+        self, target: tf.Tensor, condition: tf.Tensor, **kwargs: dict[Any, Any]
+    ) -> tuple[tf.Tensor, tf.Tensor]:
         """Perform a forward pass through the coupling layer.
 
         Used internally by the instance.
 
         Parameters
         ----------
-        target     : tf.Tensor
+        target
             The estimation quantities of interest, for instance,
             parameter vector of shape (batch_size, theta_dim)
-        condition  : tf.Tensor or None
+        condition
             The conditioning vector of interest, for instance,
             x = summary(x), shape (batch_size, summary_dim)
             If `None`, transformation amounts to unconditional
@@ -1786,30 +1848,35 @@ class CouplingLayer(tf.keras.Model):
 
         Returns
         -------
-        (v, log_det_J)  :  tuple(tf.Tensor, tf.Tensor)
+        (v, log_det_J)  :
             The transformed input and the corresponding
             Jacobian of the transformation.
         """
         # Split input along last axis and perform forward coupling
         u1, u2 = tf.split(target, [self.dim_out1, self.dim_out2], axis=-1)
-        v1, log_det_J1 = self.net1(u1, u2, condition, inverse=False, **kwargs)
-        v2, log_det_J2 = self.net2(u2, v1, condition, inverse=False, **kwargs)
+        v1, log_det_J1 = self.net1(u1, u2, condition, inverse=False, **kwargs)  # type: ignore
+        v2, log_det_J2 = self.net2(u2, v1, condition, inverse=False, **kwargs)  # type: ignore
         v = tf.concat((v1, v2), axis=-1)
 
         # Compute log determinat of the Jacobians from both splits
         log_det_J = log_det_J1 + log_det_J2
         return v, log_det_J
 
-    def _inverse(self, latent, condition, **kwargs):
+    def _inverse(
+        self,
+        latent: tf.Tensor,
+        condition: Optional[tf.Tensor],
+        **kwargs: dict[Any, Any],
+    ) -> tf.Tensor:
         """Perform an inverse pass through the coupling block.
 
         Used internally by the instance.
 
         Parameters
         ----------
-        latent       : tf.Tensor
+        latent
             latent variables z ~ p(z), shape (batch_size, theta_dim)
-        condition    : tf.Tensor or None
+        condition
             The conditioning vector of interest, for instance,
             x = summary(x), shape (batch_size, summary_dim).
             If `None`, transformation amounts to unconditional
@@ -1817,23 +1884,25 @@ class CouplingLayer(tf.keras.Model):
 
         Returns
         -------
-        u  :  tf.Tensor
+        u  :
             The back-transformed input.
         """
         # Split input along last axis and perform inverse coupling
         v1, v2 = tf.split(latent, [self.dim_out1, self.dim_out2], axis=-1)
-        u2 = self.net2(v1, v2, condition, inverse=True, **kwargs)
-        u1 = self.net1(u2, v1, condition, inverse=True, **kwargs)
+        u2 = self.net2(v1, v2, condition, inverse=True, **kwargs)  # type: ignore
+        u1 = self.net1(u2, v1, condition, inverse=True, **kwargs)  # type: ignore
         u = tf.concat((u1, u2), axis=-1)
-        return u
+        return u  # type: ignore
 
 
-def merge_left_into_right(left_dict, right_dict):
+def merge_left_into_right(
+    left_dict: dict[Any, Any], right_dict: dict[Any, Any]
+) -> dict[Any, Any]:
     """Merge nested dict `left_dict` into nested dict `right_dict`."""
     for k, v in left_dict.items():
         if isinstance(v, dict):
             if right_dict.get(k) is not None:
-                right_dict[k] = merge_left_into_right(v, right_dict.get(k))
+                right_dict[k] = merge_left_into_right(v, right_dict.get(k))  # type: ignore
             else:
                 right_dict[k] = v
         else:
@@ -1841,7 +1910,9 @@ def merge_left_into_right(left_dict, right_dict):
     return right_dict
 
 
-def build_meta_dict(user_dict: dict, default_setting: MetaDictSetting) -> dict:
+def build_meta_dict(
+    user_dict: dict[str, Any], default_setting: MetaDictSetting
+) -> dict[Any, Any]:
     """Integrate a user-defined dictionary into a default dictionary.
 
     Takes a user-defined dictionary and a default dictionary.
@@ -1853,9 +1924,9 @@ def build_meta_dict(user_dict: dict, default_setting: MetaDictSetting) -> dict:
 
     Parameters
     ----------
-    user_dict       : dict
+    user_dict
         The user's dictionary
-    default_setting : MetaDictSetting
+    default_setting
         The specified default setting with attributes:
 
         -  `meta_dict`: dictionary with default values.
@@ -1864,7 +1935,7 @@ def build_meta_dict(user_dict: dict, default_setting: MetaDictSetting) -> dict:
 
     Returns
     -------
-    merged_dict: dict
+    merged_dict:
         Merged dictionary.
     """
     default_dict = copy.deepcopy(default_setting.meta_dict)
