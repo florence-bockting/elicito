@@ -187,7 +187,6 @@ trainer = el.trainer(method="parametric_prior", seed=0, epochs=4, progress=0)
 # for the hyperparameters
 initializer = el.initializer(
     method="sobol",
-    loss_quantile=0,
     iterations=32,
     distribution=el.initialization.uniform(radius=1, mean=0),
 )

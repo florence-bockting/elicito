@@ -246,9 +246,10 @@ class DenseCouplingNet(tf.keras.Model):  # type: ignore
         Parameters
         ----------
         target
-          The split estimation quntities, for instance,
-          parameters :math:`\\theta \\sim p(\\theta)` of interest,
-          shape (batch_size, ...)
+            The split estimation quantities, for instance,
+            parameters :math:`\\theta \\sim p(\\theta)` of interest,
+            shape (batch_size, ...)
+
         condition
             the conditioning vector of interest, for instance ``x = summary(x)``,
             shape (batch_size, summary_dim)
@@ -1810,9 +1811,10 @@ class CouplingLayer(tf.keras.Model):  # type: ignore
 
         Parameters
         ----------
-        z
+        latent
             latent variables z ~ p(z),
             shape (batch_size, theta_dim)
+
         condition
             The conditioning vector of interest, for instance,
             x = summary(x), shape (batch_size, summary_dim).
