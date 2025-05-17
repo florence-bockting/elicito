@@ -5,6 +5,7 @@
 docs/api/*
 !docs/api/.gitkeep
 results
+notes/
 
 # pdm stuff
 .pdm-python

@@ -212,10 +212,10 @@ eliobj = el.Elicit(
 
 # %%
 # use automatic saving approach
-eliobj.save(name="m1")
+eliobj.save(name="m1", overwrite=True)
 
 # use user-specific file location
-eliobj.save(file="results/m1_1")
+eliobj.save(file="results/m1_1", overwrite=True)
 
 # %% [markdown]
 # ## Load and fit the *unfitted* eliobj
@@ -275,7 +275,7 @@ eliobj_m2.history[0].keys()
 
 # %%
 # save the fitted object
-eliobj_m2.save(name="m2")
+eliobj_m2.save(name="m2", overwrite=True)
 
 # load the fitted object
 eliobj_m2_reload = el.utils.load("./results/parametric_prior/m2_0.pkl")

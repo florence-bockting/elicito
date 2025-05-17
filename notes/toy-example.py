@@ -1,3 +1,6 @@
+"""
+Toyexample for software paper
+"""
 # ---
 # jupyter:
 #   jupytext:
