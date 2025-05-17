@@ -129,7 +129,7 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
             )
             # very suboptimal implementation but currently it works
             if trainer["method"] == "deep_prior":
-                trainable_vars = prior_model.init_priors.trainable_variables
+                trainable_vars = prior_model.init_priors.trainable_variables  # type: ignore
             if trainer["method"] == "parametric_prior":
                 trainable_vars = prior_model.trainable_variables
 

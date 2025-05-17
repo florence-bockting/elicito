@@ -1154,10 +1154,10 @@ class AffineCoupling(tf.keras.Model):  # type: ignore
             The transformed input and the corresponding
             Jacobian of the transformation.
         """
-        s = self.scale(u2, condition, **kwargs)  # type: ignore
+        s = self.scale(u2, condition, **kwargs)
         if self.soft_clamp is not None:
             s = (2.0 * self.soft_clamp / PI_CONST) * tf.math.atan(s / self.soft_clamp)
-        t = self.translate(u2, condition, **kwargs)  # type: ignore
+        t = self.translate(u2, condition, **kwargs)
         v = u1 * tf.math.exp(s) + t
         log_det_J = tf.reduce_sum(s, axis=-1)
         return v, log_det_J
@@ -1191,10 +1191,10 @@ class AffineCoupling(tf.keras.Model):  # type: ignore
         u :
             The back-transformed input.
         """
-        s = self.scale(v1, condition, **kwargs)  # type: ignore
+        s = self.scale(v1, condition, **kwargs)
         if self.soft_clamp is not None:
             s = (2.0 * self.soft_clamp / PI_CONST) * tf.math.atan(s / self.soft_clamp)
-        t = self.translate(v1, condition, **kwargs)  # type: ignore
+        t = self.translate(v1, condition, **kwargs)
         u = (v2 - t) * tf.math.exp(-s)
         return u  # type: ignore
 
@@ -1339,7 +1339,7 @@ class SplineCoupling(tf.keras.Model):  # type: ignore
             The transformed input and the corresponding
             Jacobian of the transformation.
         """
-        spline_params = self.net(u2, condition, **kwargs)  # type: ignore
+        spline_params = self.net(u2, condition, **kwargs)
         spline_params = self._semantic_spline_parameters(spline_params)
         spline_params = self._constrain_parameters(spline_params)
         v, log_det_J = self._calculate_spline(u1, spline_params, inverse=False)
@@ -1371,7 +1371,7 @@ class SplineCoupling(tf.keras.Model):  # type: ignore
         u  :
             The back-transformed input.
         """
-        spline_params = self.net(v1, condition, **kwargs)  # type: ignore
+        spline_params = self.net(v1, condition, **kwargs)
         spline_params = self._semantic_spline_parameters(spline_params)
         spline_params = self._constrain_parameters(spline_params)
         u = self._calculate_spline(v2, spline_params, inverse=True)

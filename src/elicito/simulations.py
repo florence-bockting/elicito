@@ -207,7 +207,7 @@ def intialize_priors(  # noqa: PLR0912
             base_dist = network["base_distribution"](num_params=len(parameters))  # type: ignore
             # sample from base distribution
             u = base_dist.sample((128, 200))
-            init_prior(u, None)
+            init_prior(u, None)  # type: ignore
 
     return init_prior
 
