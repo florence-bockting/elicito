@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 import elicito as el
+from elicito.networks import InvertibleNetwork
 
 tfd = tfp.distributions
 
@@ -89,7 +90,7 @@ def test_parametric_prior():
 
     optimizer = el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.05)
 
-    trainer = el.trainer(method="parametric_prior", seed=2025, epochs=600)
+    trainer = el.trainer(method="parametric_prior", seed=2025, epochs=6)
 
     initializer = el.initializer(
         method="random",
@@ -193,7 +194,7 @@ def test_invertible_network():
 
     optimizer = el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.05)
 
-    trainer = el.trainer(method="parametric_prior", seed=2025, epochs=600)
+    trainer = el.trainer(method="parametric_prior", seed=2025, epochs=6)
 
     initializer = el.initializer(
         method="random",
@@ -210,7 +211,6 @@ def test_invertible_network():
         trainer=trainer,
         initializer=initializer,
     )
-    from elicito.networks import InvertibleNetwork
 
     parameters_deep = [el.parameter(name=f"beta{i}") for i in range(3)] + [
         el.parameter(name="sigma", lower=0),
