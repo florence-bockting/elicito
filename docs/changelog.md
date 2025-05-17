@@ -21,6 +21,15 @@ from the examples given in that link.
 
 <!-- towncrier release notes start -->
 
+## Expert prior elicitation method v0.4.0 (2025-05-17)
+
+### ⚠️ Breaking Changes
+
+- + integrated InvertibleNetwork implementation from BayesFlow==1.1.6 into elicito.
+  + integration has been approved by BayesFlow maintainer Stefan Radev
+  + removal of BayesFlow dependency enabled removing version constraints ([#11](https://github.com/florence-bockting/elicito/pull/11))
+
+
 ## Expert prior elicitation method v0.3.1 (2025-04-18)
 
 ### ⚠️ Breaking Changes
