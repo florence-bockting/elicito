@@ -450,3 +450,7 @@ unauthorized_licenses = [
     "gpl v1",
     "gplv1",
 ]
+
+authorized_packages = [
+    "namex: 0.0.9"
+]
