@@ -427,6 +427,7 @@ def init_prior(  # noqa: PLR0913
             )
             # initialize empty variables for avoiding return conflicts
             loss_list, init_prior, init_matrix = (None, None, None)
+
     if trainer["method"] == "deep_prior" and network is not None:
         # prepare generative model
         init_prior_model = el.simulations.Priors(
@@ -438,6 +439,7 @@ def init_prior(  # noqa: PLR0913
             expert=expert,
             seed=seed,
         )
+
         # initialize empty variables for avoiding return conflicts
         loss_list, init_prior, init_matrix = (None, None, None)
 

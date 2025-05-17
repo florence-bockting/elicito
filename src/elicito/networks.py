@@ -22,6 +22,8 @@ from elicito.types import NFDict
 
 tfd = tfp.distributions
 
+tf.get_logger().setLevel("ERROR")
+
 
 class MetaDictSetting:
     """Implement interface for a default meta_dict"""
@@ -95,7 +97,7 @@ DEFAULT_SETTING_SPLINE_COUPLING = MetaDictSetting(
 
 
 def NF(
-    inference_network: Callable[[Any], Any],
+    inference_network: InvertibleNetwork,
     network_specs: dict[str, Any],
     base_distribution: Callable[[Any], Any],
 ) -> NFDict:
@@ -231,9 +233,9 @@ class DenseCouplingNet(tf.keras.Model):  # type: ignore
             self.fc.add(Dense(dim_out, kernel_initializer="zeros"))
             self.residual_output = None  # type: ignore
 
-        self.fc.build(input_shape=())
+        # self.fc.build(input_shape=())
 
-    def call(  # type: ignore
+    def __call__(  # type: ignore
         self,
         target: tf.Tensor,
         condition: Optional[tf.Tensor],
@@ -256,6 +258,7 @@ class DenseCouplingNet(tf.keras.Model):  # type: ignore
         out :
             residual output
         """
+        self.fc.build(input_shape=target.shape)
         # Handle case no condition
         if condition is None:
             if self.residual_output is not None:
@@ -370,7 +373,7 @@ class SpectralNormalization(tf.keras.layers.Wrapper):  # type: ignore
         return {**base_config, **config}
 
 
-class Permutation(tf.keras.Model[Any, Any]):
+class Permutation(tf.keras.Model):  # type: ignore
     """Implement a permutation layer
 
     layer to permute the inputs entering a (conditional) coupling layer.
@@ -550,7 +553,7 @@ class MCDropout(tf.keras.Model):  # type: ignore
         return out
 
 
-class ActNorm(tf.keras.Model[Any, Any]):
+class ActNorm(tf.keras.Model):  # type: ignore
     """Implement an Activation Normalization (ActNorm) Layer.
 
     Activation Normalization is learned invertible normalization,
@@ -698,7 +701,7 @@ class ActNorm(tf.keras.Model[Any, Any]):
         self.bias = tf.Variable(bias, trainable=True, name="act_norm_bias")
 
 
-class InvertibleNetwork(tf.keras.Model[Any, Any]):
+class InvertibleNetwork(tf.keras.Model):  # type: ignore
     """Implement a chain of conditional invertible coupling layers
 
     Implementation for conditional density estimation.
@@ -1000,7 +1003,7 @@ class InvertibleNetwork(tf.keras.Model[Any, Any]):
         return settings
 
 
-class AffineCoupling(tf.keras.Model[Any, Any]):
+class AffineCoupling(tf.keras.Model):  # type: ignore
     """Implement a conditional affine coupling block
 
     Implementation according to [1, 2], with additional
@@ -1195,7 +1198,7 @@ class AffineCoupling(tf.keras.Model[Any, Any]):
         return u  # type: ignore
 
 
-class SplineCoupling(tf.keras.Model[Any, Any]):
+class SplineCoupling(tf.keras.Model):  # type: ignore
     """Implement a conditional spline coupling block
 
     Implementation according to [1, 2], with additional
@@ -1599,7 +1602,7 @@ class SplineCoupling(tf.keras.Model[Any, Any]):
         return left_edge, bottom_edge, widths, heights, derivatives  # type: ignore
 
 
-class CouplingLayer(tf.keras.Model[Any, Any]):
+class CouplingLayer(tf.keras.Model):  # type: ignore
     """General wrapper for a coupling layer with different settings."""
 
     def __init__(  # noqa: PLR0913

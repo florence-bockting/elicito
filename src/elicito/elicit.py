@@ -760,7 +760,6 @@ def optimizer(
 def initializer(
     method: Optional[str] = None,
     distribution: Optional[Uniform] = None,
-    loss_quantile: Optional[Any] = None,
     iterations: Optional[int] = None,
     hyperparams: Optional[dict[str, Any]] = None,
 ) -> Initializer:
@@ -823,7 +822,6 @@ def initializer(
     --------
     >>> el.initializer(  # doctest: +SKIP
     >>>     method="lhs",  # doctest: +SKIP
-    >>>     loss_quantile=0,  # doctest: +SKIP
     >>>     iterations=32,  # doctest: +SKIP
     >>>     distribution=el.initialization.uniform(  # doctest: +SKIP
     >>>         radius=1,  # doctest: +SKIP
@@ -844,7 +842,7 @@ def initializer(
     # check that method is implemented
 
     if method is None:
-        for arg in [distribution, loss_quantile, iterations]:
+        for arg in [distribution, iterations]:
             if arg is not None:
                 msg = f"If method is None {arg=} must also be None."
                 raise ValueError(msg)
@@ -858,13 +856,23 @@ def initializer(
             )
             raise ValueError(msg)
 
+        # hardcode loss_quantile as it was rather meant for experimental purposes
+        # however results suggest that loss_quantile different from zero are not
+        # really reasonable
+        loss_quantile = 0.0
+
         quantile_perc = loss_quantile
 
     else:
-        for arg in [distribution, loss_quantile, iterations]:
+        for arg in [distribution, iterations]:
             if arg is None:
                 msg = f"If {arg=}, then method must also be None."
                 raise ValueError(msg)
+
+        # hardcode loss_quantile as it was rather meant for experimental purposes
+        # however results suggest that loss_quantile different from zero are not
+        # really reasonable
+        loss_quantile = 0.0
 
         # compute percentage from probability
         if loss_quantile is not None:
