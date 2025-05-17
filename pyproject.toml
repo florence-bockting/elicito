@@ -451,6 +451,5 @@ unauthorized_licenses = [
     "gplv1",
 ]
 
-authorized_packages = [
-    "namex: 0.0.9"
-]
+[tool.liccheck.authorized_packages]
+namex = "0.0.9"
