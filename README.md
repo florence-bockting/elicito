@@ -50,11 +50,7 @@ don't render correctly on GitHub's viewer.
 
 ## Installation
 
-This package requires the user to additionally install `bayesflow == 1.1.6`.
-We will remove this dependency in near future but for the time being install first `bayesflow == 1.1.6`
-and then `elicito` (see below).
-
-Our package depends on `tensorflow` and thus all its requirements.
+Our package depends on `TensorFlow` and thus all its requirements.
 Specifically, for Windows the Microsoft Visual C++ Redistributable for VisualStudio needs to be installed.
 See [`install tensorflow`](https://www.tensorflow.org/install/pip)
 
