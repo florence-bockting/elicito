@@ -7,7 +7,6 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 import elicito as el
-from elicito.exceptions import MissingOptionalDependencyError
 
 tfd = tfp.distributions
 
@@ -134,17 +133,9 @@ def test_initialize_priors_1(
 @pytest.fixture
 def network():
     """Fixture providing definition of NF network."""
-    pytest.importorskip("bayesflow")
-
-    try:
-        from bayesflow.inference_networks import InvertibleNetwork
-    except ImportError as exc:
-        raise MissingOptionalDependencyError(
-            "bayesflow", requirement="bayesflow"
-        ) from exc
 
     return el.networks.NF(
-        inference_network=InvertibleNetwork,
+        inference_network=el.networks.InvertibleNetwork,
         network_specs=dict(
             num_params=3,
             num_coupling_layers=3,
@@ -165,8 +156,6 @@ def network():
 
 
 def test_initialize_priors_2(network):
-    pytest.importorskip("bayesflow")
-
     """Test the initialization of priors."""
     # Create a dictionary with initialized tf.Variables
     init_prior = el.simulations.intialize_priors(
@@ -300,8 +289,6 @@ def test_prior_samples_2(init_matrix_slice, parameters, expert):
 
 # check: deep_prior, oracle
 def test_prior_samples_3(init_matrix_slice, parameters_deep, expert, network):
-    pytest.importorskip("bayesflow")
-
     initialized_priors = el.simulations.intialize_priors(
         init_matrix_slice=init_matrix_slice,
         method="deep_prior",
@@ -366,8 +353,6 @@ def test_prior_samples_3(init_matrix_slice, parameters_deep, expert, network):
 
 # check: deep_prior, training
 def test_prior_samples_4(init_matrix_slice, parameters_deep, expert, network):
-    pytest.importorskip("bayesflow")
-
     initialized_priors = el.simulations.intialize_priors(
         init_matrix_slice=init_matrix_slice,
         method="deep_prior",

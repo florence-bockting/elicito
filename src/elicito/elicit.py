@@ -786,10 +786,6 @@ def initializer(
         Specification of initialization distribution.
         Currently implemented methods: [`uniform`][elicito.initialization.uniform]
 
-    loss_quantile
-        Quantile indicating which loss value should be used for selecting the
-        initial hyperparameters.Specified as probability value between 0-1.
-
     iterations
         Number of samples drawn from the initialization distribution.
 
