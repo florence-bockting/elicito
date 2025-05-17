@@ -145,7 +145,6 @@ eliobj = el.Elicit(
     trainer=el.trainer(method="parametric_prior", seed=0, epochs=100),
     initializer=el.initializer(
         method="random",
-        loss_quantile=0.0,
         iterations=1,
         distribution=el.initialization.uniform(radius=1, mean=0),
     ),

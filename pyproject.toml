@@ -439,7 +439,6 @@ authorized_licenses = [
     "python software foundation license",
     "The Unlicense (Unlicense)",
     "zpl 2.1",
-    "UNKNOWN"
 ]
 unauthorized_licenses = [
     "agpl",
