@@ -3,6 +3,7 @@ A Python package for learning prior distributions based on expert knowledge
 """
 
 import importlib.metadata
+import warnings
 from typing import Any, Optional
 
 import joblib
@@ -44,6 +45,9 @@ from elicito.types import (
 )
 
 tfd = tfp.distributions
+
+tf.get_logger().setLevel("ERROR")
+warnings.filterwarnings("ignore")
 
 __version__ = importlib.metadata.version("elicito")
 
@@ -546,13 +550,14 @@ class Elicit:
                 )
                 raise ValueError(msg)
 
-        for key in kwargs:  # noqa: PLC0206
+        for i, key in enumerate(kwargs):
             setattr(self, key, kwargs[key])
             # reset results
             self.results = list()
             self.history = list()
-            # inform user about reset of results
-            print("INFO: Results have been reset.")
+            if i == 0:
+                # inform user about reset of results
+                print("INFO: Results have been reset.")
 
     def workflow(self, seed: int) -> tuple[Any, ...]:
         """
@@ -604,9 +609,9 @@ class Elicit:
                 self.trainer["progress"],
             )
         )
-
         # run dag with optimal set of initial values
         # save results in corresp. attributes
+
         history, results = optimization.sgd_training(
             expert_elicits,
             init_prior_model,

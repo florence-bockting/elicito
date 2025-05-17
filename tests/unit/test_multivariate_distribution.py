@@ -108,7 +108,6 @@ def test_initialization_covariance_matrix(param):
     init_matrix = el.initializer(
         method=None,
         distribution=None,
-        loss_quantile=None,
         iterations=None,
         hyperparams=dict(mus=[0.5, 0.3, 0.1], cov_matrix=tf.eye(3)),
     )
@@ -121,7 +120,6 @@ def test_trainable_variables_multivariate_normal(param):
     init_matrix = el.initializer(
         method=None,
         distribution=None,
-        loss_quantile=None,
         iterations=None,
         hyperparams=dict(mus=[0.5, 0.3, 0.1], cov_matrix=tf.eye(3)),
     )

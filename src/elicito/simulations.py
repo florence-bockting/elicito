@@ -62,7 +62,7 @@ class Priors(tf.Module):
         self.network = network
         self.expert = expert
         # initialize new attribute
-        self.init_priors: Union[None, dict[str, tf.Tensor]]
+        self.init_priors: Optional[dict[str, tf.Tensor]]
         # set seed
         tf.random.set_seed(seed)
         # initialize hyperparameter for learning (if true hyperparameter
@@ -75,6 +75,7 @@ class Priors(tf.Module):
                 self.parameters,
                 self.network,
             )
+
         else:
             self.init_priors = None
 
@@ -200,6 +201,13 @@ def intialize_priors(  # noqa: PLR0912
 
             # save initialized priors
             init_prior = invertible_neural_network
+
+            # build network
+            # initialize base distribution
+            base_dist = network["base_distribution"](num_params=len(parameters))  # type: ignore
+            # sample from base distribution
+            u = base_dist.sample((128, 200))
+            init_prior(u, None)  # type: ignore
 
     return init_prior
 

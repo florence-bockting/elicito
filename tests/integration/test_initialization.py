@@ -204,7 +204,6 @@ def test_integration_initialization():
         trainer=el.trainer(method="parametric_prior", seed=0, epochs=2),
         initializer=el.initializer(
             method="sobol",
-            loss_quantile=0,
             iterations=1,
             distribution=el.initialization.uniform(
                 radius=[0.01] * 4,

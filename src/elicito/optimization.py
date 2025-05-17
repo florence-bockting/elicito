@@ -127,15 +127,18 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
                     targets=targets,
                 )
             )
+            # very suboptimal implementation but currently it works
+            if trainer["method"] == "deep_prior":
+                trainable_vars = prior_model.init_priors.trainable_variables  # type: ignore
+            if trainer["method"] == "parametric_prior":
+                trainable_vars = prior_model.trainable_variables
 
             # compute gradient of loss wrt trainable_variables
-            gradients = tape.gradient(loss, prior_model.trainable_variables)
+            gradients = tape.gradient(loss, trainable_vars)
 
             # update trainable_variables using gradient info with adam
             # optimizer
-            sgd_optimizer.apply_gradients(
-                zip(gradients, prior_model.trainable_variables)
-            )
+            sgd_optimizer.apply_gradients(zip(gradients, trainable_vars))
 
         # time end of epoch
         epoch_time_end = time.time()
@@ -162,7 +165,7 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
 
             # save learned hyperparameter values for each prior and epoch
             # extract learned hyperparameter values
-            hyperparams = prior_model.trainable_variables
+            hyperparams = trainable_vars
             if epoch == 0:
                 # prepare list for saving hyperparameter values
                 hyp_list = []
