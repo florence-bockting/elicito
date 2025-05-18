@@ -1115,7 +1115,7 @@ requires-dist = [
     { name = "elicito", extras = ["scipy"], marker = "extra == 'full'" },
     { name = "joblib", specifier = ">=1.4.2" },
     { name = "matplotlib", marker = "extra == 'plots'", specifier = ">=3.7.1" },
-    { name = "numpy", specifier = ">=1.26.4" },
+    { name = "numpy", specifier = ">=1.24" },
     { name = "pandas", marker = "extra == 'pandas'", specifier = "==2.2.3" },
     { name = "scipy", marker = "extra == 'scipy'", specifier = "==1.13.1" },
     { name = "seaborn", marker = "extra == 'plots'", specifier = ">=0.12" },
