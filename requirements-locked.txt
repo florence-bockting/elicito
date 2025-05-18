@@ -2,14 +2,14 @@
 #    uv export -o requirements-locked.txt --no-hashes --no-dev --no-emit-project
 absl-py==2.1.0
 astunparse==1.6.3
-attrs==24.3.0 ; python_full_version >= '3.10' and python_full_version < '3.13'
+attrs==24.3.0 ; python_full_version >= '3.10'
 certifi==2024.12.14
 charset-normalizer==3.4.1
 cloudpickle==3.1.1
 colorama==0.4.6 ; sys_platform == 'win32'
 decorator==5.1.1
-dm-tree==0.1.8 ; python_full_version < '3.10' or python_full_version >= '3.13'
-dm-tree==0.1.9 ; python_full_version >= '3.10' and python_full_version < '3.13'
+dm-tree==0.1.8 ; python_full_version < '3.10'
+dm-tree==0.1.9 ; python_full_version >= '3.10'
 flatbuffers==25.2.10
 gast==0.6.0
 google-pasta==0.2.0
