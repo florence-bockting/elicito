@@ -70,11 +70,12 @@ because of breaking updates to dependencies.
 The locked version of Expert prior elicitation method can be installed with
 
 === "conda"
+
     ```sh
     conda install -c conda-forge elicito-locked
     ```
-
 === "pip"
+
     ```sh
     pip install 'elicito[locked]'
     ```
@@ -99,11 +100,12 @@ please [raise an issue](https://github.com/florence-bockting/elicito/issues).
 The (non-locked) version of Expert prior elicitation method can be installed with
 
 === "conda"
+
     ```sh
     conda install -c conda-forge elicito
     ```
-
 === "pip"
+
     ```sh
     pip install elicito
     ```
@@ -112,11 +114,12 @@ Additional dependencies can be installed using
 
 
 === "conda"
-I   If you are installing with conda, we recommend
+
+    If you are installing with conda, we recommend
     installing the extras by hand because there is no stable
     solution yet (see [conda issue #7502](https://github.com/conda/conda/issues/7502))
-
 === "pip"
+
     ```sh
     # To add plotting dependencies
     pip install 'elicito[plots]'
