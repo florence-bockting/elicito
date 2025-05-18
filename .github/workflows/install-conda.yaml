@@ -1,0 +1,90 @@
+# Test installation of the latest version from conda/mamba works.
+# We make sure that we run the tests that apply to the version we installed,
+# rather than the latest tests in main.
+# The reason we do this, is that we want this workflow to test
+# that installing from conda/mamba leads to a correct installation.
+# If we tested against main, the tests could fail
+# because the tests from main require the new features in main to pass.
+name: Test installation conda
+
+on:
+  workflow_dispatch:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    # This means At 03:00 on Wednesday.
+    # see https://crontab.guru/#0_0_*_*_3
+    - cron:  '0 3 * * 3'
+
+jobs:
+  test-micromamba-installation:
+    name: Test (micro)mamba install ${{ matrix.install-target }} (${{ matrix.python-version }}, ${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        # Test against all security and bugfix versions: https://devguide.python.org/versions/
+        python-version: [ "3.9", "3.10", "3.11", "3.12", "3.13" ]
+        # Check both 'library' install and the 'application' (i.e. locked) install
+        install-target: ["elicito", "elicito-locked"]
+    runs-on: "${{ matrix.os }}"
+    steps:
+    - name: Setup (micro)mamba and install package
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-name: test-mamba-install
+        create-args: >-
+          python=${{ matrix.python-version }}
+          -c conda-forge ${{ matrix.install-target }}
+        init-shell: bash
+    - name: Get version non-windows
+      shell: bash -leo pipefail {0}
+      if: matrix.os != 'windows-latest'
+      run: |
+        INSTALLED_VERSION=`python -c 'import elicito; print(f"v{elicito.__version__}")'`
+        echo $INSTALLED_VERSION
+        echo "INSTALLED_VERSION=$INSTALLED_VERSION" >> $GITHUB_ENV
+    - name: Get version windows
+      shell: bash -leo pipefail {0}
+      if: matrix.os == 'windows-latest'
+      run: |
+        python -c 'import elicito; f = open("version.txt", "w"); f.write(f"INSTALLED_VERSION=v{elicito.__version__}"); f.close()'
+        echo "Showing version.txt"
+        cat version.txt
+        cat version.txt >> $env:GITHUB_ENV
+    - name: Check installed version environment variable
+      shell: bash -leo pipefail {0}
+      run: |
+        echo "${{ env.INSTALLED_VERSION }}"
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ env.INSTALLED_VERSION }}
+    - name: Test installation
+      shell: bash -leo pipefail {0}
+      run: |
+        which python
+        python scripts/test-install.py
+    - name: Install pytest and other test dependencies
+      shell: bash -leo pipefail {0}
+      run: |
+        pip install -r requirements-only-tests-min-locked.txt
+        # micromamba install pytest pytest-regressions
+    - name: Run tests
+      shell: bash -leo pipefail {0}
+      run: |
+        # Can't run doctests here because the paths are different.
+        # This only runs with minimum test dependencies installed.
+        # So this is really just a smoke test,
+        # rather than a super thorough integration test.
+        # You will have to make sure that your tests run
+        # without all the extras installed for this to pass.
+        pytest tests -r a -vv tests
+    - name: Install all test dependencies
+      shell: bash -leo pipefail {0}
+      run: |
+        pip install -r requirements-only-tests-locked.txt
+    - name: Run tests
+      shell: bash -leo pipefail {0}
+      run: |
+        # Can't run doctests here because the paths are different.
+        pytest tests -r a -vv tests

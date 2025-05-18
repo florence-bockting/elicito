@@ -70,6 +70,15 @@ The steps required are the following:
    This triggers a release to PyPI
    (which you can then add to the release if you want).
 
+1. Go to your conda feedstock repository
+   (likely something like https://github.com/conda-forge/elicito-feedstock)
+   and make a new merge request that updates your `recipe/meta.yaml` file
+   to point to the newly released version on PyPI.
+
+   - If you have updated any dependencies, copy these across to your `recipe/meta.yaml` file.
+   - If you are releasing a locked version on conda too,
+     you can generate the pins for your lock file with `scripts/print-conda-recipe-pins.py`.
+
 1. That's it, release done, make noise on social media of choice, do whatever
    else
 
