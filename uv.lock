@@ -1119,11 +1119,10 @@ requires-dist = [
     { name = "pandas", marker = "extra == 'pandas'", specifier = "==2.2.3" },
     { name = "scipy", marker = "extra == 'scipy'", specifier = "==1.13.1" },
     { name = "seaborn", marker = "extra == 'plots'", specifier = ">=0.12" },
-    { name = "tensorflow", marker = "sys_platform != 'win32'", specifier = ">=2.16.1" },
-    { name = "tensorflow-cpu", marker = "sys_platform == 'win32'", specifier = ">=2.16.1" },
+    { name = "tensorflow", specifier = ">=2.16.0" },
     { name = "tensorflow-probability", specifier = ">=0.24.0" },
     { name = "tf-keras", specifier = ">=2.16.0" },
-    { name = "tqdm", specifier = ">=4.67.1" },
+    { name = "tqdm", specifier = ">=4.38" },
 ]
 provides-extras = ["plots", "pandas", "scipy", "full"]
 
