@@ -21,6 +21,13 @@ from the examples given in that link.
 
 <!-- towncrier release notes start -->
 
+## Expert prior elicitation method v0.5.2 (2025-05-18)
+
+### 🔧 Trivial/Internal Changes
+
+- [#12](https://github.com/florence-bockting/elicito/pull/12), [#13](https://github.com/florence-bockting/elicito/pull/13)
+
+
 ## Expert prior elicitation method v0.5.1 (2025-05-17)
 
 No significant changes.
