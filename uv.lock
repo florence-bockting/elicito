@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.9"
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
@@ -751,13 +752,12 @@ wheels = [
 
 [[package]]
 name = "elicito"
-version = "0.3.2a1"
+version = "0.5.2a1"
 source = { editable = "." }
 dependencies = [
     { name = "joblib" },
     { name = "numpy" },
-    { name = "tensorflow", marker = "sys_platform != 'win32'" },
-    { name = "tensorflow-intel", marker = "sys_platform == 'win32'" },
+    { name = "tensorflow" },
     { name = "tensorflow-probability" },
     { name = "tf-keras" },
     { name = "tqdm" },
@@ -1117,12 +1117,12 @@ requires-dist = [
     { name = "pandas", marker = "extra == 'pandas'", specifier = "==2.2.3" },
     { name = "scipy", marker = "extra == 'scipy'", specifier = "==1.13.1" },
     { name = "seaborn", marker = "extra == 'plots'", specifier = ">=0.12" },
-    { name = "tensorflow", marker = "sys_platform != 'win32'", specifier = ">=2.16.1" },
-    { name = "tensorflow-intel", marker = "sys_platform == 'win32'", specifier = ">=2.16.2" },
+    { name = "tensorflow", specifier = ">=2.16.1" },
     { name = "tensorflow-probability", specifier = ">=0.24.0" },
     { name = "tf-keras", specifier = ">=2.16.0" },
     { name = "tqdm", specifier = ">=4.67.1" },
 ]
+provides-extras = ["plots", "pandas", "scipy", "full"]
 
 [package.metadata.requires-dev]
 all-dev = [
@@ -4426,41 +4426,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ea/d1/01a2c18c64ff6051f818b3873224498bc8cd316dbfc6949fe06f241cecd2/tensorflow-2.16.1-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:92152aa77c402684e9066885515af6a45d88455c4453a818052c7369357078d8", size = 218861477 },
     { url = "https://files.pythonhosted.org/packages/52/0b/d0aec1d13e8e7d597eedbf9871f2c5b974e16578538658bee52dff04f26c/tensorflow-2.16.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:03b946e73bf48d857928329b8b321b00b42fe1b4f774c6580666683b0629689f", size = 589788536 },
     { url = "https://files.pythonhosted.org/packages/f1/92/fdc0b7f5123342dc0a3bc883d76ec4f0de1f58a6a6869d06c3c38d319b9b/tensorflow-2.16.1-cp39-cp39-win_amd64.whl", hash = "sha256:8231a9d7bba92a51231dcdcc3073920ad7d22fa88c64c7e2ecb7f1feac9d5fcb", size = 2096 },
-]
-
-[[package]]
-name = "tensorflow-intel"
-version = "2.16.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "absl-py", marker = "sys_platform == 'win32'" },
-    { name = "astunparse", marker = "sys_platform == 'win32'" },
-    { name = "flatbuffers", marker = "sys_platform == 'win32'" },
-    { name = "gast", marker = "sys_platform == 'win32'" },
-    { name = "google-pasta", marker = "sys_platform == 'win32'" },
-    { name = "grpcio", marker = "sys_platform == 'win32'" },
-    { name = "h5py", marker = "sys_platform == 'win32'" },
-    { name = "keras", marker = "sys_platform == 'win32'" },
-    { name = "libclang", marker = "sys_platform == 'win32'" },
-    { name = "ml-dtypes", marker = "sys_platform == 'win32'" },
-    { name = "numpy", marker = "sys_platform == 'win32'" },
-    { name = "opt-einsum", marker = "sys_platform == 'win32'" },
-    { name = "packaging", marker = "sys_platform == 'win32'" },
-    { name = "protobuf", marker = "sys_platform == 'win32'" },
-    { name = "requests", marker = "sys_platform == 'win32'" },
-    { name = "setuptools", marker = "sys_platform == 'win32'" },
-    { name = "six", marker = "sys_platform == 'win32'" },
-    { name = "tensorboard", marker = "sys_platform == 'win32'" },
-    { name = "tensorflow-io-gcs-filesystem", marker = "python_full_version < '3.12' and sys_platform == 'win32'" },
-    { name = "termcolor", marker = "sys_platform == 'win32'" },
-    { name = "typing-extensions", marker = "sys_platform == 'win32'" },
-    { name = "wrapt", marker = "sys_platform == 'win32'" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/31/5c/ff36582435be7ce60cb2c84e961372b76330928be8da6c85f7880a0f5df3/tensorflow_intel-2.16.2-cp310-cp310-win_amd64.whl", hash = "sha256:484024ee68c3bcea12e76b2358ed671cf02e71d121280268c3ee03d9513dd4ce", size = 376920038 },
-    { url = "https://files.pythonhosted.org/packages/46/87/c3e4e9fe7c630f38a6984afdd1d4ed531ef9c74dc66b86f46f6bdd89d608/tensorflow_intel-2.16.2-cp311-cp311-win_amd64.whl", hash = "sha256:d508e15fae4a60f233794c591d4b0e4b1ed92ccb3f017fd107950f5f45f3bd43", size = 376961926 },
-    { url = "https://files.pythonhosted.org/packages/c2/7d/d4b381e7a7a0c22179a886a3814a974adfb6edfdde9ef594f55902e4896b/tensorflow_intel-2.16.2-cp312-cp312-win_amd64.whl", hash = "sha256:239af202645145c1c39e7dfe714687e1b1a57a73e5022aacae0313d917f09608", size = 377067160 },
-    { url = "https://files.pythonhosted.org/packages/48/3e/d225629db02c4004c6622a2cd31f0115aecf113dc0dfab89ff413d39b363/tensorflow_intel-2.16.2-cp39-cp39-win_amd64.whl", hash = "sha256:01c8ea61530ac2e595a606aa405cad411e8bf787acc2ccaab5258cb033c3bc2c", size = 376916347 },
 ]
 
 [[package]]
