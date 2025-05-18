@@ -4,7 +4,7 @@
 A Python package for learning prior distributions based on expert knowledge
 
 **Key info :**
-[![DOI](https://zenodo.org/badge/663057594.svg)](https://zenodo.org/doi/10.5281/zenodo.15241853)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15452973.svg)](https://doi.org/10.5281/zenodo.15452973)
 [![Docs](https://readthedocs.org/projects/elicito/badge/?version=latest)](https://elicito.readthedocs.io)
 [![Main branch: supported Python versions](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fflorence-bockting%2Felicito%2Fmain%2Fpyproject.toml)](https://github.com/florence-bockting/elicito/blob/main/pyproject.toml)
 [![Licence](https://img.shields.io/pypi/l/elicito?label=license)](https://github.com/florence-bockting/elicito/blob/main/LICENCE)
@@ -123,6 +123,10 @@ If not, please raise an issue in the
 For the rest of our developer docs, please see [development][development].
 
 <!--- --8<-- [end:installation] -->
+
+## Older versions
+
++ **v0.3.1**: [![DOI](https://zenodo.org/badge/663057594.svg)](https://zenodo.org/doi/10.5281/zenodo.15241853)
 
 ## Original template
 
