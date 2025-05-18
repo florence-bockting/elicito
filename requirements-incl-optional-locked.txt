@@ -33,7 +33,8 @@ markupsafe==3.0.2
 matplotlib==3.9.4 ; python_full_version < '3.10'
 matplotlib==3.10.1 ; python_full_version >= '3.10'
 mdurl==0.1.2
-ml-dtypes==0.3.2
+ml-dtypes==0.3.2 ; sys_platform != 'win32'
+ml-dtypes==0.4.1 ; sys_platform == 'win32'
 namex==0.0.9
 numpy==1.26.4
 opt-einsum==3.4.0
@@ -52,13 +53,18 @@ scipy==1.13.1
 seaborn==0.13.2
 setuptools==75.6.0
 six==1.17.0
-tensorboard==2.16.2
+tensorboard==2.16.2 ; sys_platform != 'win32'
+tensorboard==2.18.0 ; sys_platform == 'win32'
 tensorboard-data-server==0.7.2
-tensorflow==2.16.1
+tensorflow==2.16.1 ; sys_platform != 'win32'
+tensorflow==2.18.1 ; sys_platform == 'win32'
+tensorflow-cpu==2.18.0 ; sys_platform == 'win32'
+tensorflow-intel==2.18.0 ; sys_platform == 'win32'
 tensorflow-io-gcs-filesystem==0.31.0 ; python_full_version < '3.12'
 tensorflow-probability==0.24.0
 termcolor==2.5.0
-tf-keras==2.16.0
+tf-keras==2.16.0 ; sys_platform != 'win32'
+tf-keras==2.18.0 ; sys_platform == 'win32'
 tqdm==4.67.1
 typing-extensions==4.12.2
 tzdata==2025.1
