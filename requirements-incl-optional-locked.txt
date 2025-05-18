@@ -58,8 +58,6 @@ tensorboard==2.18.0 ; sys_platform == 'win32'
 tensorboard-data-server==0.7.2
 tensorflow==2.16.1 ; sys_platform != 'win32'
 tensorflow==2.18.1 ; sys_platform == 'win32'
-tensorflow-cpu==2.18.0 ; sys_platform == 'win32'
-tensorflow-intel==2.18.0 ; sys_platform == 'win32'
 tensorflow-io-gcs-filesystem==0.31.0 ; python_full_version < '3.12'
 tensorflow-probability==0.24.0
 termcolor==2.5.0
