@@ -1,4 +1,3 @@
-<!--- --8<-- [start:description] -->
 # Expert prior elicitation method
 
 A Python package for learning prior distributions based on expert knowledge
@@ -12,6 +11,11 @@ A Python package for learning prior distributions based on expert knowledge
 **PyPI :**
 [![PyPI](https://img.shields.io/pypi/v/elicito.svg)](https://pypi.org/project/elicito/)
 [![PyPI install](https://github.com/florence-bockting/elicito/actions/workflows/install-pypi.yaml/badge.svg?branch=main)](https://github.com/florence-bockting/elicito/actions/workflows/install-pypi.yaml)
+
+**Conda :**
+[![Conda](https://img.shields.io/conda/vn/conda-forge/elicito.svg)](https://anaconda.org/conda-forge/elicito)
+[![Conda platforms](https://img.shields.io/conda/pn/conda-forge/elicito.svg)](https://anaconda.org/conda-forge/elicito)
+[![Conda install](https://github.com/florence-bockting/elicito/actions/workflows/install-conda.yaml/badge.svg?branch=main)](https://github.com/florence-bockting/elicito/actions/workflows/install-conda.yaml)
 
 **Tests :**
 [![CI](https://github.com/florence-bockting/elicito/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/florence-bockting/elicito/actions/workflows/ci.yaml)
@@ -65,9 +69,15 @@ because of breaking updates to dependencies.
 
 The locked version of Expert prior elicitation method can be installed with
 
-```sh
-pip install 'elicito[locked]'
-```
+=== "conda"
+    ```sh
+    conda install -c conda-forge elicito-locked
+    ```
+
+=== "pip"
+    ```sh
+    pip install 'elicito[locked]'
+    ```
 
 ### As a library
 
@@ -88,19 +98,32 @@ please [raise an issue](https://github.com/florence-bockting/elicito/issues).
 
 The (non-locked) version of Expert prior elicitation method can be installed with
 
-```sh
-pip install elicito
-```
+=== "conda"
+    ```sh
+    conda install -c conda-forge elicito
+    ```
+
+=== "pip"
+    ```sh
+    pip install elicito
+    ```
 
 Additional dependencies can be installed using
 
-```sh
-# To add plotting dependencies
-pip install 'elicito[plots]'
 
-# To add all optional dependencies
-pip install 'elicito[full]'
-```
+=== "conda"
+I   If you are installing with conda, we recommend
+    installing the extras by hand because there is no stable
+    solution yet (see [conda issue #7502](https://github.com/conda/conda/issues/7502))
+
+=== "pip"
+    ```sh
+    # To add plotting dependencies
+    pip install 'elicito[plots]'
+
+    # To add all optional dependencies
+    pip install 'elicito[full]'
+    ```
 
 ### For developers
 

@@ -1,7 +1,7 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
 _commit: v0.12.3
 _src_path: gl:openscm/copier-core-python-repository
-conda_release: false
+conda_release: true
 email: florence.bockting@tu-dortmund.de
 include_cli: false
 name: Florence Bockting
