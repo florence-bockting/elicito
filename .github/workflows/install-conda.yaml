@@ -25,7 +25,8 @@ jobs:
         # Test against all security and bugfix versions: https://devguide.python.org/versions/
         python-version: [ "3.9", "3.10", "3.11", "3.12", "3.13" ]
         # Check both 'library' install and the 'application' (i.e. locked) install
-        install-target: ["elicito", "elicito-locked"]
+        # TODO: include a elicito-locked version in conda-forge
+        install-target: ["elicito"]#, "elicito-locked"]
     runs-on: "${{ matrix.os }}"
     steps:
     - name: Setup (micro)mamba and install package

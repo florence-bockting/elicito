@@ -69,11 +69,6 @@ because of breaking updates to dependencies.
 
 The locked version of Expert prior elicitation method can be installed with
 
-=== "conda"
-
-    ```sh
-    conda install -c conda-forge elicito-locked
-    ```
 === "pip"
 
     ```sh
@@ -102,7 +97,7 @@ The (non-locked) version of Expert prior elicitation method can be installed wit
 === "conda"
 
     ```sh
-    conda install -c conda-forge elicito
+    conda install conda-forge::elicito
     ```
 === "pip"
 
