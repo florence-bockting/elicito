@@ -945,7 +945,10 @@ def get_expert_datformat(targets: list[Target]) -> dict[str, list[Any]]:
         if query == "custom":
             query = tar["query"]["func_name"]
         target = tar["name"]
-        key = query + "_" + target
+        if query == "pearson_correlation":
+            key = "cor_" + target
+        else:
+            key = query + "_" + target
         elicit_dict[key] = list()
 
     return elicit_dict

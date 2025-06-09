@@ -43,7 +43,7 @@ Some suggested options:
   and we won't reply to any issues
 -->
 
-- prototype: the project is just starting up and the code is all prototype
++ development: the project is actively being worked on
 
 <!--- --8<-- [end:description] -->
 
@@ -54,14 +54,11 @@ don't render correctly on GitHub's viewer.
 
 ## Installation
 
-Our package depends on `TensorFlow` and thus all its requirements.
-Specifically, for Windows the Microsoft Visual C++ Redistributable for VisualStudio needs to be installed.
-See [`install tensorflow`](https://www.tensorflow.org/install/pip)
-
 <!--- --8<-- [start:installation] -->
+<!---
 ### As an application
 
-If you want to use Expert prior elicitation method as an application,
+If you want to use `elicito` as an application,
 then we recommend using the 'locked' version of the package.
 This version pins the version of all dependencies too,
 which reduces the chance of installation issues
@@ -74,13 +71,15 @@ The locked version of Expert prior elicitation method can be installed with
     ```sh
     pip install 'elicito[locked]'
     ```
+-->
 
 ### As a library
 
-If you want to use Expert prior elicitation method as a library,
+If you want to use `elicito` as a library,
 for example you want to use it
 as a dependency in another package/application that you're building,
 then we recommend installing the package with the commands below.
+<!---
 This method provides the loosest pins possible of all dependencies.
 This gives you, the package/application developer,
 as much freedom as possible to set the versions of different packages.
@@ -91,8 +90,9 @@ particularly ones which haven't been released yet!).
 Hence, you may run into installation issues.
 If you believe these are because of a problem in Expert prior elicitation method,
 please [raise an issue](https://github.com/florence-bockting/elicito/issues).
-
-The (non-locked) version of Expert prior elicitation method can be installed with
+-->
+The (non-locked) version of `elicito` can be installed with `conda` for macOS
+and Linux and with `pip` for Windows, macOS and Linux.
 
 === "conda"
 
@@ -116,11 +116,17 @@ Additional dependencies can be installed using
 === "pip"
 
     ```sh
+    # To add all optional dependencies
+    pip install 'elicito[full]'
+
     # To add plotting dependencies
     pip install 'elicito[plots]'
 
-    # To add all optional dependencies
-    pip install 'elicito[full]'
+    # To add scipy dependency
+    pip install 'elicito[scipy]'
+
+    # To add pandas dependency
+    pip install 'elicito[pandas]'
     ```
 
 ### For developers
