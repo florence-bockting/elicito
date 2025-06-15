@@ -1,24 +1,30 @@
+```python
+import tensorflow_probability as tfp
+import tensorflow as tf
+tfd = tfp.distributions
+```
+
 # Specify the generative model object
 
-Here we introduce how to specify the generative model class.
+Here we introduce how to specify the generative model that
+is passed as input argument to the `el.model()` function.
 
 ## General workflow
-The geneartive model must be a `class callable` with a
-specific *input-output* structure.
+The geneartive model must be a `Python class` with the
+following *input-output* structure:
 
 **Inputs:**
 
 + necessary input: `prior_samples`
-+ optional inputs: any argument that is required by
-  the internal computation of the generative model
++ optional inputs: any argument required by the user-defined Python class
 
-The *optional* arguments have to be specified as keywords
-arguments in `el.model`.
+The *optional* arguments have to be specified as keyword
+arguments in the `el.model()` function.
 
 **Outputs:**
 
 + necessary format: dictionary with *keys* referring
-  to the name of target quantities and *values* to the
+  to the name of the respective target quantity and *values* to the
   corresponding `tf.tensor` object
 
 ```
@@ -45,7 +51,7 @@ $$
 
 ## Target quantities
 We assume, we want to query the domain expert regarding the outcome variable.
-Specifically, we ask the expert for two values of the predictor variable:
+Specifically, we ask the expert regarding three values of the predictor variable:
 
 + $y_{pred} \mid X_{1}$
 + $y_{pred} \mid X_{2}$
@@ -60,7 +66,7 @@ $$
 ## Computational model implementation
 ### Create a Python class
 
-```
+```python
 class ExampleModel1:
     def __call__(self, prior_samples, X):
 
@@ -84,32 +90,22 @@ Let us use the `ExampleModel1` and generate some predictions based on artificial
 3. Instantiate the generative model
 4. Simulate from the generative model
 
-
-```
+```python
 # define number of batches and draws from prior distributions
 B, num_samples = (1,10)
-```
 
-
-```
 # sample from priors
 prior_samples = tfd.Normal([1,2], [0.8, 1.5]).sample((B,num_samples))
 print("(Step 1) prior samples:\n", prior_samples)
-```
 
-```
 # define the design matrix
 X = tf.constant([[1.,-1.],[1.,0], [1.,1.]])
 print("\n(Step 2) design matrix:\n", X)
-```
 
-```
 # create an instance of the generative model class
 model_instance = ExampleModel1()
 print("\n(Step 3) instantiated model:\n", model_instance)
-```
 
-```
 # simulate from the generative model
 ypred = model_instance(prior_samples, X)
 print("\n(Step 4) samples from outcome variable:\n", ypred)

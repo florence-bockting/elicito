@@ -25,8 +25,8 @@
 # ## Imports
 
 # %%
-# Imports
 import os
+import shutil
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
@@ -40,6 +40,11 @@ import tensorflow_probability as tfp
 import elicito as el
 
 tfd = tfp.distributions
+
+# %%
+# prepare notebook and remove results from previous runs
+if os.path.isdir("results"):
+    shutil.rmtree("results")
 
 # %% [markdown]
 # ## Save an unfitted `eliobj` object
@@ -204,18 +209,20 @@ eliobj = el.Elicit(
 # %% [markdown]
 # ### Step 2: Save the unfitted `eliobj` object
 # Two approaches are possible:
-# + automatic saving: `name` has to be specified.
-#   + The results are then saved according to the
-#   + following rule: `res/{method}/{name}_{seed}.pkl`
-# + user-specific path: `file` has to be specified.
-#   + The path can be freely specified by the user.
+# + automatic saving:
+#     + `name` has to be specified.
+#     + The results are then saved according to the
+#     + following rule: `res/{method}/{name}_{seed}.pkl`
+# + user-specific path:
+#     + `file` has to be specified.
+#     + The path can be freely specified by the user.
 
 # %%
 # use automatic saving approach
-eliobj.save(name="m1", overwrite=True)
+eliobj.save(name="m1")
 
 # use user-specific file location
-eliobj.save(file="results/m1_1", overwrite=True)
+eliobj.save(file="results/m1_1")
 
 # %% [markdown]
 # ## Load and fit the *unfitted* eliobj
@@ -256,7 +263,7 @@ print(eliobj_m1.results[0].keys())
 eliobj_m2 = copy.deepcopy(eliobj_m1)
 
 # update eliobj_m1 by changing the saving settings
-trainer_new = el.trainer(method="parametric_prior", seed=0, epochs=4)
+trainer_new = el.trainer(method="parametric_prior", seed=0, epochs=4, progress=0)
 eliobj_m2.update(trainer=trainer_new)
 
 # fit updated eliobj
@@ -275,7 +282,7 @@ eliobj_m2.history[0].keys()
 
 # %%
 # save the fitted object
-eliobj_m2.save(name="m2", overwrite=True)
+eliobj_m2.save(name="m2")
 
 # load the fitted object
 eliobj_m2_reload = el.utils.load("./results/parametric_prior/m2_0.pkl")
@@ -324,8 +331,3 @@ eliobj_m2_reload.fit(overwrite=True)
 
 # %%
 eliobj_m2_reload.save(name="m2", overwrite=True)
-
-# remove results folder
-import shutil
-
-shutil.rmtree("results")

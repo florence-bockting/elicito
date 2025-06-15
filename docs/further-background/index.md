@@ -5,11 +5,6 @@ will focus on an **understanding-oriented** approach.
 Here, we will describe the background of the project,
 as well as reasoning about how it was implemented.
 
-Points we will aim to cover:
+This part of the documentation is still in progress. Currently available documents are:
 
-- Context and background on the library
-- Why it was created
-- Help the reader make connections
-
-We will aim to avoid writing instructions or technical descriptions here,
-they belong elsewhere.
++ Background to the Maximum Mean Discrepancy loss [notebook](maximum-mean-discrepancy.py)

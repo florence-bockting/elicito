@@ -146,7 +146,7 @@ for m in xrange:
     mmd.append(mmd_avg)
 
 plt.plot(xrange, mmd, "-o")
-plt.ylabel(r"$MMD^2$")
+plt.ylabel("MMD2")
 plt.xlabel("E[y]")
 plt.title("Varying E[y] for fixed E[x]=2")
 plt.show()
@@ -177,7 +177,7 @@ for x_m in xrange:
     mmd.append(mmd_avg)
 
 plt.plot(xrange, mmd, "-o")
-plt.ylabel(r"$MMD^2$")
+plt.ylabel("MMD2")
 plt.xlabel("E[x]")
 plt.title("Varying scale but not diff. between samples; E[x]-E[y] = 3")
 plt.ylim(3, 6)

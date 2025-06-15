@@ -47,7 +47,7 @@ Issues = "https://github.com/florence-bockting/elicito/issues"
 [project.optional-dependencies]
 plots = [
     "matplotlib>=3.7.1",
-    "seaborn>=0.12"
+    "seaborn>=0.12",
 ]
 pandas = [
     "pandas==2.2.3"

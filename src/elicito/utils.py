@@ -954,7 +954,7 @@ def get_expert_datformat(targets: list[Target]) -> dict[str, list[Any]]:
     return elicit_dict
 
 
-def softmax_gumbel_trick(likelihood: Any, upper_thres: float, temp: float = 1.6) -> Any:
+def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6) -> Any:
     """
     Apply softmax-gumble trick
 

@@ -527,6 +527,7 @@ def prior_marginals(  # noqa: PLR0912
     """
     try:
         import matplotlib.pyplot as plt
+
     except ImportError as exc:
         raise MissingOptionalDependencyError(
             "plotting", requirement="matplotlib"
@@ -573,7 +574,7 @@ def prior_marginals(  # noqa: PLR0912
             axs[c].set_title(f"{par}", fontsize="small")
             axs[c].tick_params(axis="y", labelsize="x-small")
             axs[c].tick_params(axis="x", labelsize="x-small")
-            axs[c].set_xlabel(r"$\theta$", fontsize="small")
+            axs[c].set_xlabel("\u03b8", fontsize="small")
             axs[c].set_ylabel("density", fontsize="small")
             axs[c].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             axs[c].spines[["right", "top"]].set_visible(False)
@@ -592,7 +593,7 @@ def prior_marginals(  # noqa: PLR0912
             axs[r, c].set_title(f"{par}", fontsize="small")
             axs[r, c].tick_params(axis="y", labelsize="x-small")
             axs[r, c].tick_params(axis="x", labelsize="x-small")
-            axs[r, c].set_xlabel(r"$\theta$", fontsize="small")
+            axs[r, c].set_xlabel("\u03b8", fontsize="small")
             axs[r, c].set_ylabel("density", fontsize="small")
             axs[r, c].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             axs[r, c].spines[["right", "top"]].set_visible(False)
@@ -1102,7 +1103,7 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
             subfig1[c].set_title(f"{par}", fontsize="small")
             subfig1[c].tick_params(axis="y", labelsize="x-small")
             subfig1[c].tick_params(axis="x", labelsize="x-small")
-            subfig1[c].set_xlabel(r"$\theta$", fontsize="small")
+            subfig1[c].set_xlabel("\u03b8", fontsize="small")
             subfig1[c].set_ylabel("density", fontsize="small")
             subfig1[c].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             subfig1[c].spines[["right", "top"]].set_visible(False)
@@ -1129,7 +1130,7 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
             subfig1[r, c].set_title(f"{par}", fontsize="small")
             subfig1[r, c].tick_params(axis="y", labelsize="x-small")
             subfig1[r, c].tick_params(axis="x", labelsize="x-small")
-            subfig1[r, c].set_xlabel(r"$\theta$", fontsize="small")
+            subfig1[r, c].set_xlabel("\u03b8", fontsize="small")
             subfig1[r, c].set_ylabel("density", fontsize="small")
             subfig1[r, c].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             subfig1[r, c].spines[["right", "top"]].set_visible(False)

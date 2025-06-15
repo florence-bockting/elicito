@@ -1,4 +1,4 @@
-# Expert prior elicitation method
+# `elicito`: A Python package for expert prior elicitation
 
 A Python package for learning prior distributions based on expert knowledge
 
@@ -24,8 +24,8 @@ A Python package for learning prior distributions based on expert knowledge
 **Other info :**
 [![Last Commit](https://img.shields.io/github/last-commit/florence-bockting/elicito.svg)](https://github.com/florence-bockting/elicito/commits/main)
 [![Contributors](https://img.shields.io/github/contributors/florence-bockting/elicito.svg)](https://github.com/florence-bockting/elicito/graphs/contributors)
-## Status
 
+## Status
 <!---
 
 We recommend having a status line in your repo

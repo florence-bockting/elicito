@@ -13,10 +13,10 @@
 # ---
 
 # %% [markdown]
-# # Getting started with parameteric priors
+# # Getting started with a non-parametric joint prior
 #
 # Here we introduce how to specify the elicitation method for
-# a parametric prior.
+# a non-parametric joint prior.
 #
 
 # %% [markdown]
@@ -27,7 +27,6 @@ import os
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
-import copy
 from typing import Any
 
 import numpy as np
@@ -43,9 +42,7 @@ tfd = tfp.distributions
 # ### Probabilistic model
 # $$
 # \begin{align*}
-#     \beta_0 &\sim \text{Normal}(\mu_0, \sigma_0) \\
-#     \beta_1 &\sim \text{Normal}(\mu_1, \sigma_1) \\
-#     \sigma &\sim \text{HalfNormal}(\sigma_2) \\
+#     (\beta_0, \beta_1, \sigma) &\sim p_\lambda(\cdot) \\
 #     \mu &= \beta_0 + \beta_1X \\
 #     y_{pred} &\sim \text{Normal}(\mu, \sigma)
 # \end{align*}
@@ -84,7 +81,7 @@ def X_design(N: int, quantiles: list[float]) -> np.ndarray:
     return X_design
 
 
-X_design(N=30, quantiles=[25, 50, 75])
+X_design(N=200, quantiles=[25, 50, 75])
 
 # %% [markdown]
 # #### Generative model
@@ -143,40 +140,29 @@ model = el.model(obj=ToyModel, design_matrix=X_design(N=30, quantiles=[25, 50, 7
 # + random noise with halfnormal prior $\sigma$
 #
 # **To be learned hyperparameters**
-# $
-# \lambda = (\mu_0, \sigma_0, \mu_1, \sigma_1, \sigma_2)
-# $
+# $\lambda$ refer to weights of deep generative model to learn joint
+# prior density function.
 #
-# + scale parameters ($\sigma_0, \sigma_1, \sigma_2$) are constrained to be positive
+# + random noise parameter ($\sigma$) is constrained to be positive
 
 # %%
 parameters = [
-    el.parameter(
-        name="beta0",
-        family=tfd.Normal,
-        hyperparams=dict(loc=el.hyper("mu0"), scale=el.hyper("sigma0", lower=0)),
-    ),
-    el.parameter(
-        name="beta1",
-        family=tfd.Normal,
-        hyperparams=dict(loc=el.hyper("mu1"), scale=el.hyper("sigma1", lower=0)),
-    ),
-    el.parameter(
-        name="sigma",
-        family=tfd.HalfNormal,
-        hyperparams=dict(scale=el.hyper("sigma2", lower=0)),
-    ),
+    el.parameter(name="beta0"),
+    el.parameter(name="beta1"),
+    el.parameter(name="sigma", lower=0),
 ]
 
 
 # %% [markdown]
 # ### Target quantities and elicitation techniques
 # **Target quantities**
-# + query expert regarding **prior predictions** $y \mid X_{i}$ with $i$
+# + query expert regarding
+#     + **prior predictions** $y \mid X_{i}$ with $i$
 # being the 25th, 50th, and 75th quantile of the predictor.
+#     + **expected** $R^2$
 #
 # **Elicitation technique**
-# + query each observation using **quantile-based elicitation** using
+# + query each target quantity using **quantile-based elicitation** with
 # $Q_p(y \mid X)$ for $p=25, 50, 75$
 #
 # **Specifying discrepancy measure and weight for single loss components**
@@ -184,8 +170,11 @@ parameters = [
 #     + discrepancy measure: Maximum Mean Discrepancy with energy kernel
 #     + weight of loss component: 1.0
 # + $R^2$:
+#     + discrepancy measure: Maximum Mean Discrepancy with energy kernel
+#     + weight of loss component: 10.0
+# + correlation between model parameters (assumed to be independent, thus zero)
 #     + L2 loss
-#     + weight of loss component: 0.5
+#     + weight of loss component: 0.1
 
 
 # %%
@@ -221,9 +210,15 @@ targets = [
     el.target(
         name="R2",
         query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.L2,
-        weight=0.5,
+        loss=el.losses.MMD2(kernel="energy"),
+        weight=10.0,
         target_method=custom_r2,
+    ),
+    el.target(
+        name="cor",
+        query=el.queries.correlation(),
+        loss=el.losses.L2,
+        weight=0.1,
     ),
 ]
 
@@ -244,6 +239,30 @@ ground_truth = {
 # define oracle
 expert = el.expert.simulator(ground_truth=ground_truth, num_samples=10_000)
 # %% [markdown]
+# ### Normalizing Flow as deep generative model
+
+# %%
+network = el.networks.NF(
+    inference_network=el.networks.InvertibleNetwork,
+    network_specs=dict(
+        num_params=3,
+        num_coupling_layers=3,
+        coupling_design="affine",
+        coupling_settings={
+            "dropout": False,
+            "dense_args": {
+                "units": 128,
+                "activation": "relu",
+                "kernel_regularizer": None,
+            },
+            "num_dense": 2,
+        },
+        permutation="fixed",
+    ),
+    base_distribution=el.networks.base_normal,
+)
+
+# %% [markdown]
 # ### Training
 # Learn prior distributions based on expert data
 
@@ -254,14 +273,11 @@ eliobj = el.Elicit(
     targets=targets,
     expert=expert,
     optimizer=el.optimizer(
-        optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
+        optimizer=tf.keras.optimizers.Adam, learning_rate=0.0001, clipnorm=1.0
     ),
-    trainer=el.trainer(method="parametric_prior", seed=2025, epochs=600, progress=0),
-    initializer=el.initializer(
-        method="sobol",
-        iterations=32,
-        distribution=el.initialization.uniform(radius=2.0, mean=0.0),
-    ),
+    trainer=el.trainer(method="deep_prior", seed=2025, epochs=900, progress=0),
+    initializer=None,
+    network=network,
 )
 
 # %% [markdown]
@@ -272,10 +288,6 @@ eliobj.fit()
 
 # %% [markdown]
 # ## Results
-# ### Initialization of hyperparameters
-
-# %%
-el.plots.initialization(eliobj, cols=5, figsize=(6, 2))
 
 # %% [markdown]
 # ### Convergence - Loss
@@ -287,13 +299,13 @@ el.plots.loss(eliobj, figsize=(6, 2))
 # ### Convergence - hyperparameters
 
 # %%
-el.plots.hyperparameter(eliobj, figsize=(7, 4))
+el.plots.hyperparameter(eliobj, figsize=(6, 2))
 
 # %% [markdown]
 # ### Expert expectations
 
 # %%
-el.plots.elicits(eliobj, cols=4, figsize=(7, 2))
+el.plots.elicits(eliobj, cols=5, figsize=(8, 2))
 
 # %% [markdown]
 # ### Learned prior distributions
@@ -301,121 +313,5 @@ el.plots.elicits(eliobj, cols=4, figsize=(7, 2))
 # %%
 el.plots.prior_marginals(eliobj, cols=3, figsize=(7, 2))
 
-# %% [markdown]
-# ## Add-on: Shared parameters
-
 # %%
-# create a copy of eliobj
-eliobj_shared = copy.deepcopy(eliobj)
-
-# share sigma hyperparameter of intercept and slope parameter
-parameters_shared = [
-    el.parameter(
-        name="beta0",
-        family=tfd.Normal,
-        hyperparams=dict(
-            loc=el.hyper("mu0"), scale=el.hyper("sigma1", lower=0, shared=True)
-        ),
-    ),
-    el.parameter(
-        name="beta1",
-        family=tfd.Normal,
-        hyperparams=dict(
-            loc=el.hyper("mu1"), scale=el.hyper("sigma1", lower=0, shared=True)
-        ),
-    ),
-    el.parameter(
-        name="sigma",
-        family=tfd.HalfNormal,
-        hyperparams=dict(scale=el.hyper("sigma2", lower=0)),
-    ),
-]
-
-# update parameters in eliobj
-eliobj_shared.update(parameters=parameters_shared)
-
-# refit the model
-eliobj_shared.fit()
-
-# %% [markdown]
-# ### Results
-# #### Initialization of hyperparamters
-
-# %%
-el.plots.initialization(eliobj_shared, cols=4, figsize=(7, 2))
-
-# %% [markdown]
-# #### Convergence - Loss
-
-# %%
-el.plots.loss(eliobj_shared, figsize=(6, 2))
-
-# %% [markdown]
-# #### Convergence - Hyperparameters
-
-# %%
-el.plots.hyperparameter(eliobj_shared, figsize=(7, 2))
-
-# %% [markdown]
-# #### Elicited statistics
-
-# %%
-el.plots.elicits(eliobj_shared, cols=4, figsize=(7, 2))
-
-# %% [markdown]
-# #### Learned prior distributions
-
-# %%
-el.plots.prior_marginals(eliobj_shared, figsize=(7, 2))
-
-# %% [markdown]
-# ## Add-on: Use expert data as input
-
-# %%
-# create a copy of eliobj
-eliobj_dat = copy.deepcopy(eliobj)
-
-# use dictionary of elicited expert data (instead of simulating data)
-expert_dat = {
-    "quantiles_y_X0": [-12.5, -0.6, 3.3, 7.1, 19.1],
-    "quantiles_y_X1": [-11.2, 1.5, 5.0, 8.8, 20.4],
-    "quantiles_y_X2": [-9.3, 3.1, 6.8, 10.5, 23.3],
-    "quantiles_R2": [0.001, 0.02, 0.09, 0.41, 0.96],
-}
-
-# update expert in eliobj
-eliobj_dat.update(expert=el.expert.data(dat=expert_dat))
-
-# refit the model
-eliobj_dat.fit()
-
-# %% [markdown]
-# ### Results
-# #### Initialization of hyperparameters
-
-# %%
-el.plots.initialization(eliobj_dat, cols=5, figsize=(7, 2))
-
-# %% [markdown]
-# #### Convergence - Loss
-
-# %%
-el.plots.loss(eliobj_dat, figsize=(6, 2))
-
-# %% [markdown]
-# #### Convergence - Hyperparameters
-
-# %%
-el.plots.hyperparameter(eliobj_dat, cols=5, figsize=(7, 2))
-
-# %% [markdown]
-# #### Elicited statistics
-
-# %%
-el.plots.elicits(eliobj_dat, cols=4, figsize=(7, 2))
-
-# %% [markdown]
-# #### Learned prior distributions
-
-# %%
-el.plots.prior_marginals(eliobj_dat, figsize=(7, 2))
+el.plots.prior_joint(eliobj)

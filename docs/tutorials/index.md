@@ -4,12 +4,7 @@ This part of the project documentation
 will focus on a **learning-oriented** approach.
 You'll learn how to get started with the code in this project.
 
-It is currently empty, but we will aim to:
+This documentation is still in progress. Currently available tutorials are
 
-- Help newcomers with getting started
-- Teach readers about the library by having them write code
-- Inspire confidence through examples that work for everyone, repeatably
-- Give readers an immediate sense of achievement
-- Show concrete examples without abstractions
-- Provide the minimum necessary explanation
-- Avoid any distraction
++ Getting started with learning independent, parametric priors from expert knowledge [Go to notebook](getting-started-param.py)
++ Getting started with learning joint, non-parametric prior from expert knowledge [Go to notebook](getting-started-deep.py)

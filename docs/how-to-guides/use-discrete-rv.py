@@ -39,11 +39,12 @@ tfd = tfp.distributions
 # %% [markdown]
 # ## Gradients for discrete RVs
 # ### Challenge
-# + ToDo (describe the problem of computing gradients for discrete RVs)
-# + possible solution: softmax-gumble trick
+# + we can't compute gradients for discrete random variables (RVs)
+# + possible solution: gumbel-softmax trick
+# [see Jang et al. (2016)](https://doi.org/10.48550/arXiv.1611.01144)
 #
-# ### Possible work around: Softmax-Gumble Trick
-# + Describe the softmax gumble trick
+# Jang, E., Gu, S., & Poole, B. (2016). Categorical reparameterization
+# with gumbel-softmax. https://doi.org/10.48550/arXiv.1611.01144.
 #
 # ## Example: Binomial model
 #
@@ -56,10 +57,10 @@ tfd = tfp.distributions
 # \end{align*}
 # $$
 #
-# + using the `el.utils.softmax_gumble_trick()` function in the generative model
+# + using the `el.utils.gumbel_softmax_trick()` function in the generative model
 
 # %%
-help(el.utils.softmax_gumbel_trick)
+help(el.utils.gumbel_softmax_trick)
 
 # %% [markdown]
 # ### The generative model
@@ -112,7 +113,7 @@ class ToyModel:
         )
 
         # prior predictive distribution
-        ypred = el.utils.softmax_gumbel_trick(likelihood, total_count, temp)
+        ypred = el.utils.gumbel_softmax_trick(likelihood, total_count, temp)
 
         # selected observations
         y_X0, y_X1, y_X2 = (ypred[:, :, 0], ypred[:, :, 1], ypred[:, :, 2])
@@ -121,7 +122,7 @@ class ToyModel:
 
 
 # %% [markdown]
-
+#
 # ### Construct the predictor
 
 

@@ -241,7 +241,7 @@ def parameter(
     family
         Prior distribution family for model parameter.
         Only required for ``parametric_prior`` method.
-        Must be an [`tfp.distributions`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions).
+        Must be a member of [`tfp.distributions`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions).
 
     hyperparams
         Hyperparameters of distribution as specified in **family**.
@@ -267,8 +267,6 @@ def parameter(
     Raises
     ------
     ValueError
-        ``family`` has to be a tfp.distributions object.
-
         ``hyperparams`` value is a dict with keys corresponding to arguments of
         tfp.distributions object in 'family'. Raises error if key does not
         correspond to any argument of distribution.
@@ -283,14 +281,6 @@ def parameter(
     >>>              )  # doctest: +SKIP
 
     """  # noqa: E501
-    # check that family is a tfp.distributions object
-    if family is not None:
-        if family.__module__.split(".")[-1] not in dir(tfd):
-            raise ValueError(
-                "[section: parameters] The argument 'family'"
-                + "has to be a tfp.distributions object."
-            )
-
     # check whether keys of hyperparams dict correspond to arguments of family
     if hyperparams is not None:
         for key in hyperparams:
