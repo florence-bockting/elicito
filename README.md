@@ -3,7 +3,7 @@
 A Python package for learning prior distributions based on expert knowledge
 
 **Key info :**
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15452973.svg)](https://doi.org/10.5281/zenodo.15452973)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15671710.svg)](https://doi.org/10.5281/zenodo.15671710)
 [![Docs](https://readthedocs.org/projects/elicito/badge/?version=latest)](https://elicito.readthedocs.io)
 [![Main branch: supported Python versions](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fflorence-bockting%2Felicito%2Fmain%2Fpyproject.toml)](https://github.com/florence-bockting/elicito/blob/main/pyproject.toml)
 [![Licence](https://img.shields.io/pypi/l/elicito?label=license)](https://github.com/florence-bockting/elicito/blob/main/LICENCE)
@@ -88,7 +88,7 @@ incompatible versions of Expert prior elicitation method's dependencies
 (we cannot test all combinations of dependencies,
 particularly ones which haven't been released yet!).
 Hence, you may run into installation issues.
-If you believe these are because of a problem in Expert prior elicitation method,
+If you believe these are because of a problem in `elicito`,
 please [raise an issue](https://github.com/florence-bockting/elicito/issues).
 -->
 The (non-locked) version of `elicito` can be installed with `conda` for macOS
@@ -97,11 +97,13 @@ and Linux and with `pip` for Windows, macOS and Linux.
 === "conda"
 
     ```sh
+    # only for macOS and Linux
     conda install conda-forge::elicito
     ```
 === "pip"
 
     ```sh
+    # for macOS, Linux, and Windows
     pip install elicito
     ```
 
@@ -153,6 +155,7 @@ For the rest of our developer docs, please see [development][development].
 
 ## Older versions
 
++ **v0.5.2**: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15452973.svg)](https://doi.org/10.5281/zenodo.15452973)
 + **v0.3.1**: [![DOI](https://zenodo.org/badge/663057594.svg)](https://zenodo.org/doi/10.5281/zenodo.15241853)
 
 ## Original template
