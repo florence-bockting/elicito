@@ -20,16 +20,45 @@ class Hyper(TypedDict):
     shared: bool
 
 
-class Parameter(TypedDict, total=False):
-    """
-    Typed dictionary for specification of [`parameter`][elicito.elicit.parameter]
-    """
+class Parameter(dict):
+    """Class for specification of a parameter, inheriting from `dict`."""
 
-    name: str
-    family: Any
-    hyperparams: Optional[dict[str, Hyper]]
-    constraint_name: str
-    constraint: Callable[[float], float]
+    def __init__(self, name, family, hyperparams, constraint_name, constraint):
+        super().__init__(
+            name=name,
+            family=family,
+            hyperparams=hyperparams,
+            constraint_name=constraint_name,
+            constraint=constraint,
+        )
+        self.name: str = name
+        self.family: Any = family
+        self.hyperparams: Optional[dict[str, Hyper]] = hyperparams
+        self.constraint_name: str = constraint_name
+        self.constraint: Callable[[float], float] = constraint
+
+    def __str__(self):
+        """Return a readable summary of the object."""
+        if self.family is None:
+            family_name = "Unknown"
+        else:
+            family_name = self.family.__name__
+
+        if self.hyperparams is None:
+            hypers = ""
+        else:
+            hypers = ", ".join(
+                [f"{k}: {v['name']}" for k, v in self.hyperparams.items()]
+            )
+        return (
+            f"{self.name} ~ {family_name}({hypers})"
+            # f"constraint_name={self.constraint_name!r}, "
+            # f"constraint={self.constraint})"
+        )
+
+    def __repr__(self):
+        """Return a readable summary of the object."""
+        return self.__str__()
 
 
 class QueriesDict(TypedDict, total=False):
@@ -42,16 +71,33 @@ class QueriesDict(TypedDict, total=False):
     func_name: str
 
 
-class Target(TypedDict):
-    """
-    typed dictionary for specification of [`target`][elicito.elicit.target]
-    """
+class Target(dict):
+    """Class for specification of a target, inheriting from `dict`."""
 
-    name: str
-    query: QueriesDict
-    target_method: Optional[Callable[[Any], Any]]
-    loss: Callable[[Any], float]
-    weight: float
+    def __init__(self, name, query, target_method, loss, weight):
+        super().__init__(
+            name=name,
+            query=query,
+            target_method=target_method,
+            loss=loss,
+            weight=weight,
+        )
+        self.name: str = name
+        self.query: QueriesDict = query
+        self.target_method: Optional[Callable[[Any], Any]] = target_method
+        self.loss: Callable[[Any], float] = loss
+        self.weight: float = weight
+
+    def __str__(self):
+        """Return a readable summary of the object."""
+        return (
+            f"Target(name={self.name!r}, query={self.query['name']}, "
+            f"loss={self.loss.__class__.__name__}, weight={self.weight})"
+        )
+
+    def __repr__(self):
+        """Return a readable summary of the object."""
+        return self.__str__()
 
 
 class ExpertDict(TypedDict, total=False):

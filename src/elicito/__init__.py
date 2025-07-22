@@ -348,6 +348,39 @@ class Elicit:
         # (required for discrete likelihood)
         # self.model["seed"] = self.trainer["seed"]
 
+    def __str__(self):
+        """Return a readable summary of the object."""
+        parameters_str = "\n".join([f"  - {p}" for p in self.parameters])
+        targets_str = "\n".join([f"  - {t}" for t in self.targets])
+
+        summary = (
+            f"Parameters:\n{parameters_str}\n"
+            f"Targets:\n{targets_str}\n"
+            f"Trainer:\n"
+            f"  - Method: {self.trainer['method']}\n"
+            f"  - Epochs: {self.trainer['epochs']}\n"
+            f"Optimizer:\n"
+            f"  - Type: {self.optimizer['optimizer'].__name__}\n"
+            f"  - Learning Rate: {self.optimizer['learning_rate']}\n"
+        )
+        if self.trainer["method"] == "parametric_prior":
+            summary += (
+                "Initializer:\n"
+                f"  - Method: {self.initializer['method']}\n"
+                f"  - Hyperparams: {self.initializer['distribution']}\n"
+                f"  - Iterations: {self.initializer['iterations']}\n"
+            )
+        else:
+            summary += (
+                "Network:\n" f"  - Type: {self.network['inference_network'].__name__}\n"
+            )
+
+        return summary
+
+    def __repr__(self):
+        """Return a readable representation of the object."""
+        return self.__str__()
+
     def fit(
         self,
         save_history: SaveHist = utils.save_history(),
