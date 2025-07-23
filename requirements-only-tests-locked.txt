@@ -2,7 +2,6 @@
 #    uv export -o requirements-only-tests-locked.txt --no-hashes --no-dev --no-emit-project --only-group tests
 colorama==0.4.6 ; sys_platform == 'win32'
 coverage==7.6.10
-exceptiongroup==1.2.2 ; python_full_version < '3.11'
 iniconfig==2.0.0
 packaging==24.2
 pluggy==1.5.0

@@ -52,16 +52,15 @@ def initialization(eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]) -> None
             "plotting", requirement="matplotlib"
         ) from exc
 
-    try:
-        import seaborn as sns
-    except ImportError as exc:
-        raise MissingOptionalDependencyError("plotting", requirement="seaborn") from exc
-
-    eliobj_res, eliobj_hist, parallel, num_reps = _check_parallel(eliobj)
+    eliobj_res, _, _, _ = _check_parallel(eliobj)
     # get number of hyperparameter
     n_par = len(eliobj_res["init_matrix"].keys())
     # prepare plot axes
     (cols, rows, k, low, high) = _prep_subplots(eliobj, cols, n_par, bounderies=True)
+
+    kwargs.setdefault("figsize", (cols * 2, rows * 2))
+    kwargs.setdefault("constrained_layout", True)
+    kwargs.setdefault("sharex", True)
 
     # check that all information can be assessed
     try:
@@ -80,17 +79,16 @@ def initialization(eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]) -> None
             + " `initializer`."
         )
 
-    # plot ecdf of initialiaztion distribution
+    # plot ecdf of initialization distribution
     # differentiate between subplots that have (1) only one row vs.
     # (2) subplots with multiple rows
 
-    fig, axs = plt.subplots(rows, cols, constrained_layout=True, sharey=True, **kwargs)  # type: ignore
+    fig, axs = plt.subplots(rows, cols, **kwargs)  # type: ignore
     if rows == 1:
         for c, hyp, lo, hi in zip(tf.range(cols), eliobj_res["init_matrix"], low, high):
             [
-                sns.ecdfplot(
+                axs[c].ecdf(
                     tf.squeeze(eliobj.results[j]["init_matrix"][hyp]),
-                    ax=axs[c],
                     color="black",
                     lw=2,
                     alpha=0.5,
@@ -113,9 +111,8 @@ def initialization(eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]) -> None
             high,
         ):
             [
-                sns.ecdfplot(
+                axs[r, c].ecdf(
                     tf.squeeze(eliobj.results[j]["init_matrix"][hyp]),
-                    ax=axs[r, c],
                     color="black",
                     lw=2,
                     alpha=0.5,
@@ -131,13 +128,13 @@ def initialization(eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]) -> None
         for k_idx in range(k):
             axs[rows - 1, cols - k_idx - 1].set_axis_off()
     fig.suptitle("ecdf of initialization distributions", fontsize="medium")
-    plt.show()
+
+    return fig, axs
 
 
 def loss(  # noqa: PLR0912
     eliobj: Any,
     weighted: bool = True,
-    save_fig: Optional[str] = None,
     **kwargs: dict[Any, Any],
 ) -> None:
     """
@@ -150,10 +147,6 @@ def loss(  # noqa: PLR0912
 
     weighted
         Weight the loss per component.
-
-    save_fig
-        if figure should be saved, specify path and name
-        of the figure; otherwise use 'None'
 
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
@@ -195,7 +188,7 @@ def loss(  # noqa: PLR0912
         weights = [1.0] * len(eliobj.targets)
     # check chains that yield NaN
     if parallel:
-        fails, success, success_name = _check_NaN(eliobj, n_reps)
+        _, success, _ = _check_NaN(eliobj, n_reps)
     else:
         success = [0]
     # check that all information can be assessed
@@ -222,7 +215,11 @@ def loss(  # noqa: PLR0912
             + "results savings?"
         )
 
-    fig, axs = plt.subplots(1, 2, constrained_layout=True, sharex=True, **kwargs)  # type: ignore
+    kwargs.setdefault("figsize", (6, 2))
+    kwargs.setdefault("constrained_layout", True)
+    kwargs.setdefault("sharex", True)
+
+    fig, axs = plt.subplots(1, 2, **kwargs)  # type: ignore
     # plot total loss
     [
         axs[0].plot(eliobj.history[i]["loss"], color="black", alpha=0.5, lw=2)
@@ -250,14 +247,11 @@ def loss(  # noqa: PLR0912
         axs[i].spines[["right", "top"]].set_visible(False)
         axs[i].tick_params(axis="y", labelsize="x-small")
         axs[i].tick_params(axis="x", labelsize="x-small")
-    if save_fig is not None:
-        plt.savefig(save_fig)
-    plt.show()
+
+    return fig, axs
 
 
-def hyperparameter(
-    eliobj: Any, cols: int = 4, save_fig: Optional[str] = None, **kwargs: dict[Any, Any]
-) -> None:
+def hyperparameter(eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]) -> None:
     """
     Plot the convergence of each hyperparameter across epochs.
 
@@ -269,10 +263,6 @@ def hyperparameter(
     cols
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
-
-    save_fig
-        if figure should be saved, specify path and name
-        of the figure; otherwise use 'None'
 
     **kwargs
         additional keyword arguments that can be passed to specify
@@ -296,18 +286,22 @@ def hyperparameter(
             "plotting", requirement="matplotlib"
         ) from exc
 
-    eliobj_res, eliobj_hist, parallel, n_reps = _check_parallel(eliobj)
+    _, eliobj_hist, parallel, n_reps = _check_parallel(eliobj)
     # names of hyperparameter
     names_par = list(eliobj_hist["hyperparameter"].keys())
     # get number of hyperparameter
     n_par = len(names_par)
     # check chains that yield NaN
     if parallel:
-        fails, success, success_name = _check_NaN(eliobj, n_reps)
+        _, success, _ = _check_NaN(eliobj, n_reps)
     else:
         success = [0]
     # prepare subplot axes
     (cols, rows, k) = _prep_subplots(eliobj, cols, n_par, bounderies=False)
+
+    kwargs.setdefault("figsize", (cols * 2, rows * 2))
+    kwargs.setdefault("constrained_layout", True)
+    kwargs.setdefault("sharex", True)
 
     # check that all information can be assessed
     try:
@@ -319,7 +313,7 @@ def hyperparameter(
             + "history savings?"
         )
 
-    fig, axs = plt.subplots(rows, cols, constrained_layout=True, **kwargs)  # type: ignore
+    fig, axs = plt.subplots(rows, cols, **kwargs)  # type: ignore
     if rows == 1:
         for c, hyp in zip(tf.range(cols), names_par):
             # plot convergence
@@ -362,15 +356,13 @@ def hyperparameter(
         for k_idx in range(k):
             axs[rows - 1, cols - k_idx - 1].set_axis_off()
     fig.suptitle("Convergence of hyperparameter", fontsize="medium")
-    if save_fig is not None:
-        plt.savefig(save_fig)
-    plt.show()
+
+    return fig, axs
 
 
 def prior_joint(
     eliobj: Any,
     idx: Optional[Union[int, list[int]]] = None,
-    save_fig: Optional[str] = None,
     **kwargs: dict[Any, Any],
 ) -> None:
     """
@@ -389,9 +381,6 @@ def prior_joint(
         only required if parallelization is used for fitting the method.
         Indexes the replications and allows to choose for which replication(s) the
         joint prior should be shown.
-
-    save_fig
-        save the figure to this location. If not None, the figure will be saved
 
     **kwargs
         additional keyword arguments that can be passed to specify
@@ -429,9 +418,11 @@ def prior_joint(
         ) from exc
 
     try:
-        import seaborn as sns
+        from arviz_stats.base import array_stats
     except ImportError as exc:
-        raise MissingOptionalDependencyError("plotting", requirement="seaborn") from exc
+        raise MissingOptionalDependencyError(
+            "plotting", requirement="arviz_stats"
+        ) from exc
 
     if idx is None:
         idx = [0]
@@ -473,27 +464,29 @@ def prior_joint(
             priors = tf.reshape(
                 eliobj.results[k]["prior_samples"], (B * n_samples, n_params)
             )
-            sns.kdeplot(priors[:, i], ax=axs[i, i], color=colors[c], lw=2)
+            grid, pdf, _ = array_stats.kde(priors[:, i])
+            axs[i, i].plot(grid, pdf, color=colors[c], lw=2)
+
             axs[i, i].set_xlabel(name_params[i], size="small")
             [axs[i, i].tick_params(axis=a, labelsize="x-small") for a in ["x", "y"]]
             axs[i, i].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             axs[i, i].spines[["right", "top"]].set_visible(False)
 
         for i, j in itertools.combinations(range(n_params), 2):
-            sns.kdeplot(priors[:, i], ax=axs[i, i], color=colors[c], lw=2)
+            grid, pdf, _ = array_stats.kde(priors[:, i])
+            axs[i, i].plot(grid, pdf, color=colors[c], lw=2)
             axs[i, j].plot(priors[:, i], priors[:, j], ",", color=colors[c], alpha=0.1)
             [axs[i, j].tick_params(axis=a, labelsize=7) for a in ["x", "y"]]
             axs[j, i].set_axis_off()
             axs[i, j].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             axs[i, j].spines[["right", "top"]].set_visible(False)
     fig.suptitle("Learned joint prior", fontsize="medium")
-    if save_fig is not None:
-        plt.savefig(save_fig)
-    plt.show()
+
+    return fig, axs
 
 
 def prior_marginals(  # noqa: PLR0912
-    eliobj: Any, cols: int = 4, save_fig: Optional[str] = None, **kwargs: dict[Any, Any]
+    eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]
 ) -> None:
     """
     Plot the convergence of each hyperparameter across epochs.
@@ -506,9 +499,6 @@ def prior_marginals(  # noqa: PLR0912
     cols
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
-
-    save_fig
-        path to save the figure. If not specified figure is not saved.
 
     **kwargs
         additional keyword arguments that can be passed to specify
@@ -534,14 +524,16 @@ def prior_marginals(  # noqa: PLR0912
         ) from exc
 
     try:
-        import seaborn as sns
+        from arviz_stats.base import array_stats
     except ImportError as exc:
-        raise MissingOptionalDependencyError("plotting", requirement="seaborn") from exc
+        raise MissingOptionalDependencyError(
+            "plotting", requirement="arviz_stats"
+        ) from exc
 
-    eliobj_res, eliobj_hist, parallel, n_reps = _check_parallel(eliobj)
+    eliobj_res, _, parallel, n_reps = _check_parallel(eliobj)
     # check chains that yield NaN
     if parallel:
-        fails, success, success_name = _check_NaN(eliobj, n_reps)
+        _, success, _ = _check_NaN(eliobj, n_reps)
     else:
         success = [0]
     # get shape of prior samples
@@ -550,6 +542,9 @@ def prior_marginals(  # noqa: PLR0912
     name_params = [eliobj.parameters[i]["name"] for i in range(n_par)]
     # prepare plot axes
     (cols, rows, k) = _prep_subplots(eliobj, cols, n_par, bounderies=False)
+
+    kwargs.setdefault("figsize", (cols * 2, rows * 2))
+    kwargs.setdefault("constrained_layout", True)
 
     # check that all information can be assessed
     try:
@@ -561,7 +556,7 @@ def prior_marginals(  # noqa: PLR0912
             + "results savings?"
         )
 
-    fig, axs = plt.subplots(rows, cols, constrained_layout=True, **kwargs)  # type: ignore
+    fig, axs = plt.subplots(rows, cols, **kwargs)  # type: ignore
     if rows == 1:
         for c, par in zip(tf.range(cols), name_params):
             for i in success:
@@ -569,12 +564,12 @@ def prior_marginals(  # noqa: PLR0912
                 priors = tf.reshape(
                     eliobj.results[i]["prior_samples"], (B * n_samples, n_par)
                 )
-                sns.kdeplot(priors[:, c], ax=axs[c], color="black", lw=2, alpha=0.5)
+                grid, pdf, _ = array_stats.kde(priors[:, c])
+                axs[c].plot(grid, pdf, color="black", lw=2, alpha=0.5)
 
             axs[c].set_title(f"{par}", fontsize="small")
             axs[c].tick_params(axis="y", labelsize="x-small")
             axs[c].tick_params(axis="x", labelsize="x-small")
-            axs[c].set_xlabel("\u03b8", fontsize="small")
             axs[c].set_ylabel("density", fontsize="small")
             axs[c].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             axs[c].spines[["right", "top"]].set_visible(False)
@@ -589,7 +584,9 @@ def prior_marginals(  # noqa: PLR0912
                 priors = tf.reshape(
                     eliobj.results[i]["prior_samples"], (B * n_samples, n_par)
                 )
-                sns.kdeplot(priors[:, j], ax=axs[r, c], color="black", lw=2, alpha=0.5)
+                grid, pdf, _ = array_stats.kde(priors[:, j])
+                axs[r, c].plot(grid, pdf, color="black", lw=2, alpha=0.5)
+
             axs[r, c].set_title(f"{par}", fontsize="small")
             axs[r, c].tick_params(axis="y", labelsize="x-small")
             axs[r, c].tick_params(axis="x", labelsize="x-small")
@@ -600,13 +597,12 @@ def prior_marginals(  # noqa: PLR0912
         for k_idx in range(k):
             axs[rows - 1, cols - k_idx - 1].set_axis_off()
     fig.suptitle("Learned marginal priors", fontsize="medium")
-    if save_fig is not None:
-        plt.savefig(save_fig)
-    plt.show()
+
+    return fig, axs
 
 
 def elicits(  # noqa: PLR0912, PLR0915
-    eliobj: Any, cols: int = 4, save_fig: Optional[str] = None, **kwargs: dict[Any, Any]
+    eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]
 ) -> None:
     """
     Plot the expert-elicited vs. model-simulated statistics.
@@ -619,10 +615,6 @@ def elicits(  # noqa: PLR0912, PLR0915
     cols
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
-
-    save_fig
-        save the figure to this location. If figure should not be
-        saved use 'None' (default)
 
     **kwargs
         additional keyword arguments that can be passed to specify
@@ -655,11 +647,15 @@ def elicits(  # noqa: PLR0912, PLR0915
     n_elicits = len(eliobj_res["expert_elicited_statistics"].keys())
     # check chains that yield NaN
     if parallel:
-        fails, success, success_name = _check_NaN(eliobj, n_reps)
+        _, success, _ = _check_NaN(eliobj, n_reps)
     else:
         success = [0]
     # prepare plot axes
     (cols, rows, k) = _prep_subplots(eliobj, cols, n_elicits, bounderies=False)
+
+    kwargs.setdefault("figsize", (cols * 2, rows * 2))
+    kwargs.setdefault("constrained_layout", True)
+
     # extract quantities of interest needed for plotting
     name_elicits = list(eliobj_res["expert_elicited_statistics"].keys())
     method_name = [name_elicits[i].split("_")[0] for i in range(n_elicits)]
@@ -683,7 +679,7 @@ def elicits(  # noqa: PLR0912, PLR0915
         )
 
     # plotting
-    fig, axs = plt.subplots(rows, cols, constrained_layout=True, **kwargs)  # type: ignore
+    fig, axs = plt.subplots(rows, cols, **kwargs)  # type: ignore
     if rows == 1:
         labels: list[Any]
         method: Callable[[Any], Any]
@@ -793,16 +789,14 @@ def elicits(  # noqa: PLR0912, PLR0915
             axs[rows - 1, cols - k_idx - 1].set_axis_off()
 
     fig.suptitle("Expert vs. model-simulated elicited statistics", fontsize="medium")
-    if save_fig is not None:
-        plt.savefig(save_fig)
-    plt.show()
+
+    return fig, axs
 
 
 def marginals(
     eliobj: Any,
     cols: int = 4,
     span: int = 30,
-    save_fig: Optional[str] = None,
     **kwargs: dict[Any, Any],
 ) -> None:
     """
@@ -818,9 +812,6 @@ def marginals(
     span
         number of last epochs used to get a final averaged value for mean and
         sd of the prior marginal. The default is ``30``.
-
-    save_fig
-        path to save the figure. If ``None``, no figure will be saved.
 
     kwargs
         additional keyword arguments that can be passed to specify
@@ -845,16 +836,20 @@ def marginals(
         ) from exc
 
     # check whether parallelization has been used
-    (eliobj_res, eliobj_hist, parallel, n_reps) = _check_parallel(eliobj)
+    (_, eliobj_hist, parallel, n_reps) = _check_parallel(eliobj)
     # check chains that yield NaN
     if parallel:
-        fails, success, success_name = _check_NaN(eliobj, n_reps)
+        _, success, _ = _check_NaN(eliobj, n_reps)
     else:
         success = [0]
     # number of marginals
     n_elicits = tf.stack(eliobj_hist["hyperparameter"]["means"]).shape[-1]
     # prepare plot axes
     cols, rows, k = _prep_subplots(eliobj, cols, n_elicits, bounderies=False)
+
+    kwargs.setdefault("figsize", (cols * 2, rows * 2))
+    kwargs.setdefault("layout", "constrained")
+
     # check that all information can be assessed
     try:
         eliobj_hist["hyperparameter"]
@@ -871,7 +866,7 @@ def marginals(
         [eliobj.history[i]["hyperparameter"]["stds"] for i in success]
     )
 
-    fig = plt.figure(layout="constrained", **kwargs)  # type: ignore
+    fig = plt.figure(**kwargs)  # type: ignore
     subfigs = fig.subfigures(2, 1, wspace=0.07)
     _convergence_plot(
         subfigs[0],
@@ -896,9 +891,8 @@ def marginals(
         success=success,
     )
     fig.suptitle("Convergence of prior marginals mean and sd", fontsize="medium")
-    if save_fig is not None:
-        plt.savefig(save_fig)
-    plt.show()
+
+    return fig, subfigs
 
 
 def priorpredictive(eliobj: Any, **kwargs: dict[Any, Any]) -> None:
@@ -934,14 +928,9 @@ def priorpredictive(eliobj: Any, **kwargs: dict[Any, Any]) -> None:
             "plotting", requirement="matplotlib"
         ) from exc
 
-    try:
-        import seaborn as sns
-    except ImportError as exc:
-        raise MissingOptionalDependencyError("plotting", requirement="seaborn") from exc
-
     # check that all information can be assessed
     try:
-        eliobj.results["target_quantities"]
+        eliobj.results[-1]["target_quantities"]
     except KeyError:
         msg = (
             "No information about 'target_quantities' found in 'eliobj.results'",
@@ -949,25 +938,28 @@ def priorpredictive(eliobj: Any, **kwargs: dict[Any, Any]) -> None:
         )
         print(msg)
 
+    kwargs.setdefault("figsize", (6, 2))
+    kwargs.setdefault("constrained_layout", True)
+
     target_reshaped = []
-    for k in eliobj.results["target_quantities"]:
-        target = eliobj.results["target_quantities"][k]
+    for k in eliobj.results[-1]["target_quantities"]:
+        target = eliobj.results[-1]["target_quantities"][k]
         target_reshaped.append(tf.reshape(target, (target.shape[0] * target.shape[1])))
 
     targets = tf.stack(target_reshaped, -1)
 
-    fig, axs = plt.subplots(1, 1, constrained_layout=True, **kwargs)  # type: ignore
+    fig, axs = plt.subplots(1, 1, **kwargs)  # type: ignore
     axs.grid(color="lightgrey", linestyle="dotted", linewidth=1)
     for i in range(targets.shape[-1]):
         shade = i / (targets.shape[-1] - 1)
         color = plt.cm.gray(shade)  # type: ignore
-        sns.histplot(
+        axs.hist(
             targets[:, i],
-            stat="probability",
-            bins=40,
+            bins="auto",
+            density=True,
             label=eliobj.targets[i]["name"],
-            ax=axs,
             color=color,
+            alpha=0.3,
         )
     plt.legend(fontsize="small", handlelength=0.9, frameon=False)
     axs.set_title("prior predictive distribution", fontsize="small")
@@ -975,7 +967,8 @@ def priorpredictive(eliobj: Any, **kwargs: dict[Any, Any]) -> None:
     axs.tick_params(axis="y", labelsize="x-small")
     axs.tick_params(axis="x", labelsize="x-small")
     axs.set_xlabel(r"$y_{pred}$", fontsize="small")
-    plt.show()
+
+    return fig, axs
 
 
 def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
@@ -986,7 +979,6 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
     weight_factor: float = 1.0,
     seed: int = 123,
     xlim_weights: float = 0.2,
-    save_fig: Optional[str] = None,
     **kwargs: dict[Any, Any],
 ) -> None:
     """
@@ -1012,9 +1004,6 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
     xlim_weights
         limit of x-axis of weights plot
 
-    save_fig
-        path to save figure. If not provided, figure will be saved
-
     kwargs
         additional arguments passed to matplotlib
     """
@@ -1026,9 +1015,11 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
         ) from exc
 
     try:
-        import seaborn as sns
+        from arviz_stats.base import array_stats
     except ImportError as exc:
-        raise MissingOptionalDependencyError("plotting", requirement="seaborn") from exc
+        raise MissingOptionalDependencyError(
+            "plotting", requirement="arviz_stats"
+        ) from exc
 
     try:
         import pandas as pd
@@ -1068,15 +1059,9 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
     subfig1 = subfigs[1].subplots(rows, cols)
 
     # plot weights of model averaging
-    sns.barplot(
-        y="seed",
-        x="weight",
-        data=df_sorted,
-        ax=subfig0,
-        color="darkgrey",
-        orient="h",
-        order=df_sorted["seed"],
-    )
+    seeds = df_sorted["seed"].tolist()
+    weights = df_sorted["weight"].tolist()
+    subfig0.barh(y=seeds, width=weights, color="darkgrey")
     subfig0.spines[["right", "top"]].set_visible(False)
     subfig0.grid(color="lightgrey", linestyle="dotted", linewidth=1)
     subfig0.set_xlabel("weight", fontsize="small")
@@ -1084,6 +1069,8 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
     subfig0.tick_params(axis="y", labelsize="x-small")
     subfig0.tick_params(axis="x", labelsize="x-small")
     subfig0.set_xlim(0, xlim_weights)
+    subfig0.set_yticks(seeds)
+    subfig0.set_yticklabels(seeds)
 
     # plot individual priors and averaged prior
     if rows == 1:
@@ -1093,17 +1080,21 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
                 prior = tf.reshape(
                     eliobj.results[i]["prior_samples"], (B * n_samples, n_par)
                 )
-                sns.kdeplot(prior[:, c], ax=subfig1[c], color="black", lw=2, alpha=0.5)
+                grid, pdf, _ = array_stats.kde(prior[:, c])
+                subfig1[c].plot(grid, pdf, color="black", lw=2, alpha=0.5)
+
             avg_prior = tf.reshape(averaged_priors, (B * n_sim, n_par))
             if c == cols - 1:
-                sns.kdeplot(avg_prior[:, c], color="red", ax=subfig1[c], label=lab)
+                grid, pdf, _ = array_stats.kde(avg_prior[:, c])
+                subfig1[c].plot(grid, pdf, color="red", lw=2, alpha=0.5, label=lab)
                 subfig1[c].legend(handlelength=0.3, fontsize="small", frameon=False)
             else:
-                sns.kdeplot(avg_prior[:, c], color="red", ax=subfig1[c])
+                grid, pdf, _ = array_stats.kde(avg_prior[:, c])
+                subfig1[c].plot(grid, pdf, color="red", lw=2, alpha=0.5)
+
             subfig1[c].set_title(f"{par}", fontsize="small")
             subfig1[c].tick_params(axis="y", labelsize="x-small")
             subfig1[c].tick_params(axis="x", labelsize="x-small")
-            subfig1[c].set_xlabel("\u03b8", fontsize="small")
             subfig1[c].set_ylabel("density", fontsize="small")
             subfig1[c].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             subfig1[c].spines[["right", "top"]].set_visible(False)
@@ -1118,19 +1109,20 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
                 priors = tf.reshape(
                     eliobj.results[i]["prior_samples"], (B * n_samples, n_par)
                 )
-                sns.kdeplot(
-                    priors[:, j], ax=subfig1[r, c], color="black", lw=2, alpha=0.5
-                )
+                grid, pdf, _ = array_stats.kde(priors[:, j])
+                subfig1[r, c].plot(grid, pdf, color="black", lw=2, alpha=0.5)
             avg_prior = tf.reshape(averaged_priors, (B * n_sim, n_par))
             if (r == rows - 1) and (c == cols - 1):
-                sns.kdeplot(avg_prior[:, j], color="red", ax=subfig1[r, c], label=lab)
+                grid, pdf, _ = array_stats.kde(avg_prior[:, j])
+                subfig1[r, c].plot(grid, pdf, color="red", lw=2, label=lab)
                 subfig1[r, c].legend(handlelength=0.3, fontsize="small", frameon=False)
             else:
-                sns.kdeplot(avg_prior[:, j], color="red", ax=subfig1[r, c])
+                grid, pdf, _ = array_stats.kde(avg_prior[:, j])
+                subfig1[r, c].plot(grid, pdf, color="red")
+
             subfig1[r, c].set_title(f"{par}", fontsize="small")
             subfig1[r, c].tick_params(axis="y", labelsize="x-small")
             subfig1[r, c].tick_params(axis="x", labelsize="x-small")
-            subfig1[r, c].set_xlabel("\u03b8", fontsize="small")
             subfig1[r, c].set_ylabel("density", fontsize="small")
             subfig1[r, c].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             subfig1[r, c].spines[["right", "top"]].set_visible(False)
@@ -1140,9 +1132,8 @@ def prior_averaging(  # noqa: PLR0912, PLR0913, PLR0915
     subfigs[0].suptitle("Prior averaging (weights)", fontsize="small", ha="left", x=0.0)
     subfigs[1].suptitle("Prior distributions", fontsize="small", ha="left", x=0.0)
     fig.suptitle("Prior averaging", fontsize="medium")
-    if save_fig is not None:
-        plt.savefig(save_fig)
-    plt.show()
+
+    return fig, subfigs
 
 
 def _model_averaging(

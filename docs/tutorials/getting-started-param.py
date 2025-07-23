@@ -275,31 +275,31 @@ eliobj.fit()
 # ### Initialization of hyperparameters
 
 # %%
-el.plots.initialization(eliobj, cols=5, figsize=(6, 2))
+el.plots.initialization(eliobj, cols=5);
 
 # %% [markdown]
 # ### Convergence - Loss
 
 # %%
-el.plots.loss(eliobj, figsize=(6, 2))
+el.plots.loss(eliobj);
 
 # %% [markdown]
 # ### Convergence - hyperparameters
 
 # %%
-el.plots.hyperparameter(eliobj, figsize=(7, 4))
+el.plots.hyperparameter(eliobj);
 
 # %% [markdown]
 # ### Expert expectations
 
 # %%
-el.plots.elicits(eliobj, cols=4, figsize=(7, 2))
+el.plots.elicits(eliobj, cols=4);
 
 # %% [markdown]
 # ### Learned prior distributions
 
 # %%
-el.plots.prior_marginals(eliobj, cols=3, figsize=(7, 2))
+el.plots.prior_marginals(eliobj, cols=3);
 
 # %% [markdown]
 # ## Add-on: Shared parameters
@@ -342,31 +342,31 @@ eliobj_shared.fit()
 # #### Initialization of hyperparamters
 
 # %%
-el.plots.initialization(eliobj_shared, cols=4, figsize=(7, 2))
+el.plots.initialization(eliobj_shared, cols=4);
 
 # %% [markdown]
 # #### Convergence - Loss
 
 # %%
-el.plots.loss(eliobj_shared, figsize=(6, 2))
+el.plots.loss(eliobj_shared);
 
 # %% [markdown]
 # #### Convergence - Hyperparameters
 
 # %%
-el.plots.hyperparameter(eliobj_shared, figsize=(7, 2))
+el.plots.hyperparameter(eliobj_shared);
 
 # %% [markdown]
 # #### Elicited statistics
 
 # %%
-el.plots.elicits(eliobj_shared, cols=4, figsize=(7, 2))
+el.plots.elicits(eliobj_shared, cols=4);
 
 # %% [markdown]
 # #### Learned prior distributions
 
 # %%
-el.plots.prior_marginals(eliobj_shared, figsize=(7, 2))
+el.plots.prior_marginals(eliobj_shared);
 
 # %% [markdown]
 # ## Add-on: Use expert data as input
@@ -394,28 +394,28 @@ eliobj_dat.fit()
 # #### Initialization of hyperparameters
 
 # %%
-el.plots.initialization(eliobj_dat, cols=5, figsize=(7, 2))
+el.plots.initialization(eliobj_dat, cols=5);
 
 # %% [markdown]
 # #### Convergence - Loss
 
 # %%
-el.plots.loss(eliobj_dat, figsize=(6, 2))
+el.plots.loss(eliobj_dat);
 
 # %% [markdown]
 # #### Convergence - Hyperparameters
 
 # %%
-el.plots.hyperparameter(eliobj_dat, cols=5, figsize=(7, 2))
+el.plots.hyperparameter(eliobj_dat, cols=5);
 
 # %% [markdown]
 # #### Elicited statistics
 
 # %%
-el.plots.elicits(eliobj_dat, cols=4, figsize=(7, 2))
+el.plots.elicits(eliobj_dat, cols=4);
 
 # %% [markdown]
 # #### Learned prior distributions
 
 # %%
-el.plots.prior_marginals(eliobj_dat, figsize=(7, 2))
+el.plots.prior_marginals(eliobj_dat);

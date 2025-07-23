@@ -6,7 +6,7 @@ authors = [
     { name = "Florence Bockting", email = "florence.bockting@tu-dortmund.de" },
 ]
 license = { text = "Apache-2.0" }
-requires-python = ">=3.9, <3.13"
+requires-python = ">=3.11, <3.13"
 dependencies = [
     "tqdm >= 4.38",
     "numpy >= 1.24",
@@ -47,7 +47,7 @@ Issues = "https://github.com/florence-bockting/elicito/issues"
 [project.optional-dependencies]
 plots = [
     "matplotlib>=3.7.1",
-    "seaborn>=0.12",
+    "arviz_stats>=0.6.0",
 ]
 pandas = [
     "pandas==2.2.3"
@@ -367,6 +367,7 @@ ignore = [
     "D100",
     "E402",
     "S101",
+    "E703",
 ]
 "scripts/*" = [
     "S101",

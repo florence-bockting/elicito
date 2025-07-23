@@ -293,25 +293,25 @@ eliobj.fit()
 # ### Convergence - Loss
 
 # %%
-el.plots.loss(eliobj, figsize=(6, 2))
+el.plots.loss(eliobj);
 
 # %% [markdown]
 # ### Convergence - hyperparameters
 
 # %%
-el.plots.hyperparameter(eliobj, figsize=(6, 2))
+el.plots.hyperparameter(eliobj);
 
 # %% [markdown]
 # ### Expert expectations
 
 # %%
-el.plots.elicits(eliobj, cols=5, figsize=(8, 2))
+el.plots.elicits(eliobj, cols=5);
 
 # %% [markdown]
 # ### Learned prior distributions
 
 # %%
-el.plots.prior_marginals(eliobj, cols=3, figsize=(7, 2))
+el.plots.prior_marginals(eliobj, cols=3);
 
 # %%
-el.plots.prior_joint(eliobj)
+el.plots.prior_joint(eliobj);
