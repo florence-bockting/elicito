@@ -331,6 +331,7 @@ addopts = [
 src = [
     "src",
 ]
+extend-exclude = ["docs/tutorials/*.py"]
 target-version = "py39"
 line-length = 88
 
@@ -367,7 +368,6 @@ ignore = [
     "D100",
     "E402",
     "S101",
-    "E703",
 ]
 "scripts/*" = [
     "S101",
