@@ -63,7 +63,7 @@ jupyterlab==4.3.4
 jupyterlab-pygments==0.3.0
 jupyterlab-server==2.27.3
 jupytext==1.16.6
-keras==3.10.0
+keras==3.11.0
 kiwisolver==1.4.8
 libclang==18.1.1
 markdown==3.7
@@ -87,7 +87,7 @@ mkdocs-section-index==0.3.9
 mkdocstrings==0.27.0
 mkdocstrings-python==1.13.0
 mkdocstrings-python-xref==1.6.2
-ml-dtypes==0.5.1
+ml-dtypes==0.5.3
 namex==0.1.0
 nbclient==0.10.2
 nbconvert==7.16.4
