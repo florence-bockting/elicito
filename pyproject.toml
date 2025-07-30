@@ -79,6 +79,7 @@ dev = [
     "types-tqdm>=4.67.0",
     "scipy-stubs<1.15; python_full_version >= '3.11'",
     "joblib-stubs>=1.4.2",
+    "pandas-stubs>=2.3.0.250703",
     # Required for liccheck, see https://github.com/dhatim/python-license-check/pull/113
     "pip==24.3.1",
     "pre-commit==4.0.1",
@@ -450,3 +451,5 @@ unauthorized_licenses = [
 
 [tool.liccheck.authorized_packages]
 namex = "0.1.0"
+h5py = "3.14.0"
+optree = "0.17.0"
