@@ -612,7 +612,6 @@ all-dev = [
     { name = "towncrier" },
     { name = "traitlets" },
     { name = "types-python-dateutil" },
-    { name = "types-seaborn" },
     { name = "types-tensorflow" },
     { name = "types-tqdm" },
     { name = "typing-extensions" },
@@ -649,7 +648,6 @@ dev = [
     { name = "setuptools" },
     { name = "toml" },
     { name = "towncrier" },
-    { name = "types-seaborn" },
     { name = "types-tensorflow" },
     { name = "types-tqdm" },
     { name = "typing-extensions" },
@@ -954,7 +952,6 @@ all-dev = [
     { name = "towncrier", specifier = "==24.8.0" },
     { name = "traitlets", specifier = "==5.14.3" },
     { name = "types-python-dateutil", specifier = "==2.9.0.20241206" },
-    { name = "types-seaborn", specifier = ">=0.13.2" },
     { name = "types-tensorflow", specifier = ">=2.18.0" },
     { name = "types-tqdm", specifier = ">=4.67.0" },
     { name = "typing-extensions", specifier = "==4.12.2" },
@@ -991,7 +988,6 @@ dev = [
     { name = "setuptools", specifier = "==75.6.0" },
     { name = "toml", specifier = "==0.10.2" },
     { name = "towncrier", specifier = "==24.8.0" },
-    { name = "types-seaborn", specifier = ">=0.13.2" },
     { name = "types-tensorflow", specifier = ">=2.18.0" },
     { name = "types-tqdm", specifier = ">=4.67.0" },
     { name = "typing-extensions", specifier = "==4.12.2" },
@@ -2475,19 +2471,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pandas-stubs"
-version = "2.3.0.250703"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-    { name = "types-pytz" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ec/df/c1c51c5cec087b8f4d04669308b700e9648745a77cdd0c8c5e16520703ca/pandas_stubs-2.3.0.250703.tar.gz", hash = "sha256:fb6a8478327b16ed65c46b1541de74f5c5947f3601850caf3e885e0140584717", size = 103910, upload-time = "2025-07-02T17:49:11.667Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/cb/09d5f9bf7c8659af134ae0ffc1a349038a5d0ff93e45aedc225bde2872a3/pandas_stubs-2.3.0.250703-py3-none-any.whl", hash = "sha256:a9265fc69909f0f7a9cabc5f596d86c9d531499fed86b7838fd3278285d76b81", size = 154719, upload-time = "2025-07-02T17:49:10.697Z" },
-]
-
-[[package]]
 name = "pandocfilters"
 version = "1.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3387,15 +3370,6 @@ wheels = [
 ]
 
 [[package]]
-name = "types-pytz"
-version = "2025.2.0.20250516"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/bd/72/b0e711fd90409f5a76c75349055d3eb19992c110f0d2d6aabbd6cfbc14bf/types_pytz-2025.2.0.20250516.tar.gz", hash = "sha256:e1216306f8c0d5da6dafd6492e72eb080c9a166171fa80dd7a1990fd8be7a7b3", size = 10940, upload-time = "2025-05-16T03:07:01.91Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c1/ba/e205cd11c1c7183b23c97e4bcd1de7bc0633e2e867601c32ecfc6ad42675/types_pytz-2025.2.0.20250516-py3-none-any.whl", hash = "sha256:e0e0c8a57e2791c19f718ed99ab2ba623856b11620cb6b637e5f62ce285a7451", size = 10136, upload-time = "2025-05-16T03:07:01.075Z" },
-]
-
-[[package]]
 name = "types-requests"
 version = "2.32.4.20250611"
 source = { registry = "https://pypi.org/simple" }
@@ -3405,20 +3379,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/6d/7f/73b3a04a53b0fd2a911d4ec517940ecd6600630b559e4505cc7b68beb5a0/types_requests-2.32.4.20250611.tar.gz", hash = "sha256:741c8777ed6425830bf51e54d6abe245f79b4dcb9019f1622b773463946bf826", size = 23118, upload-time = "2025-06-11T03:11:41.272Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3d/ea/0be9258c5a4fa1ba2300111aa5a0767ee6d18eb3fd20e91616c12082284d/types_requests-2.32.4.20250611-py3-none-any.whl", hash = "sha256:ad2fe5d3b0cb3c2c902c8815a70e7fb2302c4b8c1f77bdcd738192cdb3878072", size = 20643, upload-time = "2025-06-11T03:11:40.186Z" },
-]
-
-[[package]]
-name = "types-seaborn"
-version = "0.13.2.20250728"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "matplotlib" },
-    { name = "numpy" },
-    { name = "pandas-stubs" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/b3/5b/2e0a8397c76badbb8d597be2e63c2825bf34a5d59fa2ec7920e38990138a/types_seaborn-0.13.2.20250728.tar.gz", hash = "sha256:5a2c8c3eb6c7c5661fb3756ff656cb1bd9ac8a73313bb28cbc125e40a94085be", size = 29239, upload-time = "2025-07-28T03:29:25.248Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e2/1e/eb2a2c51003a7ea6a9545863d0eef9583f94d7e8a1cc4057998be3ad1661/types_seaborn-0.13.2.20250728-py3-none-any.whl", hash = "sha256:4ae71b8b8f37deb08ae12d3dbe23903e38553975b0fbc1b35fc3fec448bc3ac5", size = 40901, upload-time = "2025-07-28T03:29:24.401Z" },
 ]
 
 [[package]]

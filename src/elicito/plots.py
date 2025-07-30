@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
 def initialization(
-    eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]
+    eliobj: Any, cols: int = 4, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
     Plot the ecdf of the initialization distribution per hyperparameter
@@ -86,7 +86,7 @@ def initialization(
     # differentiate between subplots that have (1) only one row vs.
     # (2) subplots with multiple rows
 
-    fig, axes = _setup_grid(rows, cols, k, **kwargs)  # type: ignore
+    fig, axes = _setup_grid(rows, cols, k, **kwargs)
 
     for ax, hyp, lo, hi in zip(axes, eliobj_res["init_matrix"], low, high):
         [
@@ -113,17 +113,17 @@ def initialization(
 def loss(
     eliobj: Any,
     weighted: bool = True,
-    **kwargs: dict[Any, Any],
+    **kwargs: Any,
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
     Plot the total loss and the loss per component.
 
     Parameters
     ----------
-    eliobj
+    eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
 
-    weighted
+    weighted : bool, optional
         Weight the loss per component.
 
     **kwargs : any, optional
@@ -190,7 +190,7 @@ def loss(
     kwargs.setdefault("constrained_layout", True)
     kwargs.setdefault("sharex", True)
 
-    fig, axes = _setup_grid(1, 2, **kwargs)  # type: ignore
+    fig, axes = _setup_grid(1, 2, **kwargs)
     # plot total loss
     [
         axes[0].plot(eliobj.history[i]["loss"], color="black", alpha=0.5, lw=2)
@@ -223,27 +223,27 @@ def loss(
 
 
 def hyperparameter(
-    eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]
+    eliobj: Any, cols: int = 4, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
     Plot the convergence of each hyperparameter across epochs.
 
     Parameters
     ----------
-    eliobj
+    eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
 
-    cols
+    cols : int, optional
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
 
-    **kwargs
+    **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
 
     Examples
     --------
-    >>> el.plots.hyperparameter(eliobj, figuresize=(8, 3))  # doctest: +SKIP
+    >>> el.plots.hyperparameter(eliobj)  # doctest: +SKIP
 
     Raises
     ------
@@ -279,7 +279,7 @@ def hyperparameter(
             + "history savings?"
         )
 
-    fig, axes = _setup_grid(rows, cols, **kwargs)  # type: ignore
+    fig, axes = _setup_grid(rows, cols, **kwargs)
     for ax, hyp in zip(axes, names_par):
         for i in success:
             ax.plot(
@@ -317,15 +317,15 @@ def prior_joint(
 
     Parameters
     ----------
-    eliobj
+    eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
 
-    idx
+    idx : int or list of int, optional
         only required if parallelization is used for fitting the method.
         Indexes the replications and allows to choose for which replication(s) the
         joint prior should be shown.
 
-    **kwargs
+    **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
 
@@ -355,7 +355,7 @@ def prior_joint(
         ) from exc
 
     try:
-        from arviz_stats.base import array_stats
+        from arviz_stats.base import array_stats  # type: ignore
     except ImportError as exc:
         raise MissingOptionalDependencyError(
             "plotting", requirement="arviz_stats"
@@ -401,7 +401,7 @@ def prior_joint(
             priors = tf.reshape(
                 eliobj.results[k]["prior_samples"], (B * n_samples, n_params)
             )
-            grid, pdf, _ = array_stats.kde(priors[:, i])
+            grid, pdf, _ = array_stats.kde(priors[:, i])  # type: ignore
             axs[i, i].plot(grid, pdf, color=colors[c], lw=2)
 
             axs[i, i].set_xlabel(name_params[i], size="small")
@@ -410,7 +410,7 @@ def prior_joint(
             axs[i, i].spines[["right", "top"]].set_visible(False)
 
         for i, j in itertools.combinations(range(n_params), 2):
-            grid, pdf, _ = array_stats.kde(priors[:, i])
+            grid, pdf, _ = array_stats.kde(priors[:, i])  # type: ignore
             axs[i, i].plot(grid, pdf, color=colors[c], lw=2)
             axs[i, j].plot(priors[:, i], priors[:, j], ",", color=colors[c], alpha=0.1)
             [axs[i, j].tick_params(axis=a, labelsize=7) for a in ["x", "y"]]
@@ -423,27 +423,27 @@ def prior_joint(
 
 
 def prior_marginals(
-    eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]
+    eliobj: Any, cols: int = 4, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
     Plot the convergence of each hyperparameter across epochs.
 
     Parameters
     ----------
-    eliobj
+    eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
 
-    cols
+    cols : int, optional
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
 
-    **kwargs
+    **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
 
     Examples
     --------
-    >>> el.plots.prior_marginals(eliobj, figuresize=(8, 3))  # doctest: +SKIP
+    >>> el.plots.prior_marginals(eliobj)  # doctest: +SKIP
 
     Raises
     ------
@@ -453,7 +453,7 @@ def prior_marginals(
 
     """
     try:
-        from arviz_stats.base import array_stats
+        from arviz_stats.base import array_stats  # type: ignore
     except ImportError as exc:
         raise MissingOptionalDependencyError(
             "plotting", requirement="arviz_stats"
@@ -485,14 +485,14 @@ def prior_marginals(
             + "results savings?"
         )
 
-    fig, axes = _setup_grid(rows, cols, **kwargs)  # type: ignore
+    fig, axes = _setup_grid(rows, cols, **kwargs)
 
     for j, (ax, par) in enumerate(zip(axes, name_params)):
         for i in success:
             priors = tf.reshape(
                 eliobj.results[i]["prior_samples"], (B * n_samples, n_par)
             )
-            grid, pdf, _ = array_stats.kde(priors[:, j])
+            grid, pdf, _ = array_stats.kde(priors[:, j])  # type: ignore
             ax.plot(grid, pdf, color="black", lw=2, alpha=0.5)
 
         ax.set_title(f"{par}", fontsize="small")
@@ -509,21 +509,21 @@ def prior_marginals(
 
 
 def elicits(
-    eliobj: Any, cols: int = 4, **kwargs: dict[Any, Any]
+    eliobj: Any, cols: int = 4, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
     Plot the expert-elicited vs. model-simulated statistics.
 
     Parameters
     ----------
-    eliobj
+    eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
 
-    cols
+    cols : int, optional
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
 
-    **kwargs
+    **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
 
@@ -579,20 +579,20 @@ def elicits(
         )
 
     # plotting
-    fig, axes = _setup_grid(rows, cols, **kwargs)  # type: ignore
+    fig, axes = _setup_grid(rows, cols, **kwargs)
 
     for ax, elicit, meth in zip(axes, name_elicits, method_name):
         # Configure plotting method and preparation
         if meth == "quantiles":
-            labels = [None] * n_reps
+            labels: list[tuple[str, str] | tuple[None, None] | None] = [None] * n_reps
             prep = (
                 ax.axline((0, 0), slope=1, color="darkgrey", linestyle="dashed", lw=1),
             )
-            method = _quantiles  # type: ignore
+            method = _quantiles
 
         elif meth == "cor":
             labels = [("expert", "train")] + [(None, None) for _ in range(n_reps - 1)]
-            method = _correlation  # type: ignore
+            method = _correlation
             num_cor = eliobj_res["elicited_statistics"][elicit].shape[-1]
             prep = (
                 ax.set_ylim(-1, 1),
@@ -613,7 +613,7 @@ def elicits(
                     labels[i],
                 )
                 + prep
-            )  # type: ignore
+            )
 
         # Configure labels, legend, title
         if elicit.endswith("_cor"):
@@ -636,29 +636,29 @@ def marginals(
     eliobj: Any,
     cols: int = 4,
     span: int = 30,
-    **kwargs: dict[Any, Any],
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.figure.SubFigure"]]:
+    **kwargs: Any,
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot convergence of mean and sd of the prior marginals
 
-    eliobj
+    eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
 
-    cols
+    cols : int, optional
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
 
-    span
+    span : int, optional
         number of last epochs used to get a final averaged value for mean and
         sd of the prior marginal. The default is ``30``.
 
-    kwargs
+    kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
 
     Examples
     --------
-    >>> el.plots.marginals(eliobj, figuresize=(8, 3))  # doctest: +SKIP
+    >>> el.plots.marginals(eliobj)  # doctest: +SKIP
 
     Raises
     ------
@@ -705,7 +705,7 @@ def marginals(
         [eliobj.history[i]["hyperparameter"]["stds"] for i in success]
     )
 
-    fig = plt.figure(**kwargs)  # type: ignore
+    fig = plt.figure(**kwargs)
     subfigs = fig.subfigures(2, 1, wspace=0.07)
     _convergence_plot(
         subfigs[0],
@@ -735,7 +735,7 @@ def marginals(
 
 
 def priorpredictive(
-    eliobj: Any, **kwargs: dict[Any, Any]
+    eliobj: Any, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
     Plot prior predictive distribution (PPD)
@@ -753,7 +753,7 @@ def priorpredictive(
 
     Examples
     --------
-    >>> el.plots.priorpredictive(eliobj, figuresize=(6, 2))  # doctest: +SKIP
+    >>> el.plots.priorpredictive(eliobj)  # doctest: +SKIP
 
     Raises
     ------
@@ -781,7 +781,7 @@ def priorpredictive(
 
     targets = tf.stack(target_reshaped, -1)
 
-    fig, axes = _setup_grid(1, 1, **kwargs)  # type: ignore
+    fig, axes = _setup_grid(1, 1, **kwargs)
     axes[0].grid(color="lightgrey", linestyle="dotted", linewidth=1)
     for i in range(targets.shape[-1]):
         shade = i / (targets.shape[-1])
@@ -807,36 +807,36 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
     eliobj: Any,
     cols: int = 4,
     n_sim: int = 10_000,
-    height_ratio: list[[int | float]] = [1, 1.5],
+    height_ratio: list[int | float] = [1, 1.5],
     weight_factor: float = 1.0,
     seed: int = 123,
     xlim_weights: float = 0.2,
     **kwargs: dict[Any, Any],
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.figure.SubFigure"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot prior averaging
 
     Parameters
     ----------
-    eliobj
-        instance of :func:`elicit.elicit.Elicit`
+    eliobj : instance of :func:`elicit.elicit.Elicit`
+        fitted ``eliobj`` object.
 
-    cols
+    cols : int, optional
         number of columns in plot
 
-    n_sim
+    n_sim : int, optional
         number of simulations
 
-    height_ratio
+    height_ratio : list of int or float, optional
         height ratio of prior averaging plot
 
-    weight_factor
+    weight_factor : float, optional
         weighting factor of each model in prior averaging
 
-    xlim_weights
+    xlim_weights : float, optional
         limit of x-axis of weights plot
 
-    kwargs
+    kwargs : any, optional
         additional arguments passed to matplotlib
     """
     try:
@@ -847,7 +847,7 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
         ) from exc
 
     try:
-        from arviz_stats.base import array_stats
+        from arviz_stats.base import array_stats  # type: ignore
     except ImportError as exc:
         raise MissingOptionalDependencyError(
             "plotting", requirement="arviz_stats"
@@ -913,12 +913,12 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
             prior = tf.reshape(
                 eliobj.results[i]["prior_samples"], (B * n_samples, n_par)
             )
-            grid, pdf, _ = array_stats.kde(prior[:, j])
+            grid, pdf, _ = array_stats.kde(prior[:, j])  # type: ignore
             ax.plot(grid, pdf, color="black", lw=2, alpha=0.5)
 
         # Plot averaged prior (in red)
         avg_prior = tf.reshape(averaged_priors, (B * n_sim, n_par))
-        grid, pdf, _ = array_stats.kde(avg_prior[:, j])
+        grid, pdf, _ = array_stats.kde(avg_prior[:, j])  # type: ignore
 
         if j == len(name_par) - 1:  # last subplot gets legend
             ax.plot(grid, pdf, color="red", lw=2, alpha=0.5, label=lab)
@@ -1104,7 +1104,7 @@ def _convergence_plot(  # noqa: PLR0913
     axes = axes.ravel()
 
     # Iterate over hyperparameters and axes
-    for ax, n_hyp in zip(axes, range(elicits.shape[-1])):
+    for ax, n_hyp in zip(axes, range(elicits.shape[-1])):  # type: ignore
         if parallel:
             for i in success:
                 # Compute mean of last span values (not used for plotting here)
@@ -1153,7 +1153,7 @@ def _check_NaN(eliobj: Any, n_reps: int) -> tuple[Any, ...]:
 
 
 def _setup_grid(
-    rows: int, cols: int, k: int = 0, **kwargs: dict
+    rows: int, cols: int, k: int = 0, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
     Create a flattened grid of subplots and handles unused axes.
