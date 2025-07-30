@@ -453,3 +453,4 @@ unauthorized_licenses = [
 namex = "0.1.0"
 h5py = "3.14.0"
 optree = "0.17.0"
+l-dtypes = "0.5.3"
