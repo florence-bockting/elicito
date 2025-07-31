@@ -6,7 +6,7 @@ authors = [
     { name = "Florence Bockting", email = "florence.bockting@tu-dortmund.de" },
 ]
 license = { text = "Apache-2.0" }
-requires-python = ">=3.9, <3.13"
+requires-python = ">=3.11, <3.13"
 dependencies = [
     "tqdm >= 4.38",
     "numpy >= 1.24",
@@ -28,8 +28,6 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
    # "Programming Language :: Python :: 3.13",
@@ -47,7 +45,7 @@ Issues = "https://github.com/florence-bockting/elicito/issues"
 [project.optional-dependencies]
 plots = [
     "matplotlib>=3.7.1",
-    "seaborn>=0.12",
+    "arviz_stats>=0.6.0",
 ]
 pandas = [
     "pandas==2.2.3"
@@ -78,10 +76,10 @@ dev = [
     "jupyter >= 1.1.1",
     # Required for type-checking
     "types-tensorflow>=2.18.0",
-    "types-seaborn>=0.13.2",
     "types-tqdm>=4.67.0",
-    "scipy-stubs<1.15; python_full_version >= '3.10'",
+    "scipy-stubs<1.15; python_full_version >= '3.11'",
     "joblib-stubs>=1.4.2",
+    "pandas-stubs>=2.3.0.250703",
     # Required for liccheck, see https://github.com/dhatim/python-license-check/pull/113
     "pip==24.3.1",
     "pre-commit==4.0.1",
@@ -331,6 +329,7 @@ addopts = [
 src = [
     "src",
 ]
+extend-exclude = ["docs/tutorials/*.py"]
 target-version = "py39"
 line-length = 88
 
@@ -451,4 +450,7 @@ unauthorized_licenses = [
 ]
 
 [tool.liccheck.authorized_packages]
-namex = "0.0.9"
+namex = "0.1.0"
+h5py = "3.14.0"
+optree = "0.17.0"
+ml-dtypes = "0.5.3"
