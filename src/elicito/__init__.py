@@ -283,14 +283,14 @@ class Elicit:
 
                 hyp_names.append(
                     [
-                        parameters[i]["hyperparams"][key]["name"]  # type: ignore
-                        for key in parameters[i]["hyperparams"].keys()  # type: ignore
+                        parameters[i]["hyperparams"][key]["name"]
+                        for key in parameters[i]["hyperparams"].keys()
                     ]
                 )
                 hyp_shared.append(
                     [
-                        parameters[i]["hyperparams"][key]["shared"]  # type: ignore
-                        for key in parameters[i]["hyperparams"].keys()  # type: ignore
+                        parameters[i]["hyperparams"][key]["shared"]
+                        for key in parameters[i]["hyperparams"].keys()
                     ]
                 )
             # flatten nested list
@@ -348,7 +348,7 @@ class Elicit:
         # (required for discrete likelihood)
         # self.model["seed"] = self.trainer["seed"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return a readable summary of the object."""
         targets_str = "\n".join(
             [f"  - {t.query["name"]}_{t.name}" for t in self.targets]
@@ -368,16 +368,21 @@ class Elicit:
             f"Optimizer: {opt_name}(lr={opt_lr})\n"
         )
         if self.trainer["method"] == "parametric_prior":
-            summary += (
-                f"Initializer: (method: {self.initializer['method']}, "
-                f"iterations: {self.initializer['iterations']})\n"
-            )
-        else:
+            if self.initializer is not None:
+                summary += (
+                    f"Initializer: (method: {self.initializer['method']}, "
+                    f"iterations: {self.initializer['iterations']})\n"
+                )
+            else:
+                summary += "Initializer: None\n"
+        elif self.network is not None:
             summary += f"Network: {self.network['inference_network'].__name__}\n"
+        else:
+            summary += "Network: None\n"
 
         return summary
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return a readable representation of the object."""
         return self.__str__()
 
