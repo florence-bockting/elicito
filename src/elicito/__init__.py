@@ -351,7 +351,7 @@ class Elicit:
     def __str__(self) -> str:
         """Return a readable summary of the object."""
         targets_str = "\n".join(
-            [f"  - {t.query["name"]}_{t.name}" for t in self.targets]
+            [f"  - {t.query['name']}_{t.name}" for t in self.targets]
         )
         opt_name = self.optimizer["optimizer"].__name__
         opt_lr = self.optimizer["learning_rate"]
