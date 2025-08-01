@@ -215,13 +215,11 @@ def test_integration_initialization():
 
     # test the representation of the object
     repr_str = str(eliobj)
-    assert "Parameters:" in repr_str
-    assert "Targets:" in repr_str
-    assert "Trainer:" in repr_str
+    assert "Model hyperparameters:" in repr_str
+    assert "Model parameters:" in repr_str
+    assert "Targets (loss components):" in repr_str
     assert "Optimizer:" in repr_str
     assert "Initializer:" in repr_str
-    assert "beta0 ~ Normal(loc: mu0, scale: sigma0)" in repr_str
-    assert "beta1 ~ Normal(loc: mu1, scale: sigma1)" in repr_str
 
     eliobj.fit()
 
