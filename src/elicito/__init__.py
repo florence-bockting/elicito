@@ -4,7 +4,7 @@ A Python package for learning prior distributions based on expert knowledge
 
 import importlib.metadata
 import warnings
-from typing import Any, Optional
+from typing import Any
 
 import joblib
 import tensorflow as tf
@@ -91,8 +91,8 @@ class Elicit:
         expert: ExpertDict,
         trainer: Trainer,
         optimizer: dict[str, Any],
-        network: Optional[NFDict] = None,
-        initializer: Optional[Initializer] = None,
+        network: NFDict | None = None,
+        initializer: Initializer | None = None,
     ):
         """
         Specify the elicitation method
@@ -350,30 +350,30 @@ class Elicit:
 
     def __str__(self):
         """Return a readable summary of the object."""
-        parameters_str = "\n".join([f"  - {p}" for p in self.parameters])
-        targets_str = "\n".join([f"  - {t}" for t in self.targets])
-
+        targets_str = "\n".join(
+            [f"  - {t.query["name"]}_{t.name}" for t in self.targets]
+        )
+        opt_name = self.optimizer["optimizer"].__name__
+        opt_lr = self.optimizer["learning_rate"]
         summary = (
-            f"Parameters:\n{parameters_str}\n"
-            f"Targets:\n{targets_str}\n"
-            f"Trainer:\n"
-            f"  - Method: {self.trainer['method']}\n"
-            f"  - Epochs: {self.trainer['epochs']}\n"
-            f"Optimizer:\n"
-            f"  - Type: {self.optimizer['optimizer'].__name__}\n"
-            f"  - Learning Rate: {self.optimizer['learning_rate']}\n"
+            f"Model hyperparameters: {len(self.parameters)}\n"
+            f"Model parameters: {len(self.parameters)}\n"
+            f"Targets (loss components): {len(self.targets)}\n"
+            f"{targets_str}\n"
+            f"Prior samples: {self.trainer['num_samples']}\n"
+            f"Batch size: {self.trainer['B']}\n"
+            f"Epochs: {self.trainer['epochs']}\n"
+            f"Method: {self.trainer['method']}\n"
+            f"Seed: {self.trainer['seed']}\n"
+            f"Optimizer: {opt_name}(lr={opt_lr})\n"
         )
         if self.trainer["method"] == "parametric_prior":
             summary += (
-                "Initializer:\n"
-                f"  - Method: {self.initializer['method']}\n"
-                f"  - Hyperparams: {self.initializer['distribution']}\n"
-                f"  - Iterations: {self.initializer['iterations']}\n"
+                f"Initializer: (method: {self.initializer['method']}, "
+                f"iterations: {self.initializer['iterations']})\n"
             )
         else:
-            summary += (
-                "Network:\n" f"  - Type: {self.network['inference_network'].__name__}\n"
-            )
+            summary += f"Network: {self.network['inference_network'].__name__}\n"
 
         return summary
 
@@ -386,7 +386,7 @@ class Elicit:
         save_history: SaveHist = utils.save_history(),
         save_results: SaveResults = utils.save_results(),
         overwrite: bool = False,
-        parallel: Optional[Parallel] = None,
+        parallel: Parallel | None = None,
     ) -> None:
         """
         Fit the eliobj and learn prior distributions.
@@ -490,8 +490,8 @@ class Elicit:
 
     def save(
         self,
-        name: Optional[str] = None,
-        file: Optional[str] = None,
+        name: str | None = None,
+        file: str | None = None,
         overwrite: bool = False,
     ) -> None:
         """
