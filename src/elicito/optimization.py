@@ -157,8 +157,8 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
 
             for i in range(len(parameters)):
                 hyp_dict = parameters[i]["hyperparams"]
-                for hyp in hyp_dict:  # type: ignore
-                    constraint_dict[hyp_dict[hyp]["name"]] = hyp_dict[hyp]["constraint"]  # type: ignore
+                for hyp in hyp_dict:
+                    constraint_dict[hyp_dict[hyp]["name"]] = hyp_dict[hyp]["constraint"]
 
             # save gradients per epoch
             gradients_ep.append(gradients)
@@ -175,7 +175,7 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
                 res_dict: dict[str, Any] = {f"{k}": [] for k in hyp_list}
                 # create final dict with initial train. variables
                 for val, name in zip(init_vars_values, init_vars_names):
-                    res_dict[name].append(float(constraint_dict[name](val)))  # type: ignore
+                    res_dict[name].append(float(constraint_dict[name](val)))
             # save names and values of hyperparameters
             vars_values = [
                 hyperparams[i].numpy().copy() for i in range(len(hyperparams))
@@ -185,7 +185,7 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
             ]
             # create a final dict of hyperparameter values
             for val, name in zip(vars_values, vars_names):
-                res_dict[name].append(float(constraint_dict[name](val)))  # type: ignore
+                res_dict[name].append(float(constraint_dict[name](val)))
 
         if trainer["method"] == "deep_prior":
             # save mean and std for each sampled marginal prior for each epoch

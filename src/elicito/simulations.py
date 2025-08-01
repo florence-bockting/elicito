@@ -169,7 +169,7 @@ def intialize_priors(  # noqa: PLR0912
             zip(tf.unique(param_names).idx, hp_names, hp_keys)
         ):
             if parameters[i]["hyperparams"] is not None:
-                hp_dict = parameters[i]["hyperparams"][hp_k]  # type: ignore [index]
+                hp_dict = parameters[i]["hyperparams"][hp_k]
 
             if hp_dict is not None:
                 if hp_dict["shared"] and hp_dict["name"] in checked_params:
@@ -298,11 +298,11 @@ def sample_from_priors(  # noqa: PLR0913, PLR0912
             # get the prior distribution family as specified by the user
             prior_family = parameters[i]["family"]
 
-            hp_k = list(parameters[i]["hyperparams"].keys())  # type: ignore [union-attr]
+            hp_k = list(parameters[i]["hyperparams"].keys())
             init_dict = {}
             for k in hp_k:
-                hp_n = parameters[i]["hyperparams"][k]["name"]  # type: ignore [index]
-                hp_constraint = parameters[i]["hyperparams"][k]["constraint"]  # type: ignore [index]
+                hp_n = parameters[i]["hyperparams"][k]["name"]
+                hp_constraint = parameters[i]["hyperparams"][k]["constraint"]
                 init_key = f"{k}_{hp_n}"
                 # init_dict[f"{k}"]=initialized_priors[init_key]
                 init_dict[f"{k}"] = hp_constraint(initialized_priors[init_key])  # type: ignore
