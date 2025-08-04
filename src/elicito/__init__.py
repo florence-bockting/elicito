@@ -350,9 +350,16 @@ class Elicit:
 
     def __str__(self) -> str:
         """Return a readable summary of the object."""
-        targets_str = "\n".join(
-            [f"  - {t.query['name']}_{t.name}" for t in self.targets]
-        )
+        if self.results:
+            t_shapes = [v.shape for v in self.results[0]["target_quantities"].values()]
+            targets_str = "\n".join(
+                f"  - {t.query['name']}_{t.name} {shape}"
+                for t, shape in zip(self.targets, t_shapes)
+            )
+        else:
+            targets_str = "\n".join(
+                f"  - {t.query['name']}_{t.name}" for t in self.targets
+            )
         opt_name = self.optimizer["optimizer"].__name__
         opt_lr = self.optimizer["learning_rate"]
         summary = (
