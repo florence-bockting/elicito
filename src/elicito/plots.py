@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
 def initialization(
-    eliobj: Any, cols: int = 4, **kwargs: Any
+    eliobj: Any, cols: int = 4, titles: list[str] | None = None, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
     Plot the ecdf of the initialization distribution per hyperparameter
@@ -32,6 +32,9 @@ def initialization(
     cols : int, optional
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
+    titles : list of str, optional
+        titles for each subplot. If None, the names of the hyperparameters
+        will be used. The length of titles should match the number of hyperparameters.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -56,8 +59,9 @@ def initialization(
 
     """
     eliobj_res, _, _, _ = _check_parallel(eliobj)
-    # get number of hyperparameter
-    n_par = len(eliobj_res["init_matrix"].keys())
+    # get number of hyperparameters and their names
+    names, n_par, titles = _get_names_titles(eliobj_res["init_matrix"], titles)
+
     # prepare plot axes
     (cols, rows, k, low, high) = _prep_subplots(eliobj, cols, n_par, bounderies=True)
 
@@ -88,7 +92,7 @@ def initialization(
 
     fig, axes = _setup_grid(rows, cols, k, **kwargs)
 
-    for ax, hyp, lo, hi in zip(axes, eliobj_res["init_matrix"], low, high):
+    for ax, hyp, title, lo, hi in zip(axes, names, titles, low, high):
         [
             ax.ecdf(
                 tf.squeeze(eliobj.results[j]["init_matrix"][hyp]),
@@ -98,7 +102,7 @@ def initialization(
             )
             for j in range(len(eliobj.results))
         ]
-        ax.set_title(f"{hyp}", fontsize="small")
+        ax.set_title(f"{title}", fontsize="small")
         ax.axline((lo, 0), (hi, 1), color="grey", linestyle="dashed", lw=1)
         ax.grid(color="lightgrey", linestyle="dotted", linewidth=1)
         ax.spines[["right", "top"]].set_visible(False)
@@ -122,10 +126,8 @@ def loss(
     ----------
     eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
-
     weighted : bool, optional
         Weight the loss per component.
-
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -223,7 +225,7 @@ def loss(
 
 
 def hyperparameter(
-    eliobj: Any, cols: int = 4, **kwargs: Any
+    eliobj: Any, cols: int = 4, titles: list[str] | None = None, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
     Plot the convergence of each hyperparameter across epochs.
@@ -232,11 +234,12 @@ def hyperparameter(
     ----------
     eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
-
     cols : int, optional
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
-
+    titles : list of str, optional
+        titles for each subplot. If None, the names of the hyperparameters
+        will be used. The length of titles should match the number of hyperparameters.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -253,10 +256,9 @@ def hyperparameter(
 
     """
     _, eliobj_hist, parallel, n_reps = _check_parallel(eliobj)
-    # names of hyperparameter
-    names_par = list(eliobj_hist["hyperparameter"].keys())
-    # get number of hyperparameter
-    n_par = len(names_par)
+    # get number of hyperparameters and their names
+    names, n_par, titles = _get_names_titles(eliobj_hist["hyperparameter"], titles)
+
     # check chains that yield NaN
     if parallel:
         _, success, _ = _check_NaN(eliobj, n_reps)
@@ -280,7 +282,7 @@ def hyperparameter(
         )
 
     fig, axes = _setup_grid(rows, cols, **kwargs)
-    for ax, hyp in zip(axes, names_par):
+    for ax, hyp, title in zip(axes, names, titles):
         for i in success:
             ax.plot(
                 eliobj.history[i]["hyperparameter"][hyp],
@@ -288,7 +290,7 @@ def hyperparameter(
                 lw=2,
                 alpha=0.5,
             )
-        ax.set_title(f"{hyp}", fontsize="small")
+        ax.set_title(f"{title}", fontsize="small")
         ax.tick_params(axis="y", labelsize="x-small")
         ax.tick_params(axis="x", labelsize="x-small")
         ax.set_xlabel("epochs", fontsize="small")
@@ -306,6 +308,7 @@ def hyperparameter(
 def prior_joint(
     eliobj: Any,
     idx: int | list[int] | None = None,
+    titles: list[str] | None = None,
     **kwargs: dict[Any, Any],
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
@@ -324,7 +327,9 @@ def prior_joint(
         only required if parallelization is used for fitting the method.
         Indexes the replications and allows to choose for which replication(s) the
         joint prior should be shown.
-
+    titles : list of str, optional
+        Labels for the main diagonal. If None, the names of the hyperparameters
+        will be used. The length of titles should match the number of hyperparameters.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -392,6 +397,7 @@ def prior_joint(
     B, n_samples, n_params = eliobj_res["prior_samples"].shape
     # get parameter names
     name_params = [eliobj.parameters[i]["name"] for i in range(n_params)]
+    _, _, titles = _get_names_titles(name_params, titles)
 
     fig, axs = plt.subplots(n_params, n_params, constrained_layout=True, **kwargs)  # type: ignore
     colors = cmap(np.linspace(0, 1, len(idx)))
@@ -404,7 +410,7 @@ def prior_joint(
             grid, pdf, _ = array_stats.kde(priors[:, i])  # type: ignore
             axs[i, i].plot(grid, pdf, color=colors[c], lw=2)
 
-            axs[i, i].set_xlabel(name_params[i], size="small")
+            axs[i, i].set_xlabel(titles[i], size="small")
             [axs[i, i].tick_params(axis=a, labelsize="x-small") for a in ["x", "y"]]
             axs[i, i].grid(color="lightgrey", linestyle="dotted", linewidth=1)
             axs[i, i].spines[["right", "top"]].set_visible(False)
@@ -423,7 +429,7 @@ def prior_joint(
 
 
 def prior_marginals(
-    eliobj: Any, cols: int = 4, **kwargs: Any
+    eliobj: Any, cols: int = 4, titles: list[str] | None = None, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
     Plot the convergence of each hyperparameter across epochs.
@@ -432,11 +438,12 @@ def prior_marginals(
     ----------
     eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
-
     cols : int, optional
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
-
+    titles : list of str, optional
+        titles for each subplot. If None, the names of the hyperparameters
+        will be used. The length of titles should match the number of hyperparameters.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -450,7 +457,6 @@ def prior_marginals(
     KeyError
         Can't find 'prior_samples' in 'eliobj.results'. Have you excluded
         'prior_samples' from results savings?
-
     """
     try:
         from arviz_stats.base import array_stats  # type: ignore
@@ -469,6 +475,7 @@ def prior_marginals(
     B, n_samples, n_par = eliobj_res["prior_samples"].shape
     # get parameter names
     name_params = [eliobj.parameters[i]["name"] for i in range(n_par)]
+    _, _, titles = _get_names_titles(name_params, titles)
     # prepare plot axes
     (cols, rows, k) = _prep_subplots(eliobj, cols, n_par, bounderies=False)
 
@@ -487,7 +494,7 @@ def prior_marginals(
 
     fig, axes = _setup_grid(rows, cols, **kwargs)
 
-    for j, (ax, par) in enumerate(zip(axes, name_params)):
+    for j, (ax, title) in enumerate(zip(axes, titles)):
         for i in success:
             priors = tf.reshape(
                 eliobj.results[i]["prior_samples"], (B * n_samples, n_par)
@@ -495,7 +502,7 @@ def prior_marginals(
             grid, pdf, _ = array_stats.kde(priors[:, j])  # type: ignore
             ax.plot(grid, pdf, color="black", lw=2, alpha=0.5)
 
-        ax.set_title(f"{par}", fontsize="small")
+        ax.set_title(f"{title}", fontsize="small")
         ax.tick_params(axis="y", labelsize="x-small")
         ax.tick_params(axis="x", labelsize="x-small")
         ax.set_xlabel("\u03b8", fontsize="small")
@@ -518,11 +525,9 @@ def elicits(
     ----------
     eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
-
     cols : int, optional
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
-
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -542,7 +547,7 @@ def elicits(
 
     """
     # check whether parallelization has been used
-    eliobj_res, eliobj_hist, parallel, n_reps = _check_parallel(eliobj)
+    eliobj_res, _, parallel, n_reps = _check_parallel(eliobj)
     # get number of hyperparameter
     n_elicits = len(eliobj_res["expert_elicited_statistics"].keys())
     # check chains that yield NaN
@@ -643,15 +648,12 @@ def marginals(
 
     eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
-
     cols : int, optional
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
-
     span : int, optional
         number of last epochs used to get a final averaged value for mean and
         sd of the prior marginal. The default is ``30``.
-
     kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -806,6 +808,7 @@ def priorpredictive(
 def prior_averaging(  # noqa: PLR0913, PLR0915
     eliobj: Any,
     cols: int = 4,
+    titles: list[str] | None = None,
     n_sim: int = 10_000,
     height_ratio: list[int | float] = [1, 1.5],
     weight_factor: float = 1.0,
@@ -820,22 +823,19 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
     ----------
     eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
-
     cols : int, optional
         number of columns in plot
-
+    titles : list of str, optional
+        titles for each subplot. If None, the names of the hyperparameters
+        will be used. The lenght of titles should match the number of hyperparameters.
     n_sim : int, optional
         number of simulations
-
     height_ratio : list of int or float, optional
         height ratio of prior averaging plot
-
     weight_factor : float, optional
         weighting factor of each model in prior averaging
-
     xlim_weights : float, optional
         limit of x-axis of weights plot
-
     kwargs : any, optional
         additional arguments passed to matplotlib
     """
@@ -862,8 +862,10 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
 
     # prepare plotting
     n_par = len(eliobj.parameters)
-    name_par = [eliobj.parameters[i]["name"] for i in range(n_par)]
-    label_avg = [" "] * (len(name_par) - 1) + ["average"]
+    name_params = [eliobj.parameters[i]["name"] for i in range(n_par)]
+    _, _, titles = _get_names_titles(name_params, titles)
+
+    label_avg = [" "] * (n_par - 1) + ["average"]
     n_reps = len(eliobj.results)
     # prepare plot axes
     (cols, rows, k) = _prep_subplots(eliobj, cols, n_par)
@@ -873,7 +875,7 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
         success_name = eliobj.trainer["seed"]
     else:
         # remove chains for which training yield NaN
-        (fail, success, success_name) = _check_NaN(eliobj, n_reps)
+        (_, success, success_name) = _check_NaN(eliobj, n_reps)
 
     # perform model averaging
     (w_MMD, averaged_priors, B, n_samples) = _model_averaging(
@@ -907,7 +909,7 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
     # plot individual priors and averaged prior
     axes = subfig1.ravel()
 
-    for j, (ax, par, lab) in enumerate(zip(axes, name_par, label_avg)):
+    for j, (ax, title, lab) in enumerate(zip(axes, titles, label_avg)):
         # Plot prior samples for each success
         for i in success:
             prior = tf.reshape(
@@ -920,14 +922,14 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
         avg_prior = tf.reshape(averaged_priors, (B * n_sim, n_par))
         grid, pdf, _ = array_stats.kde(avg_prior[:, j])  # type: ignore
 
-        if j == len(name_par) - 1:  # last subplot gets legend
+        if j == n_par - 1:  # last subplot gets legend
             ax.plot(grid, pdf, color="red", lw=2, alpha=0.5, label=lab)
             ax.legend(handlelength=0.3, fontsize="small", frameon=False)
         else:
             ax.plot(grid, pdf, color="red", lw=2, alpha=0.5)
 
         # Formatting
-        ax.set_title(f"{par}", fontsize="small")
+        ax.set_title(f"{title}", fontsize="small")
         ax.tick_params(axis="y", labelsize="x-small")
         ax.tick_params(axis="x", labelsize="x-small")
         ax.set_ylabel("density", fontsize="small")
@@ -1186,3 +1188,40 @@ def _setup_grid(
         axes[-(i + 1)].set_axis_off()
 
     return fig, axes
+
+
+def _get_names_titles(
+    param_names: dict[str, Any] | list[str], titles: list[str] | None = None
+) -> tuple[list[str], int, list[str]]:
+    """
+    Extract hyperparameter names and titles from a dictionary.
+
+    Parameters
+    ----------
+    lala : dict[str, Any]  | list[str]
+        Dictionary or list containing hyperparameter names.
+    titles : list[str] | None, optional
+        List of titles for the hyperparameters. If None, names will be used as titles.
+
+    Returns
+    -------
+    tuple[list[str], int, list[str]]
+        A tuple containing:
+        - List of hyperparameter names.
+        - Number of hyperparameters.
+        - List of titles for the hyperparameters.
+    """
+    if isinstance(param_names, list):
+        names = param_names
+    elif isinstance(param_names, dict):
+        names = list(param_names.keys())
+
+    n_par = len(names)
+    if titles is None:
+        titles = names
+    elif len(titles) != n_par:
+        raise ValueError(
+            "The lenght of titles should match the number of hyperparameters."
+            + f" Expected {n_par} titles, but got {len(titles)}."
+        )
+    return names, n_par, titles
