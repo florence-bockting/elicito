@@ -312,15 +312,13 @@ def parameter(
         transform = identity  # type: ignore
         constraint_name = "identity"
 
-    param_dict: Parameter = dict(
+    return Parameter(
         name=name,
         family=family,
         hyperparams=hyperparams,
         constraint_name=constraint_name,
         constraint=transform,  # type: ignore
     )
-
-    return param_dict
 
 
 def model(obj: Callable[[str], tf.Tensor], **kwargs: dict[Any, Any]) -> dict[str, Any]:
@@ -561,14 +559,13 @@ def target(
     # create instance of loss class
     loss_instance = loss
 
-    target_dict: Target = dict(
+    return Target(
         name=name,
         query=query,
         target_method=target_method,
         loss=loss_instance,
         weight=weight,
     )
-    return target_dict
 
 
 class Expert:

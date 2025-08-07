@@ -4,7 +4,7 @@ A Python package for learning prior distributions based on expert knowledge
 
 import importlib.metadata
 import warnings
-from typing import Any, Optional
+from typing import Any
 
 import joblib
 import tensorflow as tf
@@ -91,8 +91,8 @@ class Elicit:
         expert: ExpertDict,
         trainer: Trainer,
         optimizer: dict[str, Any],
-        network: Optional[NFDict] = None,
-        initializer: Optional[Initializer] = None,
+        network: NFDict | None = None,
+        initializer: Initializer | None = None,
     ):
         """
         Specify the elicitation method
@@ -283,14 +283,14 @@ class Elicit:
 
                 hyp_names.append(
                     [
-                        parameters[i]["hyperparams"][key]["name"]  # type: ignore
-                        for key in parameters[i]["hyperparams"].keys()  # type: ignore
+                        parameters[i]["hyperparams"][key]["name"]
+                        for key in parameters[i]["hyperparams"].keys()
                     ]
                 )
                 hyp_shared.append(
                     [
-                        parameters[i]["hyperparams"][key]["shared"]  # type: ignore
-                        for key in parameters[i]["hyperparams"].keys()  # type: ignore
+                        parameters[i]["hyperparams"][key]["shared"]
+                        for key in parameters[i]["hyperparams"].keys()
                     ]
                 )
             # flatten nested list
@@ -348,12 +348,57 @@ class Elicit:
         # (required for discrete likelihood)
         # self.model["seed"] = self.trainer["seed"]
 
+    def __str__(self) -> str:
+        """Return a readable summary of the object."""
+        if self.results:
+            t_shapes = [v.shape for v in self.results[0]["target_quantities"].values()]
+            targets_str = "\n".join(
+                f"  - {t.query['name']}_{t.name} {shape}"
+                for t, shape in zip(self.targets, t_shapes)
+            )
+        else:
+            targets_str = "\n".join(
+                f"  - {t.query['name']}_{t.name}" for t in self.targets
+            )
+        opt_name = self.optimizer["optimizer"].__name__
+        opt_lr = self.optimizer["learning_rate"]
+        summary = (
+            f"Model hyperparameters: {len(self.parameters)}\n"
+            f"Model parameters: {len(self.parameters)}\n"
+            f"Targets (loss components): {len(self.targets)}\n"
+            f"{targets_str}\n"
+            f"Prior samples: {self.trainer['num_samples']}\n"
+            f"Batch size: {self.trainer['B']}\n"
+            f"Epochs: {self.trainer['epochs']}\n"
+            f"Method: {self.trainer['method']}\n"
+            f"Seed: {self.trainer['seed']}\n"
+            f"Optimizer: {opt_name}(lr={opt_lr})\n"
+        )
+        if self.trainer["method"] == "parametric_prior":
+            if self.initializer is not None:
+                summary += (
+                    f"Initializer: (method: {self.initializer['method']}, "
+                    f"iterations: {self.initializer['iterations']})\n"
+                )
+            else:
+                summary += "Initializer: None\n"
+        elif self.network is not None:
+            summary += f"Network: {self.network['inference_network'].__name__}\n"
+        else:
+            summary += "Network: None\n"
+
+        return summary
+
+    def __repr__(self) -> str:
+        """Return a readable representation of the object."""
+        return self.__str__()
+
     def fit(
         self,
         save_history: SaveHist = utils.save_history(),
         save_results: SaveResults = utils.save_results(),
         overwrite: bool = False,
-        parallel: Optional[Parallel] = None,
+        parallel: Parallel | None = None,
     ) -> None:
         """
         Fit the eliobj and learn prior distributions.
@@ -457,8 +502,8 @@ class Elicit:
 
     def save(
         self,
-        name: Optional[str] = None,
-        file: Optional[str] = None,
+        name: str | None = None,
+        file: str | None = None,
         overwrite: bool = False,
     ) -> None:
         """

@@ -2,7 +2,8 @@
 specification of custom types
 """
 
-from typing import Any, Callable, Optional, TypedDict, Union
+from collections.abc import Callable
+from typing import Any, TypedDict
 
 import tensorflow as tf
 
@@ -20,16 +21,48 @@ class Hyper(TypedDict):
     shared: bool
 
 
-class Parameter(TypedDict, total=False):
-    """
-    Typed dictionary for specification of [`parameter`][elicito.elicit.parameter]
-    """
+class Parameter(dict[str, Any]):
+    """Class for specification of a parameter, inheriting from `dict`."""
 
-    name: str
-    family: Any
-    hyperparams: Optional[dict[str, Hyper]]
-    constraint_name: str
-    constraint: Callable[[float], float]
+    def __init__(
+        self,
+        name: str,
+        family: Any,
+        hyperparams: dict[str, Hyper] | None,
+        constraint_name: str,
+        constraint: Callable[[float], float],
+    ):
+        super().__init__(
+            name=name,
+            family=family,
+            hyperparams=hyperparams,
+            constraint_name=constraint_name,
+            constraint=constraint,
+        )
+        self.name: str = name
+        self.family: Any = family
+        self.hyperparams: dict[str, Hyper] | None = hyperparams
+        self.constraint_name: str = constraint_name
+        self.constraint: Callable[[float], float] = constraint
+
+    def __str__(self) -> str:
+        """Return a readable summary of the object."""
+        if self.family is None:
+            family_name = "Unknown"
+        else:
+            family_name = self.family.__name__
+
+        if self.hyperparams is None:
+            hypers = ""
+        else:
+            hypers = ", ".join(
+                [f"{k}: {v['name']}" for k, v in self.hyperparams.items()]
+            )
+        return f"{self.name} ~ {family_name}({hypers})"
+
+    def __repr__(self) -> str:
+        """Return a readable summary of the object."""
+        return self.__str__()
 
 
 class QueriesDict(TypedDict, total=False):
@@ -38,20 +71,44 @@ class QueriesDict(TypedDict, total=False):
     """
 
     name: str
-    value: Optional[Any]
+    value: Any | None
     func_name: str
 
 
-class Target(TypedDict):
-    """
-    typed dictionary for specification of [`target`][elicito.elicit.target]
-    """
+class Target(dict[str, Any]):
+    """Class for specification of a target, inheriting from `dict`."""
 
-    name: str
-    query: QueriesDict
-    target_method: Optional[Callable[[Any], Any]]
-    loss: Callable[[Any], float]
-    weight: float
+    def __init__(
+        self,
+        name: str,
+        query: QueriesDict,
+        target_method: Callable[[Any], Any] | None,
+        loss: Callable[[Any], float],
+        weight: float,
+    ):
+        super().__init__(
+            name=name,
+            query=query,
+            target_method=target_method,
+            loss=loss,
+            weight=weight,
+        )
+        self.name: str = name
+        self.query: QueriesDict = query
+        self.target_method: Callable[[Any], Any] | None = target_method
+        self.loss: Callable[[Any], float] = loss
+        self.weight: float = weight
+
+    def __str__(self) -> str:
+        """Return a readable summary of the object."""
+        return (
+            f"Target(name={self.name!r}, query={self.query['name']}, "
+            f"loss={self.loss.__class__.__name__}, weight={self.weight})"
+        )
+
+    def __repr__(self) -> str:
+        """Return a readable summary of the object."""
+        return self.__str__()
 
 
 class ExpertDict(TypedDict, total=False):
@@ -72,9 +129,9 @@ class Uniform(TypedDict):
 
     """
 
-    radius: Union[float, list[Union[float, int]]]
-    mean: Union[float, list[Union[float, int]]]
-    hyper: Optional[list[str]]
+    radius: float | list[float | int]
+    mean: float | list[float | int]
+    hyper: list[str] | None
 
 
 class Initializer(TypedDict):
@@ -82,11 +139,11 @@ class Initializer(TypedDict):
     typed dictionary for specification of initialization method
     """
 
-    method: Optional[str]
-    distribution: Optional[Uniform]
-    loss_quantile: Optional[float]
-    iterations: Optional[int]
-    hyperparams: Optional[dict[str, Any]]
+    method: str | None
+    distribution: Uniform | None
+    loss_quantile: float | None
+    iterations: int | None
+    hyperparams: dict[str, Any] | None
 
 
 class Trainer(TypedDict, total=False):
@@ -159,4 +216,4 @@ class Parallel(TypedDict):
 
     runs: int
     cores: int
-    seeds: Optional[list[int]]
+    seeds: list[int] | None
