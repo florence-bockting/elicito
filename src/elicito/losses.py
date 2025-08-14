@@ -115,7 +115,7 @@ def indiv_loss(
             shape=(elicit_training[name].shape[0], elicit_expert[name].shape[1]),
         )
         # compute loss
-        indiv_loss = loss_function(elicit_expert_brdcst, elicit_training[name])  # type: ignore [call-arg]
+        indiv_loss = loss_function(elicit_expert_brdcst, elicit_training[name])
         indiv_losses.append(indiv_loss)
 
     return indiv_losses
