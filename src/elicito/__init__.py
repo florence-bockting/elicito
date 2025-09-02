@@ -348,7 +348,7 @@ class Elicit:
         # (required for discrete likelihood)
         # self.model["seed"] = self.trainer["seed"]
 
-    def __str__(self) -> str:
+    def __str__(self) -> None:
         """Return a readable summary of the object."""
         if self.results:
             t_shapes = [v.shape for v in self.results[0]["target_quantities"].values()]
@@ -387,9 +387,9 @@ class Elicit:
         else:
             summary += "Network: None\n"
 
-        return summary
+        return print(summary)
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> None:
         """Return a readable representation of the object."""
         return self.__str__()
 
