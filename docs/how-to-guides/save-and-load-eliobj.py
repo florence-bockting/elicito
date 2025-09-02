@@ -236,6 +236,16 @@ eliobj_m1.fit()
 
 # %% [markdown]
 # ## Inspect the *fitted* eliobj
+
+# %% [markdown]
+# **Inspect configuration**
+
+# %%
+eliobj_m1
+
+# %% [markdown]
+# **Inspect results**
+#
 # + results for each epoch are stored in `history`
 # + results saved only for the last epoch are stored in `results`
 
