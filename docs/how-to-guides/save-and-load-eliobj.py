@@ -241,8 +241,8 @@ eliobj_m1.fit()
 # **Inspect configuration**
 
 # %%
-# print a summary output of the configured eliobj
-eliobj_m1.__repr__()
+eliobj_m1
+
 # %% [markdown]
 # **Inspect results**
 #
