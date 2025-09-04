@@ -20,6 +20,7 @@ from elicito.targets import (
 )
 from elicito.types import (
     ExpertDict,
+    Initializer,
     NFDict,
     Parallel,
     Parameter,
@@ -1058,3 +1059,71 @@ def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6)
     # reparameterization/linear transformation
     ypred = tf.reduce_sum(tf.multiply(w, c), axis=-1)
     return ypred
+
+
+def dry_run(  # noqa: PLR0913
+    model: dict[str, Any],
+    parameters: list[Parameter],
+    targets: list[Target],
+    trainer: Trainer,
+    initializer: Initializer,
+    network: Optional[NFDict],
+) -> tuple[tf.Tensor]:
+    """
+    Run generative model in forward mode for a single epoch
+
+    Parameters
+    ----------
+    model
+        User-input from [`model`][elicito.elicit.model].
+
+    parameters
+        User-input from [`parameter`][elicito.elicit.parameter].
+
+    targets
+        User-input from [`target`][elicito.elicit.target].
+
+    trainer
+        User-input from [`trainer`][elicito.elicit.trainer].
+
+    initializer
+        User-input from [`initializer`][elicito.elicit.initializer].
+
+    network
+        User-input from one of the methods implemented in the
+        [`networks`][elicito.networks] module.
+
+    Returns
+    -------
+    :
+        (elicited_statistics, prior_samples, model_simulations, target_quantities)
+    """
+    init_matrix = el.simulations.uniform_samples(
+        seed=trainer["seed"],
+        hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
+        n_samples=initializer["iterations"],  # type: ignore [arg-type]
+        method=initializer["method"],  # type: ignore [arg-type]
+        mean=initializer["distribution"]["mean"],
+        radius=initializer["distribution"]["radius"],
+        parameters=parameters,
+    )
+
+    init_matrix_slice = {f"{key}": init_matrix[key][0] for key in init_matrix}
+
+    prior_model = Priors(
+        ground_truth=False,
+        init_matrix_slice=init_matrix_slice,
+        trainer=trainer,
+        parameters=parameters,
+        network=network,
+        expert=None,  # type: ignore
+        seed=trainer["seed"],
+    )
+
+    (elicited_statistics, prior_samples, model_simulations, target_quantities) = (
+        one_forward_simulation(
+            prior_model=prior_model, model=model, targets=targets, seed=trainer["seed"]
+        )
+    )
+
+    return (elicited_statistics, prior_samples, model_simulations, target_quantities)
