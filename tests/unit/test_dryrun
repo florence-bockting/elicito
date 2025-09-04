@@ -1,0 +1,60 @@
+import elicito as el
+import tensorflow_probability as tfp
+import numpy as np
+
+tfd = tfp.distributions
+
+
+class TestModel():
+    def __init__(self, prior_samples, X):
+        mu = prior_samples
+
+        e_pred = mu[...,None] * X
+
+        y_pred = tfd.Normal(mu, sigma=1.).sample()
+
+        return dict(mu=mu,
+                    e_pred = e_pred,
+                    y_pred=y_pred)
+
+parameters=[
+            el.parameter(
+                name="mu", family=tfd.Normal,
+                hyperparams = {
+                    "loc": el.hyper("mu0"),
+                    "scale": el.hyper("sigma0", lower=0.)
+                    }
+            )]
+
+model=el.model(obj=TestModel, X=np.array([0,1]))
+targets = [
+    el.target(
+        name="mu",
+        query=el.queries.identity(),
+        loss=el.losses.MMD2(kernel="energy")
+        ),
+    el.target(
+        name="e_pred",
+        query=el.queries.quantiles((0.25, 0.50, 0.75)),
+        loss=el.losses.MMD2(kernel="energy")
+        ),
+    el.target(
+        name="y_pred",
+        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
+        loss=el.losses.MMD2(kernel="energy")
+        ),
+    ]
+trainer = el.trainer(method="parametric_prior", seed=123, epochs=1)
+initializer = el.initializer(
+        method="sobol",
+        iterations=32,
+        distribution=el.initialization.uniform(radius=2.0, mean=0.0),
+    )
+
+
+def test_dryrun():
+    res_dry = el.utils.dry_run(
+        model, parameters, targets,
+        trainer, initializer, network=None)
+
+    breakpoint()
