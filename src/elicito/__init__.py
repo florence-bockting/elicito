@@ -368,7 +368,7 @@ class Elicit:
                 self.parameters,
                 self.targets,
                 self.trainer,
-                self.initializer,
+                self.initializer,  # type: ignore
                 self.network,
             )
 
@@ -376,10 +376,7 @@ class Elicit:
         """Return a readable summary of the object."""
         if self.results:
             targets_str = "\n".join(
-                f"  - {k1} {tuple(self.results[0]['target_quantities'][k1].shape)
-                            } -> {k2} {
-                                tuple(self.results[0]['elicited_statistics'][k2].shape)
-                                }"
+                f"  - {k1} {tuple(self.results[0]['target_quantities'][k1].shape)} -> {k2} {tuple(self.results[0]['elicited_statistics'][k2].shape)}"  # noqa: E501
                 for k1, k2 in zip(
                     self.results[0]["target_quantities"],
                     self.results[0]["elicited_statistics"],
@@ -387,9 +384,7 @@ class Elicit:
             )
         elif self.dry_run:
             targets_str = "\n".join(
-                f"  - {k1} {
-                    tuple(self.dry_targets[k1].shape)} -> {k2} {
-                        tuple(self.dry_elicits[k2].shape)} "
+                f"  - {k1} {tuple(self.dry_targets[k1].shape)} -> {k2} {tuple(self.dry_elicits[k2].shape)} "  # noqa: E501
                 for k1, k2 in zip(self.dry_targets, self.dry_elicits)
             )
         else:
