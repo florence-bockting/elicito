@@ -372,8 +372,8 @@ class Elicit:
         """Return a readable summary of the object."""
         if self.results:
             targets_str = "\n".join(
-                f"  - {k1} {tuple(self.results[0]["target_quantities"][k1].shape)} -> {k2} {tuple(self.results[0]["elicited_statistics"][k2].shape)}" for k1, k2 in zip(
-                    self.results[0]["target_quantities"], self.results[0]["elicited_statistics"])
+                f"  - {k1} {tuple(self.results[0]['target_quantities'][k1].shape)} -> {k2} {tuple(self.results[0]['elicited_statistics'][k2].shape)}" for k1, k2 in zip(
+                    self.results[0]['target_quantities'], self.results[0]['elicited_statistics'])
             )
         elif self.dry_run:
             targets_str = "\n".join(
