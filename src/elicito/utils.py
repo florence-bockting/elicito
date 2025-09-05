@@ -1068,7 +1068,7 @@ def dry_run(  # noqa: PLR0913
     trainer: Trainer,
     initializer: Initializer,
     network: Optional[NFDict],
-) -> tuple[tf.Tensor]:
+) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any]]:
     """
     Run generative model in forward mode for a single epoch
 
@@ -1111,7 +1111,7 @@ def dry_run(  # noqa: PLR0913
 
         init_matrix_slice = {f"{key}": init_matrix[key][0] for key in init_matrix}
     else:
-        init_matrix_slice = initializer["hyperparams"]
+        init_matrix_slice = initializer["hyperparams"]  # type: ignore
 
     prior_model = Priors(
         ground_truth=False,

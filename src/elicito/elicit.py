@@ -12,12 +12,12 @@ from elicito.types import (
     ExpertDict,
     Hyper,
     Initializer,
+    MetaSettings,
     Parameter,
     QueriesDict,
     Target,
     Trainer,
     Uniform,
-    MetaSettings
 )
 from elicito.utils import (
     DoubleBound,
@@ -992,10 +992,10 @@ def meta_settings(dry_run: bool = True) -> MetaSettings:
     ----------
     dry_run
         Whether to perform a dry run before starting the training.
-        If ``dry_run=True``, the generative model is executed in 
+        If ``dry_run=True``, the generative model is executed in
         forward mode and the shape information of all tensors are
         collected and provided in the print method.
-    
+
     Returns
     -------
     meta_dict :
