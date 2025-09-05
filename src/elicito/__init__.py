@@ -25,17 +25,18 @@ from elicito.elicit import (
     expert,
     hyper,
     initializer,
+    meta_settings,
     model,
     optimizer,
     parameter,
     queries,
     target,
     trainer,
-    meta_settings
 )
 from elicito.types import (
     ExpertDict,
     Initializer,
+    MetaSettings,
     NFDict,
     Parallel,
     Parameter,
@@ -43,7 +44,6 @@ from elicito.types import (
     SaveResults,
     Target,
     Trainer,
-    MetaSettings
 )
 
 tfd = tfp.distributions
@@ -358,8 +358,12 @@ class Elicit:
         # (required for discrete likelihood)
         # self.model["seed"] = self.trainer["seed"]
         if self.dry_run:
-            (self.dry_elicits, self.dry_priors, 
-             self.dry_modelsims, self.dry_targets) = utils.dry_run(
+            (
+                self.dry_elicits,
+                self.dry_priors,
+                self.dry_modelsims,
+                self.dry_targets,
+            ) = utils.dry_run(
                 self.model,
                 self.parameters,
                 self.targets,
@@ -372,32 +376,46 @@ class Elicit:
         """Return a readable summary of the object."""
         if self.results:
             targets_str = "\n".join(
-                f"  - {k1} {tuple(self.results[0]['target_quantities'][k1].shape)} -> {k2} {tuple(self.results[0]['elicited_statistics'][k2].shape)}" for k1, k2 in zip(
-                    self.results[0]['target_quantities'], self.results[0]['elicited_statistics'])
+                f"  - {k1} {tuple(self.results[0]['target_quantities'][k1].shape)
+                            } -> {k2} {
+                                tuple(self.results[0]['elicited_statistics'][k2].shape)
+                                }"
+                for k1, k2 in zip(
+                    self.results[0]["target_quantities"],
+                    self.results[0]["elicited_statistics"],
+                )
             )
         elif self.dry_run:
             targets_str = "\n".join(
-                f"  - {k1} {tuple(self.dry_targets[k1].shape)} -> {k2} {tuple(self.dry_elicits[k2].shape)} " for k1, k2 in zip(
-                    self.dry_targets, self.dry_elicits)
+                f"  - {k1} {
+                    tuple(self.dry_targets[k1].shape)} -> {k2} {
+                        tuple(self.dry_elicits[k2].shape)} "
+                for k1, k2 in zip(self.dry_targets, self.dry_elicits)
             )
         else:
             targets_str = "\n".join(
-                f"  - {self.dry_targets[tar]['name']} -> {eli}" for 
-                tar, eli in zip(range(len(self.targets)), utils.get_expert_datformat(self.targets))
+                f"  - {self.dry_targets[tar]['name']} -> {eli}"
+                for tar, eli in zip(
+                    range(len(self.targets)), utils.get_expert_datformat(self.targets)
+                )
             )
         opt_name = self.optimizer["optimizer"].__name__
         opt_lr = self.optimizer["learning_rate"]
         get_num_hyperpar = sum(
-            [len(self.parameters[i]["hyperparams"])
-              for i in range(len(self.parameters))]
-              )
-        
+            [
+                len(self.parameters[i]["hyperparams"])
+                for i in range(len(self.parameters))
+            ]
+        )
+
         summary = (
             f"Model hyperparameters: {get_num_hyperpar}\n"
             f"Model parameters: {len(self.parameters)}\n"
-            f"Targets -> Elicited summaries (loss components){': ' + str(len(self.dry_elicits)) if self.dry_run else ''}\n"
+            f"Targets -> Elicited summaries (loss components){
+                ': ' + str(len(self.dry_elicits)) if self.dry_run else ''}\n"
             f"{targets_str}\n"
-            f"Prior samples: {self.trainer['num_samples']}{' ' + str(self.dry_priors.shape.as_list()) if self.dry_run else ''}\n"
+            f"Prior samples: {self.trainer['num_samples']}{
+                ' ' + str(self.dry_priors.shape.as_list()) if self.dry_run else ''}\n"
             f"Batch size: {self.trainer['B']}\n"
             f"Epochs: {self.trainer['epochs']}\n"
             f"Method: {self.trainer['method']}\n"
