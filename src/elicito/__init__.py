@@ -411,11 +411,9 @@ class Elicit:
         summary = (
             f"Model hyperparameters: {get_num_hyperpar}\n"
             f"Model parameters: {len(self.parameters)}\n"
-            f"Targets -> Elicited summaries (loss components){
-                ': ' + str(len(self.dry_elicits)) if self.dry_run else ''}\n"
+            f"Targets -> Elicited summaries (loss components){': ' + str(len(self.dry_elicits)) if self.dry_run else ''}\n"  # noqa: E501
             f"{targets_str}\n"
-            f"Prior samples: {self.trainer['num_samples']}{
-                ' ' + str(self.dry_priors.shape.as_list()) if self.dry_run else ''}\n"
+            f"Prior samples: {self.trainer['num_samples']}{' ' + str(self.dry_priors.shape.as_list()) if self.dry_run else ''}\n"  # noqa: E501
             f"Batch size: {self.trainer['B']}\n"
             f"Epochs: {self.trainer['epochs']}\n"
             f"Method: {self.trainer['method']}\n"
