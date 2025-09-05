@@ -31,6 +31,7 @@ from elicito.elicit import (
     queries,
     target,
     trainer,
+    meta_settings
 )
 from elicito.types import (
     ExpertDict,
@@ -42,6 +43,7 @@ from elicito.types import (
     SaveResults,
     Target,
     Trainer,
+    MetaSettings
 )
 
 tfd = tfp.distributions
@@ -93,6 +95,7 @@ class Elicit:
         optimizer: dict[str, Any],
         network: NFDict | None = None,
         initializer: Initializer | None = None,
+        meta_settings: MetaSettings = meta_settings(),
     ):
         """
         Specify the elicitation method
@@ -130,6 +133,10 @@ class Elicit:
             specification of initialization settings using
             [`initializer`][elicito.elicit.initializer].
             Only required for ``parametric_prior`` method.
+
+        meta_settings
+            dictionary of meta settings for the elicitation workflow. See
+            [`meta_settings`][elicito.types.MetaSettings] for available options.
 
         Returns
         -------
@@ -334,10 +341,13 @@ class Elicit:
         self.optimizer = optimizer
         self.network = network
         self.initializer = initializer
+        self.meta_settings = meta_settings
 
         self.history: list[dict[str, Any]] = []
         self.results: list[dict[str, Any]] = []
 
+        # helper for subsequent checks
+        self.dry_run = self.meta_settings["dry_run"]
         # overwrite global seed
         globals()["SEED"] = self.trainer["seed"]
 
@@ -347,27 +357,47 @@ class Elicit:
         # add seed information into model attribute
         # (required for discrete likelihood)
         # self.model["seed"] = self.trainer["seed"]
+        if self.dry_run:
+            (self.dry_elicits, self.dry_priors, 
+             self.dry_modelsims, self.dry_targets) = utils.dry_run(
+                self.model,
+                self.parameters,
+                self.targets,
+                self.trainer,
+                self.initializer,
+                self.network,
+            )
 
     def __str__(self) -> str:
         """Return a readable summary of the object."""
         if self.results:
-            t_shapes = [v.shape for v in self.results[0]["target_quantities"].values()]
             targets_str = "\n".join(
-                f"  - {t.query['name']}_{t.name} {shape}"
-                for t, shape in zip(self.targets, t_shapes)
+                f"  - {k1} {tuple(self.results[0]["target_quantities"][k1].shape)} -> {k2} {tuple(self.results[0]["elicited_statistics"][k2].shape)}" for k1, k2 in zip(
+                    self.results[0]["target_quantities"], self.results[0]["elicited_statistics"])
+            )
+        elif self.dry_run:
+            targets_str = "\n".join(
+                f"  - {k1} {tuple(self.dry_targets[k1].shape)} -> {k2} {tuple(self.dry_elicits[k2].shape)} " for k1, k2 in zip(
+                    self.dry_targets, self.dry_elicits)
             )
         else:
             targets_str = "\n".join(
-                f"  - {t.query['name']}_{t.name}" for t in self.targets
+                f"  - {self.dry_targets[tar]['name']} -> {eli}" for 
+                tar, eli in zip(range(len(self.targets)), utils.get_expert_datformat(self.targets))
             )
         opt_name = self.optimizer["optimizer"].__name__
         opt_lr = self.optimizer["learning_rate"]
+        get_num_hyperpar = sum(
+            [len(self.parameters[i]["hyperparams"])
+              for i in range(len(self.parameters))]
+              )
+        
         summary = (
-            f"Model hyperparameters: {len(self.parameters)}\n"
+            f"Model hyperparameters: {get_num_hyperpar}\n"
             f"Model parameters: {len(self.parameters)}\n"
-            f"Targets (loss components): {len(self.targets)}\n"
+            f"Targets -> Elicited summaries (loss components){': ' + str(len(self.dry_elicits)) if self.dry_run else ''}\n"
             f"{targets_str}\n"
-            f"Prior samples: {self.trainer['num_samples']}\n"
+            f"Prior samples: {self.trainer['num_samples']}{' ' + str(self.dry_priors.shape.as_list()) if self.dry_run else ''}\n"
             f"Batch size: {self.trainer['B']}\n"
             f"Epochs: {self.trainer['epochs']}\n"
             f"Method: {self.trainer['method']}\n"
