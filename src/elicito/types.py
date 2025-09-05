@@ -219,7 +219,7 @@ class Parallel(TypedDict):
     seeds: list[int] | None
 
 
-class MetaSettingsDict(TypedDict):
+class MetaSettings(TypedDict):
     """
     Typed dictionary for specification of meta settings in `Elicit`
 
