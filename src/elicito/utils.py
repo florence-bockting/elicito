@@ -1098,17 +1098,20 @@ def dry_run(  # noqa: PLR0913
     :
         (elicited_statistics, prior_samples, model_simulations, target_quantities)
     """
-    init_matrix = el.simulations.uniform_samples(
-        seed=trainer["seed"],
-        hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
-        n_samples=initializer["iterations"],  # type: ignore [arg-type]
-        method=initializer["method"],  # type: ignore [arg-type]
-        mean=initializer["distribution"]["mean"],
-        radius=initializer["distribution"]["radius"],
-        parameters=parameters,
-    )
+    if initializer["distribution"] is not None:
+        init_matrix = el.initialization.uniform_samples(
+            seed=trainer["seed"],
+            hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
+            n_samples=initializer["iterations"],  # type: ignore [arg-type]
+            method=initializer["method"],  # type: ignore [arg-type]
+            mean=initializer["distribution"]["mean"],
+            radius=initializer["distribution"]["radius"],
+            parameters=parameters,
+        )
 
-    init_matrix_slice = {f"{key}": init_matrix[key][0] for key in init_matrix}
+        init_matrix_slice = {f"{key}": init_matrix[key][0] for key in init_matrix}
+    else:
+        init_matrix_slice = initializer["hyperparams"]
 
     prior_model = Priors(
         ground_truth=False,
