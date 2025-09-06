@@ -363,6 +363,7 @@ class Elicit:
                 self.dry_priors,
                 self.dry_modelsims,
                 self.dry_targets,
+                self.dry_prior_model,
             ) = utils.dry_run(
                 self.model,
                 self.parameters,
@@ -396,19 +397,37 @@ class Elicit:
             )
         opt_name = self.optimizer["optimizer"].__name__
         opt_lr = self.optimizer["learning_rate"]
-        get_num_hyperpar = sum(
-            [
-                len(self.parameters[i]["hyperparams"])
-                for i in range(len(self.parameters))
+
+        get_num_hyperpar: int | str
+        if (self.trainer["method"] == "deep_prior") and (self.results):
+            get_num_hyperpar = utils.compute_num_weights(
+                self.results[0]["num_NN_weights"]
+            )
+
+        elif (self.trainer["method"] == "deep_prior") and (self.dry_run):
+            trainable_vars = self.dry_prior_model.init_priors.trainable_variables
+            num_NN_weights = [
+                trainable_vars[i].shape for i in range(len(trainable_vars))
             ]
-        )
+            get_num_hyperpar = utils.compute_num_weights(num_NN_weights)
+
+        elif self.trainer["method"] == "parametric_prior":
+            get_num_hyperpar = sum(
+                [
+                    len(self.parameters[i]["hyperparams"])
+                    for i in range(len(self.parameters))
+                ]
+            )
+        else:
+            get_num_hyperpar = "?"
+            print("Number of hyperparameter in model can't be computed.")
 
         summary = (
             f"Model hyperparameters: {get_num_hyperpar}\n"
             f"Model parameters: {len(self.parameters)}\n"
             f"Targets -> Elicited summaries (loss components){': ' + str(len(self.dry_elicits)) if self.dry_run else ''}\n"  # noqa: E501
             f"{targets_str}\n"
-            f"Prior samples: {self.trainer['num_samples']}{' ' + str(self.dry_priors.shape.as_list()) if self.dry_run else ''}\n"  # noqa: E501
+            f"Prior samples: {self.trainer['num_samples']}{' ' + str(tuple(self.dry_priors.shape)) if self.dry_run else ''}\n"  # noqa: E501
             f"Batch size: {self.trainer['B']}\n"
             f"Epochs: {self.trainer['epochs']}\n"
             f"Method: {self.trainer['method']}\n"
