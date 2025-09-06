@@ -130,6 +130,10 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
             # very suboptimal implementation but currently it works
             if trainer["method"] == "deep_prior":
                 trainable_vars = prior_model.init_priors.trainable_variables  # type: ignore
+                num_NN_weights = [
+                    trainable_vars[i].shape for i in range(len(trainable_vars))
+                ]
+
             if trainer["method"] == "parametric_prior":
                 trainable_vars = prior_model.trainable_variables
 
@@ -222,5 +226,8 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
 
     if trainer["method"] == "parametric_prior":
         res_ep["hyperparameter_gradient"] = gradients_ep
+
+    if trainer["method"] == "deep_prior":
+        output_res["num_NN_weights"] = num_NN_weights
 
     return res_ep, output_res
