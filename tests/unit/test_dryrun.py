@@ -50,7 +50,7 @@ def test_dryrun():
         model, parameters, targets, trainer, initializer, network=None
     )
 
-    (elicited_statistics, prior_samples, _, target_quantities) = res_dry
+    (elicited_statistics, prior_samples, *_) = res_dry
 
     prior_shape = prior_samples.shape
     elicits_shape = [elicited_statistics[k].shape for k in elicited_statistics]
