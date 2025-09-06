@@ -275,16 +275,31 @@ eliobj = el.Elicit(
     optimizer=el.optimizer(
         optimizer=tf.keras.optimizers.Adam, learning_rate=0.0001, clipnorm=1.0
     ),
-    trainer=el.trainer(method="deep_prior", seed=2025, epochs=900, progress=0),
+    trainer=el.trainer(method="deep_prior", seed=2025, epochs=600, progress=0),
     initializer=None,
     network=network,
 )
+
+# %% [markdown]
+# Print a summary of eliobj
+
+# %%
+eliobj
 
 # %% [markdown]
 # **Fit eliobj**
 
 # %%
 eliobj.fit()
+
+# %% [markdown]
+# Inspect saved results
+
+# %%
+eliobj.history[0].keys()
+
+# %%
+eliobj.results[0].keys()
 
 # %% [markdown]
 # ## Results
