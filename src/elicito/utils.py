@@ -1068,7 +1068,7 @@ def dry_run(  # noqa: PLR0913
     trainer: Trainer,
     initializer: Initializer,
     network: Optional[NFDict],
-) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any]]:
+) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any], Any]:
     """
     Run generative model in forward mode for a single epoch
 
@@ -1096,9 +1096,13 @@ def dry_run(  # noqa: PLR0913
     Returns
     -------
     :
-        (elicited_statistics, prior_samples, model_simulations, target_quantities)
+        (elicited_statistics, prior_samples, model_simulations,
+        target_quantities, prior_model)
     """
-    if initializer["distribution"] is not None:
+    if (
+        trainer["method"] == "parametric_prior"
+        and initializer["distribution"] is not None
+    ):
         init_matrix = el.initialization.uniform_samples(
             seed=trainer["seed"],
             hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
@@ -1110,8 +1114,12 @@ def dry_run(  # noqa: PLR0913
         )
 
         init_matrix_slice = {f"{key}": init_matrix[key][0] for key in init_matrix}
+
+    elif trainer["method"] == "deep_prior" and network is not None:
+        init_matrix_slice = None
+
     else:
-        init_matrix_slice = initializer["hyperparams"]  # type: ignore
+        init_matrix_slice = initializer["hyperparams"]
 
     prior_model = Priors(
         ground_truth=False,
@@ -1129,4 +1137,34 @@ def dry_run(  # noqa: PLR0913
         )
     )
 
-    return (elicited_statistics, prior_samples, model_simulations, target_quantities)
+    return (
+        elicited_statistics,
+        prior_samples,
+        model_simulations,
+        target_quantities,
+        prior_model,
+    )
+
+
+def compute_num_weights(num_NN_weights: list[tf.TensorShape]) -> int:
+    """
+    Compute number of weights of a tf.keras model.
+
+    Parameters
+    ----------
+    num_NN_weights :
+        list of tf.TensorShape objects of each layer in the model.
+
+    Returns
+    -------
+    :
+        number of weights of the model (incl. biases)
+    """
+    add_list = []
+    for shape in num_NN_weights:
+        dims = [d if d is not None else 1 for d in shape]
+        prod = 1
+        for d in dims:
+            prod *= d
+        add_list.append(prod)
+    return sum(add_list)
