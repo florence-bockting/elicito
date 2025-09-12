@@ -215,7 +215,8 @@ eliobj = el.Elicit(
             "mu4": tf.math.log(2.), "sigma4": el.utils.DoubleBound(0., 0.2).forward(0.14),
             "mu5": tf.math.log(2.), "sigma5": el.utils.DoubleBound(0., 0.1).forward(0.01)
         }
-    )
+    ),
+    meta_settings=el.meta_settings(dry_run=False)
 )
 
 # %%
