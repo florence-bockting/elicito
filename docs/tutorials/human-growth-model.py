@@ -14,6 +14,7 @@
 
 # %%
 import os
+import copy
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
@@ -35,10 +36,8 @@ tfd = tfp.distributions
 # ## Model
 # $$
 # \begin{align*}
-#     (h_0, \delta_h, s_1, \delta_s, \gamma) &\sim \text{LogNormal}(\mu_k, \sigma_k) \quad \text{for } k=1,\ldots, 5\\
+#     (h_0, h_1, s_1, s_0, \gamma) &\sim \text{LogNormal}(\mu_k, \sigma_k) \quad \text{for } k=1,\ldots, 5\\
 #     \sigma_y &\sim \text{LogNormal}(0, 0.2)\\
-#     s_0 &= s_1 - \delta_s \\
-#     h_1 &= h_0 + \delta_h \\
 #     \mu &= h_1 - \frac{2(h_1 - h_0)}{\exp(s_0(t_m - \gamma)) + \exp(s_1(t_m - \gamma))} \\
 #     y_m &\sim \text{Normal}(\mu, \sigma_y)
 # \end{align*}
@@ -83,28 +82,22 @@ class GenerativeModel():
             dictionary with results from simulation run
         """
         B, S, _ = prior_samples.shape
-        (h0, delta_h, s1, delta_s, gamma) = (prior_samples[:,:,i][..., None] for i in range(5))
+        (h0, h1, s0, s1, gamma) = (prior_samples[:,:,i][..., None] for i in range(5))
 
-        sigma0 = tfd.LogNormal(0., 0.2).sample((B, S, 1))
-
-        s0 = s1 - delta_s
-        h1 = h0 + delta_h
+        sigma_y = tfd.LogNormal(0., 0.2).sample((B, S, 1))
 
         mu_list = []
         for t in tm:
             mu = h1 - ( (2*(h1 - h0)) / (tf.exp(s0 * (t - gamma)) + tf.exp(s1 * (t - gamma))) )
             mu_list.append(mu)
 
-        y = tfd.Normal(tf.concat(mu_list, -1), sigma0).sample()
+        y = tfd.Normal(tf.concat(mu_list, -1), sigma_y).sample()
 
-        res = dict()
-        for i,t in enumerate(tm):
-            res[f"y{t}"] = y[:,:,i]
-        res["s0"] = s0
-        res["h1"] = h1
-        res["s1"] = s1
-        res["h0"] = h0
-        res["gamma"] = gamma
+        # save results
+        res = {f"y{t}": y[:,:,i] for i,t in enumerate(tm)}
+
+        for par, par_name in zip([h0, h1, s0, s1, gamma], ["h0", "h1", "s0", "s1", "gamma"]):
+            res[par_name] = par
 
         return res
 
@@ -121,11 +114,11 @@ expert_dat = dict(
     quantiles_y2 = tfd.Normal(88, 3.5).quantile([0.05, 0.25, 0.5, 0.75, 0.95]).numpy(),
     quantiles_y8 = tfd.Normal(130, 5.5).quantile([0.05, 0.25, 0.5, 0.75, 0.95]).numpy(),
     quantiles_y13 = tfd.Normal(160, 8).quantile([0.05, 0.25, 0.5, 0.75, 0.95]).numpy(),
-    quantiles_y18 = tfd.Normal(172, 9.5).quantile([0.05, 0.25, 0.5, 0.75, 0.95]).numpy()
+    quantiles_y18 = tfd.Normal(172, 9.5).quantile([0.05, 0.25, 0.5, 0.75, 0.95]).numpy(),
 )
 
 # define expert argument for Elicit
-expert=el.expert.data(dat=expert_dat)
+expert_data = el.expert.data(dat=expert_dat)
 
 expert_dat
 
@@ -133,16 +126,23 @@ expert_dat
 # #### Version 2: Simulate from ground truth (for validation purposes)
 
 # %%
-ground_truth = dict(
-    h0 = tfd.LogNormal(tf.math.log(152.), 0.001),
-    delta_h = tfd.LogNormal(tf.math.log(12.), 0.001),
-    s1 = tfd.LogNormal(tf.math.log(3.3), 0.001),
-    delta_s = tfd.LogNormal(tf.math.log(3.2), 0.001),
-    gamma = tfd.LogNormal(tf.math.log(13.4), 0.001)
+true_hyp = dict(mu0=4.73, sigma0=0.03,
+                mu1=5.06, sigma1=0.13,
+                mu2=-2.74, sigma2=0.04,
+                mu3=-1.73, sigma3=0.09,
+                mu4=1.72, sigma4=0.07)
+
+true_prior = dict(
+    h0 = tfd.LogNormal(true_hyp["mu0"], true_hyp["sigma0"]),
+    h1 = tfd.LogNormal(true_hyp["mu1"], true_hyp["sigma1"]),
+    s0 = tfd.LogNormal(true_hyp["mu2"], true_hyp["sigma2"]),
+    s1 = tfd.LogNormal(true_hyp["mu3"], true_hyp["sigma3"]),
+    gamma = tfd.LogNormal(true_hyp["mu4"], true_hyp["sigma4"])
 )
 
 # define expert argument for Elicit
-expert = el.expert.simulator(ground_truth=ground_truth, num_samples=10_000)
+expert_sim = el.expert.simulator(ground_truth=true_prior,
+                                 num_samples=10_000)
 
 # %% [markdown]
 # ### Setup model parameters
@@ -152,32 +152,32 @@ parameters = [
     el.parameter(
         name="h0",
         family=tfd.LogNormal,
-        hyperparams=dict(loc=el.hyper("mu1", lower=4.8, upper=5.2),
-                         scale=el.hyper("sigma1", lower=0., upper=0.1)),
+        hyperparams=dict(loc=el.hyper("mu0", lower=4., upper=6.),
+                         scale=el.hyper("sigma0", lower=0., upper=1.)),
     ),
     el.parameter(
-        name="delta_h",
+        name="h1",
         family=tfd.LogNormal,
-        hyperparams=dict(loc=el.hyper("mu2", lower=-3, upper=4.),
-                         scale=el.hyper("sigma2", lower=0., upper=0.1)),
+        hyperparams=dict(loc=el.hyper("mu1", lower=4., upper=6.),
+                         scale=el.hyper("sigma1", lower=0., upper=1.)),
+    ),
+    el.parameter(
+        name="s0",
+        family=tfd.LogNormal,
+        hyperparams=dict(loc=el.hyper("mu2", lower=-3., upper=0.),
+                         scale=el.hyper("sigma2", lower=0., upper=1.)),
     ),
     el.parameter(
         name="s1",
         family=tfd.LogNormal,
-        hyperparams=dict(loc=el.hyper("mu3", lower=-3, upper=3.),
-                         scale=el.hyper("sigma3", lower=0., upper=1.55)),
-    ),
-    el.parameter(
-        name="delta_s",
-        family=tfd.LogNormal,
-        hyperparams=dict(loc=el.hyper("mu4", lower=-3, upper=3.),
-                         scale=el.hyper("sigma4", lower=0., upper=1.14)),
+        hyperparams=dict(loc=el.hyper("mu3", lower=-3., upper=0.),
+                         scale=el.hyper("sigma3", lower=0., upper=1.)),
     ),
     el.parameter(
         name="gamma",
         family=tfd.LogNormal,
-        hyperparams=dict(loc=el.hyper("mu5", lower=-3., upper=5.),
-                         scale=el.hyper("sigma5", lower=0., upper=0.1)),
+        hyperparams=dict(loc=el.hyper("mu4", lower=0., upper=2.),
+                         scale=el.hyper("sigma4", lower=0., upper=2.)),
     )
 ]
 
@@ -188,34 +188,59 @@ parameters = [
 targets = [
     el.target(
         name=tar,
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
+        query=el.queries.quantiles((0.05, 0.25, 0.5, 0.75, 0.95)),
         loss=el.losses.MMD2(kernel="energy"),
         weight=1.0,
     ) for tar in ["y2", "y8", "y13", "y18"]
 ]
 
 # %% [markdown]
+# ### Setup of training and initialization
+
+# %%
+optimizer=el.optimizer(
+        optimizer=tf.keras.optimizers.Adam,
+        learning_rate=0.1, clipnorm=1.0
+    )
+
+trainer=el.trainer(method="parametric_prior",
+                    seed=2024, epochs=700, progress=1)
+
+initializer=el.initializer(
+        hyperparams=dict(
+            mu0=4., sigma0=0.01,
+            mu1=4., sigma1=0.1,
+            mu2=1., sigma2=0.01,
+            mu3=1., sigma3=0.01,
+            mu4=1., sigma4=0.01)
+    )
+
+# %% [markdown]
 # ### Putting everything together (Setup eliobj)
+# First for the validation run using simulated expert data
+
+# %%
+# check that ground-truth implies reasonable expert judgements
+elicited_stats, *_ = el.utils.dry_run(
+    model, parameters, targets, trainer,
+    el.initializer(hyperparams=true_hyp),
+    network=None)
+
+pd.DataFrame({
+        tar: np.round(tf.reduce_mean(elicited_stats[tar], 0), 2).tolist()
+        for tar in ["quantiles_y2", "quantiles_y8", "quantiles_y13", "quantiles_y18"]
+        }).round(2)
+
 
 # %%
 eliobj = el.Elicit(
     model=model,
     parameters=parameters,
     targets=targets,
-    expert=expert,
-    optimizer=el.optimizer(
-        optimizer=tf.keras.optimizers.Adam, learning_rate=0.05, clipnorm=1.0
-    ),
-    trainer=el.trainer(method="parametric_prior", seed=2025, epochs=400, progress=1),
-    initializer=el.initializer(
-        hyperparams = {
-            "mu1": tf.math.log(150.), "sigma1": el.utils.DoubleBound(0., 0.1).forward(0.01),
-            "mu2": tf.math.log(2.), "sigma2": el.utils.DoubleBound(0., 0.1).forward(0.01),
-            "mu3": tf.math.log(2.), "sigma3": el.utils.DoubleBound(0., 2.).forward(1.55),
-            "mu4": tf.math.log(2.), "sigma4": el.utils.DoubleBound(0., 0.2).forward(0.14),
-            "mu5": tf.math.log(2.), "sigma5": el.utils.DoubleBound(0., 0.1).forward(0.01)
-        }
-    ),
+    expert=expert_sim,
+    optimizer=optimizer,
+    trainer=trainer,
+    initializer=initializer
 )
 
 # %%
@@ -228,6 +253,9 @@ eliobj
 # %%
 eliobj.fit()
 
+# %%
+{f"{k}": eliobj.history[0]["hyperparameter"][k][-3:] for k in eliobj.history[0]["hyperparameter"]}
+
 # %% [markdown]
 # ### Inspect results
 
@@ -238,22 +266,28 @@ el.plots.loss(eliobj);
 el.plots.hyperparameter(eliobj);
 
 # %%
-el.plots.elicits(eliobj);
+el.plots.elicits(eliobj, cols=4);
 
 # %%
-df_list = []
-
-for i in range(len(eliobj.history)):
-    df = pd.DataFrame({f"{key}": [np.round(
-        tf.reduce_mean(eliobj.history[i]["hyperparameter"][key][:-30]),2)]
-     for key in eliobj.history[0]["hyperparameter"].keys()})
-    df["sim"]=i
-    df_list.append(df)
-
-df2 = pd.concat(df_list)
-df2
+el.plots.prior_joint(eliobj);
 
 # %%
-# only if "true prior distributions" for expert data is used
+eliobj_dat = copy.deepcopy(eliobj)
 
-tf.reduce_mean(eliobj.results[0]["prior_samples"], (0,1))
+eliobj_dat.update(expert=expert_data)
+
+eliobj_dat.fit()
+
+# %%
+el.plots.loss(eliobj_dat);
+
+# %%
+el.plots.hyperparameter(eliobj_dat);
+
+# %%
+el.plots.elicits(eliobj_dat, cols=4);
+
+# %%
+el.plots.prior_joint(eliobj_dat);
+
+# %%
