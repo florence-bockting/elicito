@@ -256,7 +256,7 @@ eliobj = el.Elicit(
     optimizer=el.optimizer(
         optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
     ),
-    trainer=el.trainer(method="parametric_prior", seed=2025, epochs=100, progress=0),
+    trainer=el.trainer(method="parametric_prior", seed=2025, epochs=200, progress=0),
     initializer=el.initializer(
         method="sobol",
         iterations=32,
@@ -265,204 +265,19 @@ eliobj = el.Elicit(
 )
 
 # %% [markdown]
+# Inspect summary of eliobj
+
+# %%
+eliobj
+
+# %% [markdown]
 # **Fit eliobj**
 
 # %%
 eliobj.fit(parallel=el.utils.parallel())
 
 # %%
-tf.stack([eliobj.history[i]["loss_component"] for i in range(len(eliobj.history))],0)
-
-# %%
-tf.stack(eliobj.history[0]["loss_tensor_model"],1)
-
-# %%
-eliobj.results[0].keys()
-
-# %%
-["_".join(k.split("_")[:-2]) for k in eliobj.results[0]["loss_tensor_model"].keys()]
-
-# %%
-import itertools
-
-eliobj.results[0].keys()
-
-# %%
-eliobj.results[0]["prior_samples"]
-
-# %%
-da_list = []
-for k in eliobj.results[0]["elicited_statistics"].keys():
-    elicits = tf.stack([eliobj.results[i]["elicited_statistics"][k] for i in range(len(eliobj.results))],0)
-    da_elicits = xr.DataArray(
-        data=elicits,
-        dims=["replications", "batch", "summary_dim"],
-        coords=dict(
-            replications=tf.range(elicits.shape[0]),
-            batch=tf.range(elicits.shape[1]),
-            summary_dim=tf.range(elicits.shape[-1])
-        ),
-        name=k
-    )
-    da_list.append(da_elicits)
-
-
-# %%
-tf.range(elicits.shape[1])
-
-# %% jupyter={"outputs_hidden": true}
-[eliobj.results[0]["elicited_statistics"][k] for k in list(eliobj.results[0]["elicited_statistics"].keys())]
-
-# %%
-attr_keys = dict()
-attr_keys["description"] = "Elicited summaries as simulated by the model."
-attr_keys["warning"] = "The dimension 'elicited_summary' can not be used for selection of a specific elicited summary! The dimension is only provided to provide a fast summary information. In order to select a specific elicited summary use the corresponding key for the dictionary data object. Keys and shape of items are provided below"
-for k in eliobj.results[0]["elicited_statistics"]:
-    attr_keys[k] = eliobj.results[0]["elicited_statistics"][k].shape
-
-
-da_elicits = xr.DataArray(
-    [eliobj.results[i]["elicited_statistics"] for i in range(len(eliobj.results))],
-    dims=["replication"],
-    coords=dict(
-        replication=range(len(eliobj.results))
-    ),
-    attrs=attr_keys
-)
-
-da_elicits=da_elicits.expand_dims(elicited_summary=len(eliobj.results[0]["elicited_statistics"]), axis=-1)
-da_elicits=da_elicits.assign_coords(elicited_summary=list(eliobj.results[0]["elicited_statistics"].keys()))
-
-# %% jupyter={"outputs_hidden": true}
-
-# %%
-targets = tf.stack([[eliobj.results[i]["target_quantities"][k] for i in range(len(eliobj.results))] for k in eliobj.results[0]["target_quantities"].keys()],-1)
-
-da_targets = xr.DataArray(
-        data=targets,
-        dims=["replication", "batch", "sample", "target_quantity"],
-        coords=dict(
-            replication=tf.range(targets.shape[0]),
-            batch=tf.range(targets.shape[1]),
-            sample=tf.range(targets.shape[2]),
-            target_quantity=list(eliobj.results[0]["target_quantities"].keys())
-        ),
-        name="target quantities",
-        attrs=dict(
-            description="Target quantities"
-        )
-    )
-
-attr_keys = dict()
-attr_keys["description"] = "Elicited summaries as simulated by the model."
-attr_keys["warning"] = "The dimension 'elicited_summary' can not be used for selection of a specific elicited summary! The dimension is only provided to provide a fast summary information. In order to select a specific elicited summary use the corresponding key for the dictionary data object. Keys and shape of items are provided below"
-for k in eliobj.results[0]["elicited_statistics"]:
-    attr_keys[k] = eliobj.results[0]["elicited_statistics"][k].shape
-
-
-da_elicits = xr.DataArray(
-    [eliobj.results[i]["elicited_statistics"] for i in range(len(eliobj.results))],
-    dims=["replication"],
-    coords=dict(
-        replication=range(len(eliobj.results))
-    ),
-    attrs=attr_keys
-)
-
-da_elicits=da_elicits.expand_dims(elicited_summary=len(eliobj.results[0]["elicited_statistics"]), axis=-1)
-da_elicits=da_elicits.assign_coords(elicited_summary=list(eliobj.results[0]["elicited_statistics"].keys()))
-
-priors = tf.stack([eliobj.results[i]["prior_samples"] for i in range(len(eliobj.results))],0)
-
-da_priors = xr.DataArray(
-        data=priors,
-        dims=["replication", "batch", "sample", "parameter"],
-        coords=dict(
-            replication=tf.range(priors.shape[0]),
-            batch=tf.range(priors.shape[1]),
-            sample=tf.range(priors.shape[2]),
-            parameter=[eliobj.parameters[k]["name"] for k in range(len(eliobj.parameters))]
-
-        ),
-        name="prior samples",
-        attrs=dict(
-            description="Prior samples"
-        )
-    )
-
-priors_exp = tf.stack([eliobj.results[i]["expert_prior_samples"] for i in range(len(eliobj.results))],0)
-
-da_priors_expert = xr.DataArray(
-        data=priors_exp,
-        dims=["replication", "batch", "sample_truth", "parameter"],
-        coords=dict(
-            replication=tf.range(priors_exp.shape[0]),
-            batch=tf.range(priors_exp.shape[1]),
-            sample_truth=tf.range(priors_exp.shape[2]),
-            parameter=[eliobj.parameters[k]["name"] for k in range(len(eliobj.parameters))]
-
-        ),
-        name="prior samples from ground truth",
-        attrs=dict(
-            description="Prior samples from ground truth (used for the construction of expert-elicited summaries for self-consistency validation)"
-        )
-    )
-
-da_seed = xr.DataArray(
-    data=[eliobj.results[i]["seed"] for i in range(len(eliobj.results))],
-    dims=["replication"],
-    coords=dict(
-        replication=tf.range(init_loss.shape[0])
-    ),
-    name="seed",
-    attrs=dict(
-        description="seed per replications (for reproducibility)"
-    )
-)
-
-ds = xr.Dataset(
-    data_vars=dict(
-        prior_samples=da_priors,
-        target_quantities=da_targets,
-        elicited_summaries=da_elicits,
-        prior_samples_true=da_priors_expert,
-        seed=da_seed
-    ),
-    attrs=dict(
-        global_seed = eliobj.trainer["seed"]
-    )
-)
-
-# %%
-xr.DataArray()
-
-# %%
-xr.Dataset(
-            data_vars = dict(
-                quantiles_y_X0=xr.DataArray(eliobj.results[0]["elicited_statistics"]["quantiles_y_X0"], dims=["batch", "summary_dim0"]),
-                quantiles_y_X1=xr.DataArray(eliobj.results[0]["elicited_statistics"]["quantiles_y_X1"], dims=["batch", "summary_dim0"]),
-                quantiles_y_X2=xr.DataArray(eliobj.results[0]["elicited_statistics"]["quantiles_y_X2"], dims=["batch", "summary_dim0"]),
-                quantiles_R2=xr.DataArray(eliobj.results[0]["elicited_statistics"]["quantiles_R2"], dims=["batch", "summary_dim1"])
-        )
-)
-
-# %%
-ds = xr.Dataset(
-    dict(
-        prior_samples=da_priors,
-        target_quantities=da_targets,
-        elicited_summaries = xr.Dataset(
-            dict(
-                quantiles_y_X0=xr.DataArray(eliobj.results[0]["elicited_statistics"]["quantiles_y_X0"], dims=["batch", "summaries_dim0"]),
-                quantiles_y_X1=xr.DataArray(eliobj.results[0]["elicited_statistics"]["quantiles_y_X1"], dims=["batch", "summaries_dim0"]),
-                quantiles_y_X2=xr.DataArray(eliobj.results[0]["elicited_statistics"]["quantiles_y_X2"], dims=["batch", "summaries_dim0"]),
-                quantiles_R2=xr.DataArray(eliobj.results[0]["elicited_statistics"]["quantiles_R2"], dims=["batch", "summaries_dim1"])
-        )
-).to_dataarray()
-    )
-)
-
-ds.elicited_summaries.sel(variable="quantiles_y_X0")
+eliobj.results
 
 # %% [markdown]
 # ## Results
