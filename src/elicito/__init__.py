@@ -11,6 +11,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
 from elicito import (
+    _outputs,
     initialization,
     losses,
     networks,
@@ -559,6 +560,9 @@ class Elicit:
                 self.results[i], self.history[i] = utils.clean_savings(
                     self.history[i], self.results[i], save_history, save_results
                 )
+
+        self.results = _outputs.create_inference_data_obj(self)
+        delattr(self, "history")
 
     def save(
         self,
