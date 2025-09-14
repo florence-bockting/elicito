@@ -87,6 +87,27 @@ wheels = [
 ]
 
 [[package]]
+name = "arviz"
+version = "0.22.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "h5netcdf" },
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pandas" },
+    { name = "scipy" },
+    { name = "setuptools" },
+    { name = "typing-extensions" },
+    { name = "xarray" },
+    { name = "xarray-einstats" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/31/24/727d666e137f0b8c4a4fdc3dc91484ab2ed1206ac61733b2688efa85b5e7/arviz-0.22.0.tar.gz", hash = "sha256:d9df7592f1ce77ce69f7504dba13f8d550204c49c23e54849861dbcb2c640954", size = 1591019, upload-time = "2025-07-09T10:07:21.525Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/81/38/5a3ee119be7f9f94f03a7626ee8edc52c9c9a9720cb020fa1f01fc87d4f2/arviz-0.22.0-py3-none-any.whl", hash = "sha256:336a3a4b1aa981997945f9ca104ca9f827e9c943f13760b18bf645ee5b12d56d", size = 1672062, upload-time = "2025-07-09T10:07:19.643Z" },
+]
+
+[[package]]
 name = "arviz-stats"
 version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -452,6 +473,7 @@ name = "elicito"
 version = "0.6.1a1"
 source = { editable = "." }
 dependencies = [
+    { name = "arviz" },
     { name = "joblib" },
     { name = "numpy" },
     { name = "tensorflow" },
@@ -803,6 +825,7 @@ tests-min = [
 
 [package.metadata]
 requires-dist = [
+    { name = "arviz", specifier = ">=0.22.0" },
     { name = "arviz-stats", marker = "extra == 'plots'", specifier = ">=0.6.0" },
     { name = "elicito", extras = ["pandas"], marker = "extra == 'full'" },
     { name = "elicito", extras = ["plots"], marker = "extra == 'full'" },
@@ -1293,6 +1316,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f5/38/3af3d3633a34a3316095b39c8e8fb4853a28a536e55d347bd8d8e9a14b03/h11-0.14.0.tar.gz", hash = "sha256:8f19fbbe99e72420ff35c00b27a34cb9937e902a8b810e2c88300c6f0a3b699d", size = 100418, upload-time = "2022-09-25T15:40:01.519Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/95/04/ff642e65ad6b90db43e668d70ffb6736436c7ce41fcc549f4e9472234127/h11-0.14.0-py3-none-any.whl", hash = "sha256:e3fe4ac4b851c468cc8363d500db52c2ead036020723024a109d37346efaa761", size = 58259, upload-time = "2022-09-25T15:39:59.68Z" },
+]
+
+[[package]]
+name = "h5netcdf"
+version = "1.6.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "h5py" },
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5a/a1/e3ca842fd0895fcfb21c754a18fd8cd7362d1625b3a93408c982c38f4ec1/h5netcdf-1.6.4.tar.gz", hash = "sha256:83db7e5eb9b822bed2c79050d6cf8f36ecbd1039f4252bd90fab200edcaaf67d", size = 65832, upload-time = "2025-08-05T06:26:56.707Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5b/f5/ac71e692aad076d50a0f5f073204346d5f5577daffd21bb4b72c485f8959/h5netcdf-1.6.4-py3-none-any.whl", hash = "sha256:e0018e6a918f2bef2a4aa7b470a952b8a0b5d16a5893d59bea56524cc6207fcf", size = 50683, upload-time = "2025-08-05T06:26:55.644Z" },
 ]
 
 [[package]]
@@ -3604,4 +3640,32 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/17/27/4fe749a54e7fae6e7146f1c7d914d28ef599dacd4416566c055564080fe2/wrapt-1.17.2-cp312-cp312-win32.whl", hash = "sha256:468090021f391fe0056ad3e807e3d9034e0fd01adcd3bdfba977b6fdf4213ea9", size = 36672, upload-time = "2025-01-14T10:34:17.727Z" },
     { url = "https://files.pythonhosted.org/packages/15/06/1dbf478ea45c03e78a6a8c4be4fdc3c3bddea5c8de8a93bc971415e47f0f/wrapt-1.17.2-cp312-cp312-win_amd64.whl", hash = "sha256:ec89ed91f2fa8e3f52ae53cd3cf640d6feff92ba90d62236a81e4e563ac0e991", size = 38865, upload-time = "2025-01-14T10:34:19.577Z" },
     { url = "https://files.pythonhosted.org/packages/2d/82/f56956041adef78f849db6b289b282e72b55ab8045a75abad81898c28d19/wrapt-1.17.2-py3-none-any.whl", hash = "sha256:b18f2d1533a71f069c7f82d524a52599053d4c7166e9dd374ae2136b7f40f7c8", size = 23594, upload-time = "2025-01-14T10:35:44.018Z" },
+]
+
+[[package]]
+name = "xarray"
+version = "2025.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pandas" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4e/0b/bbb76e05c8e2099baf90e259c29cafe6a525524b1d1da8bfbc39577c043e/xarray-2025.9.0.tar.gz", hash = "sha256:7dd6816fe0062c49c5e9370dd483843bc13e5ed80a47a9ff10baff2b51e070fb", size = 3040318, upload-time = "2025-09-04T04:20:26.296Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8d/f0/73c24457c941b8b08f7d090853e40f4b2cdde88b5da721f3f28e98df77c9/xarray-2025.9.0-py3-none-any.whl", hash = "sha256:79f0e25fb39571f612526ee998ee5404d8725a1db3951aabffdb287388885df0", size = 1349595, upload-time = "2025-09-04T04:20:24.36Z" },
+]
+
+[[package]]
+name = "xarray-einstats"
+version = "0.9.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "scipy" },
+    { name = "xarray" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f1/10/ef474494a7f2102ec4c02352c723fa282c6237b600565eb82ee354291211/xarray_einstats-0.9.1.tar.gz", hash = "sha256:39b373deed43592c41d3fbf8863af62e19e01c1ae553ae5ff059a8df78d995c6", size = 33327, upload-time = "2025-06-18T15:53:28.499Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/17/8b/ed2f0f49385c3d7739cd4699954add26e8f09a372a0c3f04f2bde32fcea2/xarray_einstats-0.9.1-py3-none-any.whl", hash = "sha256:777339524e85d066f2ef9ed1e3a3fb63aead4c1065fd1406f30dfa4de58ce063", size = 39043, upload-time = "2025-06-18T15:53:24.088Z" },
 ]
