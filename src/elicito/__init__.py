@@ -377,7 +377,8 @@ class Elicit:
         """Return a readable summary of the object."""
         if self.results:
             targets_str = "\n".join(
-                f"  - {k1} {tuple(self.results[0]['target_quantities'][k1].shape)} -> {k2} {tuple(self.results[0]['elicited_statistics'][k2].shape)}"  # noqa: E501
+                f"  - {k1} {tuple(self.results[0]['target_quantities'][k1].shape)} -> "
+                f"{k2} {tuple(self.results[0]['elicited_statistics'][k2].shape)}"
                 for k1, k2 in zip(
                     self.results[0]["target_quantities"],
                     self.results[0]["elicited_statistics"],
@@ -385,7 +386,8 @@ class Elicit:
             )
         elif self.dry_run:
             targets_str = "\n".join(
-                f"  - {k1} {tuple(self.dry_targets[k1].shape)} -> {k2} {tuple(self.dry_elicits[k2].shape)} "  # noqa: E501
+                f"  - {k1} {tuple(self.dry_targets[k1].shape)} -> "
+                f"{k2} {tuple(self.dry_elicits[k2].shape)}"
                 for k1, k2 in zip(self.dry_targets, self.dry_elicits)
             )
         else:
@@ -425,9 +427,11 @@ class Elicit:
         summary = (
             f"Model hyperparameters: {get_num_hyperpar}\n"
             f"Model parameters: {len(self.parameters)}\n"
-            f"Targets -> Elicited summaries (loss components){': ' + str(len(self.dry_elicits)) if self.dry_run else ''}\n"  # noqa: E501
+            "Targets -> Elicited summaries (loss components)"
+            f"{': ' + str(len(self.dry_elicits)) if self.dry_run else ''}\n"
             f"{targets_str}\n"
-            f"Prior samples: {self.trainer['num_samples']}{' ' + str(tuple(self.dry_priors.shape)) if self.dry_run else ''}\n"  # noqa: E501
+            f"Prior samples: {self.trainer['num_samples']}"
+            f"{' ' + str(tuple(self.dry_priors.shape)) if self.dry_run else ''}\n"
             f"Batch size: {self.trainer['B']}\n"
             f"Epochs: {self.trainer['epochs']}\n"
             f"Method: {self.trainer['method']}\n"

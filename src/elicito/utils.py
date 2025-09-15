@@ -1160,11 +1160,7 @@ def compute_num_weights(num_NN_weights: list[tf.TensorShape]) -> int:
     :
         number of weights of the model (incl. biases)
     """
-    add_list = []
-    for shape in num_NN_weights:
-        dims = [d if d is not None else 1 for d in shape]
-        prod = 1
-        for d in dims:
-            prod *= d
-        add_list.append(prod)
-    return sum(add_list)
+    return sum(
+        int(tf.reduce_prod([d if d is not None else 1 for d in shape]))
+        for shape in num_NN_weights
+    )
