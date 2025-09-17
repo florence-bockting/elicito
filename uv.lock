@@ -87,20 +87,6 @@ wheels = [
 ]
 
 [[package]]
-name = "arviz-base"
-version = "0.6.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-    { name = "typing-extensions" },
-    { name = "xarray" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9c/7b/9f28551c4f9e8f94d230d55a8bf0e92e38674a269170638ace43b44d265a/arviz_base-0.6.0.tar.gz", hash = "sha256:2278f9f6d13e6278ea4957500c249913625ae1fc205d796242f4d5a06196d01e", size = 1367271, upload-time = "2025-06-16T10:51:30.078Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/0f/6ac58267a870ac5cfa403c32ec30104a97ee88e66d3247ae7ca5acf35f7b/arviz_base-0.6.0-py3-none-any.whl", hash = "sha256:19b54a062ea59ac25b1945cfc4466ed4acfc964d488e8f4b579d8ba157e9fa59", size = 1386282, upload-time = "2025-06-16T10:51:27.688Z" },
-]
-
-[[package]]
 name = "arviz-stats"
 version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -466,7 +452,6 @@ name = "elicito"
 version = "0.6.1a1"
 source = { editable = "." }
 dependencies = [
-    { name = "arviz-base" },
     { name = "joblib" },
     { name = "numpy" },
     { name = "tensorflow" },
@@ -819,7 +804,6 @@ tests-min = [
 
 [package.metadata]
 requires-dist = [
-    { name = "arviz-base", specifier = ">=0.6.0" },
     { name = "arviz-stats", marker = "extra == 'plots'", specifier = ">=0.6.0" },
     { name = "elicito", extras = ["pandas"], marker = "extra == 'full'" },
     { name = "elicito", extras = ["plots"], marker = "extra == 'full'" },
