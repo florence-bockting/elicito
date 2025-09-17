@@ -14,7 +14,8 @@ dependencies = [
     "tensorflow-probability >= 0.24.0",
     "joblib >= 1.4.2",
     "tf-keras >= 2.16.0",
-    "arviz>=0.22.0",
+    "arviz-base>=0.6.0",
+    "xarray>=2025.9.0",
 ]
 readme = "README.md"
 classifiers = [
