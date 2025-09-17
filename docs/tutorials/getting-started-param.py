@@ -265,6 +265,12 @@ eliobj = el.Elicit(
 )
 
 # %% [markdown]
+# Inspect summary of eliobj
+
+# %%
+eliobj
+
+# %% [markdown]
 # **Fit eliobj**
 
 # %%

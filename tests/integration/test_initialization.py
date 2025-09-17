@@ -217,7 +217,7 @@ def test_integration_initialization():
     repr_str = str(eliobj)
     assert "Model hyperparameters:" in repr_str
     assert "Model parameters:" in repr_str
-    assert "Targets (loss components):" in repr_str
+    assert "Targets -> Elicited summaries (loss components):" in repr_str
     assert "Optimizer:" in repr_str
     assert "Initializer:" in repr_str
 

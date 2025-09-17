@@ -12,6 +12,7 @@ from elicito.types import (
     ExpertDict,
     Hyper,
     Initializer,
+    MetaSettings,
     Parameter,
     QueriesDict,
     Target,
@@ -981,3 +982,31 @@ def trainer(  # noqa: PLR0913
         progress=progress,
     )
     return train_dict
+
+
+def meta_settings(dry_run: bool = True) -> MetaSettings:
+    """
+    Specify meta settings.
+
+    Parameters
+    ----------
+    dry_run
+        Whether to perform a dry run before starting the training.
+        If ``dry_run=True``, the generative model is executed in
+        forward mode and the shape information of all tensors are
+        collected and provided in the print method.
+
+    Returns
+    -------
+    meta_dict :
+        dictionary specifying the meta settings.
+
+    Examples
+    --------
+    >>> el.meta_settings()  # doctest: +SKIP
+    """
+    meta_dict: MetaSettings = dict(
+        dry_run=dry_run,
+    )
+
+    return meta_dict
