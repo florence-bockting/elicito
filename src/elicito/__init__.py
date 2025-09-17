@@ -501,7 +501,7 @@ class Elicit:
                     self.history[i], self.results[i], save_history, save_results
                 )
 
-        self.results = _outputs.create_inference_data_obj(self)
+        self.results = _outputs.create_datatree(self)
         delattr(self, "history")
 
     def save(
