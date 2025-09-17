@@ -217,3 +217,13 @@ class Parallel(TypedDict):
     runs: int
     cores: int
     seeds: list[int] | None
+
+
+class MetaSettings(TypedDict):
+    """
+    Typed dictionary for specification of meta settings in `Elicit`
+
+    See [`Elicit`][elicito.Elicit]
+    """
+
+    dry_run: bool

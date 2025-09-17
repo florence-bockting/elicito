@@ -20,6 +20,7 @@ from elicito.targets import (
 )
 from elicito.types import (
     ExpertDict,
+    Initializer,
     NFDict,
     Parallel,
     Parameter,
@@ -1058,3 +1059,108 @@ def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6)
     # reparameterization/linear transformation
     ypred = tf.reduce_sum(tf.multiply(w, c), axis=-1)
     return ypred
+
+
+def dry_run(  # noqa: PLR0913
+    model: dict[str, Any],
+    parameters: list[Parameter],
+    targets: list[Target],
+    trainer: Trainer,
+    initializer: Initializer,
+    network: Optional[NFDict],
+) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any], Any]:
+    """
+    Run generative model in forward mode for a single epoch
+
+    Parameters
+    ----------
+    model
+        User-input from [`model`][elicito.elicit.model].
+
+    parameters
+        User-input from [`parameter`][elicito.elicit.parameter].
+
+    targets
+        User-input from [`target`][elicito.elicit.target].
+
+    trainer
+        User-input from [`trainer`][elicito.elicit.trainer].
+
+    initializer
+        User-input from [`initializer`][elicito.elicit.initializer].
+
+    network
+        User-input from one of the methods implemented in the
+        [`networks`][elicito.networks] module.
+
+    Returns
+    -------
+    :
+        (elicited_statistics, prior_samples, model_simulations,
+        target_quantities, prior_model)
+    """
+    if (
+        trainer["method"] == "parametric_prior"
+        and initializer["distribution"] is not None
+    ):
+        init_matrix = el.initialization.uniform_samples(
+            seed=trainer["seed"],
+            hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
+            n_samples=initializer["iterations"],  # type: ignore [arg-type]
+            method=initializer["method"],  # type: ignore [arg-type]
+            mean=initializer["distribution"]["mean"],
+            radius=initializer["distribution"]["radius"],
+            parameters=parameters,
+        )
+
+        init_matrix_slice = {f"{key}": init_matrix[key][0] for key in init_matrix}
+
+    elif trainer["method"] == "deep_prior" and network is not None:
+        init_matrix_slice = None
+
+    else:
+        init_matrix_slice = initializer["hyperparams"]
+
+    prior_model = Priors(
+        ground_truth=False,
+        init_matrix_slice=init_matrix_slice,
+        trainer=trainer,
+        parameters=parameters,
+        network=network,
+        expert=None,  # type: ignore
+        seed=trainer["seed"],
+    )
+
+    (elicited_statistics, prior_samples, model_simulations, target_quantities) = (
+        one_forward_simulation(
+            prior_model=prior_model, model=model, targets=targets, seed=trainer["seed"]
+        )
+    )
+
+    return (
+        elicited_statistics,
+        prior_samples,
+        model_simulations,
+        target_quantities,
+        prior_model,
+    )
+
+
+def compute_num_weights(num_NN_weights: list[tf.TensorShape]) -> int:
+    """
+    Compute number of weights of a tf.keras model.
+
+    Parameters
+    ----------
+    num_NN_weights :
+        list of tf.TensorShape objects of each layer in the model.
+
+    Returns
+    -------
+    :
+        number of weights of the model (incl. biases)
+    """
+    return sum(
+        int(tf.reduce_prod([d if d is not None else 1 for d in shape]))
+        for shape in num_NN_weights
+    )
