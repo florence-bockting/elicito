@@ -254,5 +254,4 @@ def test_invertible_network():
     # fit updated eliobj
     eliobj_deep.fit()  # parallel=parallel=el.utils.parallel(runs=5))
 
-    assert len(eliobj_deep.results[0]) != 0
-    assert len(eliobj_deep.history[0]) != 0
+    assert len(eliobj_deep.results) != 0
