@@ -41,8 +41,6 @@ from elicito.types import (
     NFDict,
     Parallel,
     Parameter,
-    SaveHist,
-    SaveResults,
     Target,
     Trainer,
 )
@@ -460,8 +458,6 @@ class Elicit:
 
     def fit(
         self,
-        save_history: SaveHist = utils.save_history(),
-        save_results: SaveResults = utils.save_results(),
         overwrite: bool = False,
         parallel: Parallel | None = None,
     ) -> None:
@@ -476,19 +472,6 @@ class Elicit:
             fitting results. Setting ``overwrite=True`` allows the user to
             force overfitting without being prompted.
 
-        save_history
-            Exclude or include sub-results in the final result file.
-            See [`save_history`][elicito.utils.save_history].
-            In the ``history`` object are all results that are saved across epochs.
-            TODO add link to notebook in docs
-
-        save_results
-            Exclude or include sub-results in the final result file.
-            See [`save_results`][elicito.utils.save_results]
-            In the ``results`` object are all results that are saved for the last
-            epoch only.
-            TODO add link to notebook in docs
-
         parallel
             specify parallelization settings if multiple trainings should run
             in parallel. See [`parallel`][elicito.utils.parallel].
@@ -497,11 +480,7 @@ class Elicit:
         --------
         >>> eliobj.fit()  # doctest: +SKIP
 
-        >>> eliobj.fit(overwrite=True,  # doctest: +SKIP
-        >>>            save_history=el.utils.save_history(  # doctest: +SKIP
-        >>>                loss_component=False  # doctest: +SKIP
-        >>>                )  # doctest: +SKIP
-        >>>            )  # doctest: +SKIP
+        >>> eliobj.fit(overwrite=True)  # doctest: +SKIP
 
         >>> eliobj.fit(parallel=el.utils.parallel(runs=4))  # doctest: +SKIP
 
@@ -511,7 +490,7 @@ class Elicit:
 
         # check whether elicit object is already fitted
         refit = True
-        if len(self.history) != 0 and not overwrite:
+        if len(self.results) != 0 and not overwrite:
             user_answ = input(
                 "eliobj is already fitted."
                 + " Do you want to fit it again and overwrite the results?"
@@ -530,18 +509,22 @@ class Elicit:
 
         # run single time if no parallelization is required
         if (parallel is None) and (refit):
+            self.results = []
+            self.history = []
             results, history = self.workflow(self.trainer["seed"])
             # include seed information into results
             results["seed"] = self.trainer["seed"]
-            # remove results that user wants to exclude from saving
-            results_prep, history_prep = utils.clean_savings(
-                history, results, save_history, save_results
-            )
             # save results in list attribute
-            self.history.append(history_prep)
-            self.results.append(results_prep)
+            self.history.append(history)
+            self.results.append(results)
+
+            self.results = _outputs.create_datatree(self)
+            delattr(self, "history")
+
         # run multiple replications
         if (parallel is not None) and (refit):
+            self.results = []
+            self.history = []
             # create a list of seeds if not provided
             if parallel["seeds"] is None:
                 # generate seeds
@@ -561,12 +544,8 @@ class Elicit:
                 self.history.append(res[i][1])
                 self.results[i]["seed"] = seed
 
-                self.results[i], self.history[i] = utils.clean_savings(
-                    self.history[i], self.results[i], save_history, save_results
-                )
-
-        self.results = _outputs.create_datatree(self)
-        delattr(self, "history")
+            self.results = _outputs.create_datatree(self)
+            delattr(self, "history")
 
     def save(
         self,

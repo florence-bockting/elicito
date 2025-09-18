@@ -173,40 +173,6 @@ class NFDict(TypedDict):
     base_distribution: Callable[[Any], Any]
 
 
-class SaveHist(TypedDict):
-    """
-    Typed dictionary for specification of saving `history` results
-
-    See [`save_history`][elicito.utils.save_history]
-    """
-
-    loss: bool
-    time: bool
-    loss_component: bool
-    hyperparameter: bool
-    hyperparameter_gradient: bool
-
-
-class SaveResults(TypedDict):
-    """
-    Typed dictionary for specification of saving `results`
-
-    See [`save_results`][elicito.utils.save_results]
-    """
-
-    target_quantities: bool
-    elicited_statistics: bool
-    prior_samples: bool
-    model_samples: bool
-    expert_elicited_statistics: bool
-    expert_prior_samples: bool
-    init_loss_list: bool
-    init_prior: bool
-    init_matrix: bool
-    loss_tensor_expert: bool
-    loss_tensor_model: bool
-
-
 class Parallel(TypedDict):
     """
     Typed dictionary for specification of parallelization `parallel`
