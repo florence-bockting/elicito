@@ -115,6 +115,85 @@ def to_dataset(obj, group: str, dims: list[str], names_subgroups: str) -> xr.Dat
     return ds
 
 
+def create_initialization_group(eliobj) -> xr.Dataset:
+    """
+    Create result group for initialization runs
+
+    Parameters
+    ----------
+    eliobj :
+        fitted eliobj
+
+    Returns
+    -------
+    :
+        xr.Dataset including information about initial
+        hyperparameter values and corresponding loss per
+        iteration.
+    """
+    init_loss = combine_reps(eliobj.results, "init_loss_list")
+
+    hyp_names = [
+        eliobj.parameters[i]["hyperparams"][k]["name"]
+        for i in range(len(eliobj.parameters))
+        for k in eliobj.parameters[i]["hyperparams"]
+    ]
+
+    init_hyp = xr.DataArray(
+        data=tf.stack(
+            [
+                tf.stack(
+                    [
+                        eliobj.results[i]["init_matrix"][k]
+                        for i in range(len(eliobj.results))
+                    ]
+                )
+                for k in eliobj.results[0]["init_matrix"].keys()
+            ],
+            -1,
+        ),
+        dims=["replication", "iteration", "hyperparameter"],
+        coords=dict(
+            replication=range(len(eliobj.results)),
+            iteration=range(len(eliobj.results[0]["init_loss_list"])),
+            hyperparameter=hyp_names,
+        ),
+        name="hyperparameter",
+        attrs=dict(description="Initial hyperparameter values per iteration."),
+    )
+
+    init_loss = xr.DataArray(
+        data=init_loss[..., 0],
+        dims=["replication", "iteration"],
+        coords=dict(
+            replication=range(len(eliobj.results)),
+            iteration=range(len(eliobj.results[0]["init_loss_list"])),
+        ),
+        name="loss",
+        attrs=dict(
+            description=(
+                "Total loss value corresponding to sampled "
+                "hyperparameter vector per iteration."
+            )
+        ),
+    )
+
+    init = xr.Dataset()
+    init["loss"] = init_loss
+    init["hyperparameters"] = init_hyp
+    init = init.assign_attrs(
+        dict(
+            description=(
+                "Initial hyperparameter vectors and their corresponding "
+                "losses for each iteration during initialization. "
+                "After evaluating all iterations, the hyperparameter vector "
+                "yielding the minimum loss is selected as initial values."
+            )
+        )
+    )
+    return init
+
+
 def create_hyperparameter_group(eliobj) -> xr.Dataset:
     """Create xr.Dataset from hyperparameter results in eliobj
 
@@ -591,5 +670,11 @@ def create_datatree(eliobj) -> xr.DataTree:
     else:
         oracle_ds = create_oracle_ds(eliobj)
         res = res.assign({"oracle": xr.DataTree(oracle_ds)})
+
+    if (eliobj.trainer["method"] == "parametric_prior") and (
+        eliobj.results[0]["init_loss_list"] is not None
+    ):
+        init_ds = create_initialization_group(eliobj)
+        res = res.assign({"initialization": xr.DataTree(init_ds)})
 
     return res
