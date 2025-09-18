@@ -175,6 +175,57 @@ def create_hyperparameter_group(eliobj) -> xr.Dataset:
     return hyp_group
 
 
+def create_marginal_group(eliobj) -> xr.Dataset:
+    """
+    Create xr.Dataset from marginal prior updates
+
+    Summaries information about mean and standard deviation
+    for each marginal prior distribution based on prior
+    samples across epochs.
+
+    Parameters
+    ----------
+    eliobj :
+        fitted eliobj
+
+    Returns
+    -------
+    :
+        xr.Dataset including information about mean and sd
+        of the marginal priors across epochs
+    """
+    param_names = [eliobj.parameters[i]["name"] for i in range(len(eliobj.parameters))]
+
+    marginal_group = xr.Dataset()
+    for m in ["means", "stds"]:
+        marginal_group[m[:-1]] = xr.DataArray(
+            data=tf.stack(
+                [
+                    eliobj.history[i]["hyperparameter"][m]
+                    for i in range(len(eliobj.history))
+                ]
+            ),
+            dims=["replication", "epoch", "parameter"],
+            coords=dict(
+                replication=range(len(eliobj.history)),
+                epoch=range(len(eliobj.history[0]["loss"])),
+                parameter=param_names,
+            ),
+            name=m[:-1],
+        )
+
+    marginal_group = marginal_group.assign_attrs(
+        {
+            "description": (
+                "Updates of mean and standard deviation of the marginal "
+                "prior distribution for each model parameter across epochs. "
+                "Computations are based on samples from the prior distributions."
+            )
+        }
+    )
+    return marginal_group
+
+
 def create_loss_group(eliobj) -> xr.Dataset:
     """
     Create xr.Dataset for loss section
@@ -447,8 +498,10 @@ def create_datatree(eliobj) -> xr.DataTree:
     # Create datasets for history_stats group
     coords = create_hist_corrds(eliobj)
 
+    # loss information across epochs
     loss_ds = create_loss_group(eliobj)
-    hyp_ds = create_hyperparameter_group(eliobj)
+
+    # time per epoch
     time_ds = to_dataarray(
         eliobj.history,
         "time",
@@ -459,6 +512,8 @@ def create_datatree(eliobj) -> xr.DataTree:
             "unit": "seconds",
         },
     ).to_dataset()
+
+    # seed per replication
     seed_ds = to_dataarray(
         eliobj.results,
         "seed",
@@ -466,14 +521,23 @@ def create_datatree(eliobj) -> xr.DataTree:
         "seed_replication",
         {"description": "The seed used for each replication."},
     ).to_dataset()
+
     time_seed_ds = time_ds.merge(seed_ds)
 
+    # hyperparameter or mean and sd for each marginal prior
+    # dependening on the used method
+    history_dict = dict()
+    history_dict["loss"] = xr.DataTree(loss_ds.assign_coords(coords))
+    if eliobj.trainer["method"] == "deep_prior":
+        marginal_ds = create_marginal_group(eliobj)
+        history_dict["prior_marginal"] = xr.DataTree(marginal_ds)
+    else:
+        hyp_ds = create_hyperparameter_group(eliobj)
+        history_dict["hyperparameter"] = xr.DataTree(hyp_ds.assign_coords(coords))
+
+    # combine history information in a tree
     history_stats = xr.DataTree(
-        time_seed_ds.assign_coords(coords),
-        children={
-            "loss": xr.DataTree(loss_ds.assign_coords(coords)),
-            "hyperparameter": xr.DataTree(hyp_ds.assign_coords(coords)),
-        },
+        time_seed_ds.assign_coords(coords), children=history_dict
     )
 
     # Create datasets for remaining groups
