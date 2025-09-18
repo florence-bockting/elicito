@@ -726,7 +726,6 @@ class Elicit:
 
         if self.trainer["method"] == "parametric_prior":
             results["init_loss_list"] = loss_list
-            results["init_prior"] = init_prior_obj
             results["init_matrix"] = init_matrix
 
         return tuple((results, history))
