@@ -1,3 +1,7 @@
+"""
+Create xr.DataTree for eliobj.results
+"""
+
 from collections.abc import Iterable
 from typing import Any, Optional
 
@@ -20,7 +24,7 @@ def create_hist_corrds(eliobj: Any) -> dict[str, Iterable[int]]:
     Returns
     -------
     :
-       mapping for coords property of xr.Dataset
+        mapping for coords property of xr.Dataset
     """
     return dict(
         replication=range(len(eliobj.history)),
