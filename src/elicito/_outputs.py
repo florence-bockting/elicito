@@ -388,7 +388,7 @@ def create_result_group(
     Parameters
     ----------
     eliobj :
-        Object containing results with structure eliobj.results[rep][group][var].
+        fitted eliobj
 
     group :
         Name of the group to extract (e.g. "model_samples").
