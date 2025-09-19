@@ -133,11 +133,17 @@ def create_initialization_group(eliobj) -> xr.Dataset:
     """
     init_loss = combine_reps(eliobj.results, "init_loss_list")
 
-    hyp_names = [
-        eliobj.parameters[i]["hyperparams"][k]["name"]
-        for i in range(len(eliobj.parameters))
-        for k in eliobj.parameters[i]["hyperparams"]
-    ]
+    # use set and then list to remove duplicate labels,
+    # due to pot. hyperparameter sharing
+    hyp_names = list(
+        set(
+            [
+                eliobj.parameters[i]["hyperparams"][k]["name"]
+                for i in range(len(eliobj.parameters))
+                for k in eliobj.parameters[i]["hyperparams"]
+            ]
+        )
+    )
 
     init_hyp = xr.DataArray(
         data=tf.stack(
@@ -208,11 +214,17 @@ def create_hyperparameter_group(eliobj) -> xr.Dataset:
         xr.Dataset with variables corresponding to
         hyperparameter values and their gradients per epoch
     """
-    hyp_names = [
-        eliobj.parameters[i]["hyperparams"][k]["name"]
-        for i in range(len(eliobj.parameters))
-        for k in eliobj.parameters[i]["hyperparams"]
-    ]
+    # transform to set and then list to remove duplicate
+    # names due to pot. sharing of hyperparameters
+    hyp_names = list(
+        set(
+            [
+                eliobj.parameters[i]["hyperparams"][k]["name"]
+                for i in range(len(eliobj.parameters))
+                for k in eliobj.parameters[i]["hyperparams"]
+            ]
+        )
+    )
 
     obj_hyp = tf.stack(
         [
