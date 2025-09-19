@@ -81,6 +81,8 @@ dev = [
     "scipy-stubs<1.15; python_full_version >= '3.11'",
     "joblib-stubs>=1.4.2",
     "pandas-stubs>=2.3.0.250703",
+    # xarray stubs
+    "accessor-stubs>=0.0.1",
     # Required for liccheck, see https://github.com/dhatim/python-license-check/pull/113
     "pip==24.3.1",
     "pre-commit==4.0.1",

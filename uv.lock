@@ -18,6 +18,19 @@ wheels = [
 ]
 
 [[package]]
+name = "accessor-stubs"
+version = "0.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mypy" },
+    { name = "pandas" },
+    { name = "xarray" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/f4/b89dcd3a9cc12642073683c7fb882cbd8b9e0354cc7c3622b917b681aa1d/accessor_stubs-0.0.1-py3-none-any.whl", hash = "sha256:bc42947450735695fb9fd7d67af7145ada8a16fab76af6428e2c55285bd60c52", size = 6353, upload-time = "2024-05-29T16:42:51.007Z" },
+]
+
+[[package]]
 name = "anyio"
 version = "4.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -481,6 +494,7 @@ scipy = [
 
 [package.dev-dependencies]
 all-dev = [
+    { name = "accessor-stubs" },
     { name = "anyio" },
     { name = "appnope", marker = "sys_platform == 'darwin'" },
     { name = "argon2-cffi" },
@@ -627,6 +641,7 @@ all-dev = [
     { name = "websocket-client" },
 ]
 dev = [
+    { name = "accessor-stubs" },
     { name = "cfgv" },
     { name = "click" },
     { name = "colorama", marker = "sys_platform == 'win32'" },
@@ -823,6 +838,7 @@ provides-extras = ["plots", "pandas", "scipy", "full"]
 
 [package.metadata.requires-dev]
 all-dev = [
+    { name = "accessor-stubs", specifier = ">=0.0.1" },
     { name = "anyio", specifier = "==4.8.0" },
     { name = "appnope", marker = "sys_platform == 'darwin'", specifier = "==0.1.4" },
     { name = "argon2-cffi", specifier = "==23.1.0" },
@@ -970,6 +986,7 @@ all-dev = [
     { name = "websocket-client", specifier = "==1.8.0" },
 ]
 dev = [
+    { name = "accessor-stubs", specifier = ">=0.0.1" },
     { name = "cfgv", specifier = "==3.4.0" },
     { name = "click", specifier = "==8.1.8" },
     { name = "colorama", marker = "sys_platform == 'win32'", specifier = "==0.4.6" },
