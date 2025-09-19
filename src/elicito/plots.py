@@ -366,7 +366,7 @@ def prior_joint(
         raise ValueError(
             "The value for 'idx' is larger than the number"
             + " of parallelizations. 'idx' should not exceed"
-            + f" {eliobj.results.prior.sizes["replication"]} but got {len(idx)}."
+            + f" {eliobj.results.prior.sizes['replication']} but got {len(idx)}."
         )
     if eliobj.results.history_stats.loss.sizes["epoch"] < eliobj.trainer["epochs"]:
         seed = eliobj.results.history_stats.seed_replication.sel(replication=idx).values
