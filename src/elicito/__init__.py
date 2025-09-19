@@ -518,7 +518,7 @@ class Elicit:
             self.history.append(history)
             self.results.append(results)
 
-            self.results = _outputs.create_datatree(self)
+            self.results = _outputs.create_datatree(self)  # type: ignore
             delattr(self, "history")
 
         # run multiple replications
@@ -544,7 +544,7 @@ class Elicit:
                 self.history.append(res[i][1])
                 self.results[i]["seed"] = seed
 
-            self.results = _outputs.create_datatree(self)
+            self.results = _outputs.create_datatree(self)  # type: ignore
             delattr(self, "history")
 
     def save(

@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -9,7 +9,7 @@ MAIN_DIMS = ["replication", "epoch"]
 """main dimensions for history result objects"""
 
 
-def create_hist_corrds(eliobj) -> dict[str, Iterable]:
+def create_hist_corrds(eliobj: Any) -> dict[str, Iterable[int]]:
     """Create coordinates for dim: replication, epoch
 
     Parameters
@@ -28,7 +28,7 @@ def create_hist_corrds(eliobj) -> dict[str, Iterable]:
     )
 
 
-def combine_reps(obj, group: str) -> tf.Tensor:
+def combine_reps(obj: Any, group: str) -> tf.Tensor:
     """
     Stack replication dimension
 
@@ -48,11 +48,16 @@ def combine_reps(obj, group: str) -> tf.Tensor:
     tf.Tensor
         stacked tensor with shape (replication, ...)
     """
-    return tf.stack([obj[i][group] for i in range(len(obj))])
+    stacked: tf.Tensor = tf.stack([obj[i][group] for i in range(len(obj))])
+    return stacked
 
 
 def to_dataarray(
-    obj, group: str, dims: list[str], name: str, attrs: Optional[dict[str, str]] = None
+    obj: Any,
+    group: str,
+    dims: list[str],
+    name: str,
+    attrs: Optional[dict[str, str]] = None,
 ) -> xr.DataArray:
     """
     Create xr.DataArray for eliobj result
@@ -82,10 +87,13 @@ def to_dataarray(
         xr.DataArray from eliobj result dictionary
     """
     obj_reps = combine_reps(obj, group)
-    return xr.DataArray(data=np.stack(obj_reps), dims=dims, name=name, attrs=attrs)
+    stacked = np.stack(obj_reps)  # type: ignore
+    return xr.DataArray(data=stacked, dims=dims, name=name, attrs=attrs)
 
 
-def to_dataset(obj, group: str, dims: list[str], names_subgroups: str) -> xr.Dataset:
+def to_dataset(
+    obj: Any, group: str, dims: list[str], names_subgroups: str | list[str]
+) -> xr.Dataset:
     """
     Create a xr.Dataset from eliobj results
 
@@ -111,11 +119,11 @@ def to_dataset(obj, group: str, dims: list[str], names_subgroups: str) -> xr.Dat
     ds = xr.Dataset()
     obj_reps = combine_reps(obj, group)
     for i, name in enumerate(names_subgroups):
-        ds[name] = xr.DataArray(data=np.stack(obj_reps)[..., i], dims=dims, name=name)
+        ds[name] = xr.DataArray(data=np.stack(obj_reps)[..., i], dims=dims, name=name)  # type: ignore
     return ds
 
 
-def create_initialization_group(eliobj) -> xr.Dataset:
+def create_initialization_group(eliobj: Any) -> xr.Dataset:
     """
     Create result group for initialization runs
 
@@ -145,7 +153,7 @@ def create_initialization_group(eliobj) -> xr.Dataset:
         )
     )
 
-    init_hyp = xr.DataArray(
+    da_init_hyp = xr.DataArray(
         data=tf.stack(
             [
                 tf.stack(
@@ -168,8 +176,8 @@ def create_initialization_group(eliobj) -> xr.Dataset:
         attrs=dict(description="Initial hyperparameter values per iteration."),
     )
 
-    init_loss = xr.DataArray(
-        data=init_loss[..., 0],
+    da_init_loss = xr.DataArray(
+        data=init_loss[..., 0],  # type: ignore[index]
         dims=["replication", "iteration"],
         coords=dict(
             replication=range(len(eliobj.results)),
@@ -185,8 +193,8 @@ def create_initialization_group(eliobj) -> xr.Dataset:
     )
 
     init = xr.Dataset()
-    init["loss"] = init_loss
-    init["hyperparameters"] = init_hyp
+    init["loss"] = da_init_loss
+    init["hyperparameters"] = da_init_hyp
     init = init.assign_attrs(
         dict(
             description=(
@@ -200,7 +208,7 @@ def create_initialization_group(eliobj) -> xr.Dataset:
     return init
 
 
-def create_hyperparameter_group(eliobj) -> xr.Dataset:
+def create_hyperparameter_group(eliobj: Any) -> xr.Dataset:
     """Create xr.Dataset from hyperparameter results in eliobj
 
     Parameters
@@ -266,7 +274,7 @@ def create_hyperparameter_group(eliobj) -> xr.Dataset:
     return hyp_group
 
 
-def create_marginal_group(eliobj) -> xr.Dataset:
+def create_marginal_group(eliobj: Any) -> xr.Dataset:
     """
     Create xr.Dataset from marginal prior updates
 
@@ -317,7 +325,7 @@ def create_marginal_group(eliobj) -> xr.Dataset:
     return marginal_group
 
 
-def create_loss_group(eliobj) -> xr.Dataset:
+def create_loss_group(eliobj: Any) -> xr.Dataset:
     """
     Create xr.Dataset for loss section
 
@@ -364,7 +372,7 @@ def create_loss_group(eliobj) -> xr.Dataset:
 
 
 def create_result_group(
-    eliobj,
+    eliobj: Any,
     group: str,
     description: str,
     dim_name: Optional[str] = None,
@@ -424,7 +432,7 @@ def create_result_group(
     return ds_group
 
 
-def create_prior_ds(eliobj) -> xr.Dataset:
+def create_prior_ds(eliobj: Any) -> xr.Dataset:
     """Create prior group for Inference data
 
     Parameters
@@ -472,7 +480,7 @@ def create_prior_ds(eliobj) -> xr.Dataset:
     return ds_prior
 
 
-def create_oracle_ds(eliobj) -> xr.Dataset:
+def create_oracle_ds(eliobj: Any) -> xr.Dataset:
     """Create oracle group for Inference data
 
     Parameters
@@ -536,7 +544,7 @@ def create_oracle_ds(eliobj) -> xr.Dataset:
     return xr.merge([ds_oracle, ds_elicit])
 
 
-def create_expert_ds(eliobj) -> xr.Dataset:
+def create_expert_ds(eliobj: Any) -> xr.Dataset:
     """
     Create expert group
 
@@ -567,7 +575,7 @@ def create_expert_ds(eliobj) -> xr.Dataset:
     return ds_elicit
 
 
-def create_datatree(eliobj) -> xr.DataTree:
+def create_datatree(eliobj: Any) -> xr.DataTree:
     """
     Create data tree as final result object
 
