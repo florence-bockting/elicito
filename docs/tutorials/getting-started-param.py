@@ -256,7 +256,7 @@ eliobj = el.Elicit(
     optimizer=el.optimizer(
         optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
     ),
-    trainer=el.trainer(method="parametric_prior", seed=2025, epochs=200, progress=0),
+    trainer=el.trainer(method="parametric_prior", seed=2025, epochs=600, progress=0),
     initializer=el.initializer(
         method="sobol",
         iterations=32,
@@ -265,7 +265,7 @@ eliobj = el.Elicit(
 )
 
 # %% [markdown]
-# Inspect summary of eliobj
+# **Inspect summary of eliobj**
 
 # %%
 eliobj
@@ -276,6 +276,9 @@ eliobj
 # %%
 eliobj.fit(parallel=el.utils.parallel())
 
+# %% [markdown]
+# **Inspect results**
+
 # %%
 eliobj.results
 
@@ -284,7 +287,8 @@ eliobj.results
 # ### Initialization of hyperparameters
 
 # %%
-el.plots.initialization(eliobj, cols=5);
+fig, axes = el.plots.initialization(eliobj, cols=4)
+[axes[i].set_title(rf"${hyp}$") for i, hyp in enumerate(["\mu_0", "\sigma_0", "\mu_2", "\sigma_1", "\sigma_2"])];
 
 # %% [markdown]
 # ### Convergence - Loss
@@ -296,19 +300,26 @@ el.plots.loss(eliobj);
 # ### Convergence - hyperparameters
 
 # %%
-el.plots.hyperparameter(eliobj);
+fig, axs = el.plots.hyperparameter(eliobj, cols=5)
+[axs[i].set_title(rf"${hyp}$") for i, hyp in enumerate(["\mu_0", "\sigma_0", "\mu_2", "\sigma_1", "\sigma_2"])];
 
 # %% [markdown]
 # ### Expert expectations
 
 # %%
-el.plots.elicits(eliobj, cols=4);
+fig, axes = el.plots.elicits(eliobj, cols=4);
 
 # %% [markdown]
 # ### Learned prior distributions
 
 # %%
 el.plots.prior_marginals(eliobj, cols=3);
+
+# %%
+el.plots.priorpredictive(eliobj, target="R2");
+
+# %%
+el.plots.prior_averaging(eliobj);
 
 # %% [markdown]
 # ## Add-on: Shared parameters
@@ -389,7 +400,7 @@ expert_dat = {
     "quantiles_y_X0": [-12.5, -0.6, 3.3, 7.1, 19.1],
     "quantiles_y_X1": [-11.2, 1.5, 5.0, 8.8, 20.4],
     "quantiles_y_X2": [-9.3, 3.1, 6.8, 10.5, 23.3],
-    "quantiles_R2": [0.001, 0.02, 0.09, 0.41, 0.96],
+    "quantiles_R2": [0.001, 0.09, 0.96]
 }
 
 # update expert in eliobj

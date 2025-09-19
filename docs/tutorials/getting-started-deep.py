@@ -281,7 +281,7 @@ eliobj = el.Elicit(
 )
 
 # %% [markdown]
-# Print a summary of eliobj
+# **Print a summary of eliobj**
 
 # %%
 eliobj
@@ -293,13 +293,10 @@ eliobj
 eliobj.fit()
 
 # %% [markdown]
-# Inspect saved results
+# **Inspect saved results**
 
 # %%
-eliobj.history[0].keys()
-
-# %%
-eliobj.results[0].keys()
+eliobj.results
 
 # %% [markdown]
 # ## Results
@@ -315,6 +312,10 @@ el.plots.loss(eliobj);
 
 # %%
 el.plots.hyperparameter(eliobj);
+
+# %%
+fig, axs = el.plots.marginals(eliobj)
+fig.set_size_inches(8.5, 3.5)
 
 # %% [markdown]
 # ### Expert expectations
