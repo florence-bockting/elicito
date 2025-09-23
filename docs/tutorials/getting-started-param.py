@@ -288,7 +288,8 @@ eliobj.results
 
 # %%
 fig, axes = el.plots.initialization(eliobj, cols=4)
-[axes[i].set_title(rf"${hyp}$") for i, hyp in enumerate(["\mu_0", "\sigma_0", "\mu_2", "\sigma_1", "\sigma_2"])];
+for i, hyp in enumerate(["\mu_0", "\sigma_0", "\mu_2", "\sigma_1", "\sigma_2"]):
+    axes[i].set_title(rf"${hyp}$")
 
 # %% [markdown]
 # ### Convergence - Loss
@@ -301,13 +302,14 @@ el.plots.loss(eliobj);
 
 # %%
 fig, axs = el.plots.hyperparameter(eliobj, cols=5)
-[axs[i].set_title(rf"${hyp}$") for i, hyp in enumerate(["\mu_0", "\sigma_0", "\mu_2", "\sigma_1", "\sigma_2"])];
+for i, hyp in enumerate(["\mu_0", "\sigma_0", "\mu_2", "\sigma_1", "\sigma_2"]):
+    axs[i].set_title(rf"${hyp}$")
 
 # %% [markdown]
 # ### Expert expectations
 
 # %%
-fig, axes = el.plots.elicits(eliobj, cols=4);
+el.plots.elicits(eliobj, cols=4);
 
 # %% [markdown]
 # ### Learned prior distributions

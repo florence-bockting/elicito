@@ -311,7 +311,7 @@ el.plots.loss(eliobj);
 # ### Convergence - hyperparameters
 
 # %%
-fig, axs = el.plots.marginals(eliobj)
+fig, _ = el.plots.marginals(eliobj)
 fig.set_size_inches(8.5, 3.5)
 
 # %% [markdown]
