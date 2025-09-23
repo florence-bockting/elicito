@@ -14,6 +14,7 @@ dependencies = [
     "tensorflow-probability >= 0.24.0",
     "joblib >= 1.4.2",
     "tf-keras >= 2.16.0",
+    "xarray>=2025.9.0",
 ]
 readme = "README.md"
 classifiers = [
@@ -80,6 +81,8 @@ dev = [
     "scipy-stubs<1.15; python_full_version >= '3.11'",
     "joblib-stubs>=1.4.2",
     "pandas-stubs>=2.3.0.250703",
+    # xarray stubs
+    "accessor-stubs>=0.0.1",
     # Required for liccheck, see https://github.com/dhatim/python-license-check/pull/113
     "pip==24.3.1",
     "pre-commit==4.0.1",
@@ -420,6 +423,7 @@ authorized_licenses = [
     "apache software license",
     "Apache License, Version 2.0",
     "Apache License 2.0",
+    "Apache-2.0",
     "CMU License (MIT-CMU)",
     "Historical Permission Notice and Disclaimer (HPND)",
     "isc",

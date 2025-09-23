@@ -30,7 +30,6 @@ import shutil
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
-import copy
 from typing import Any, Union
 
 import numpy as np
@@ -250,53 +249,19 @@ eliobj_m1
 # + results saved only for the last epoch are stored in `results`
 
 # %%
-# information saved in the history object
-print(eliobj_m1.history[0].keys())
-
 # information saved in the results object
-print(eliobj_m1.results[0].keys())
-
-# %% [markdown]
-# ### Save only subset of results
-# Sometimes you don't want to save all possible results
-# but only a relevant subset.
-# You can control this by the arguments `save_configs_history` and
-# `save_configs_results` in the `el.trainer` callable.
-#
-# **Example**
-#
-# I don't want to save information about the hyperparameter gradients and
-# the single loss components.
-# This can be done as follows:
-
-# %%
-eliobj_m2 = copy.deepcopy(eliobj_m1)
-
-# update eliobj_m1 by changing the saving settings
-trainer_new = el.trainer(method="parametric_prior", seed=0, epochs=4, progress=0)
-eliobj_m2.update(trainer=trainer_new)
-
-# fit updated eliobj
-eliobj_m2.fit(
-    save_history=el.utils.save_history(
-        hyperparameter_gradient=False, loss_component=False
-    )
-)
-
-# inspect saved results
-# note that loss_component and hyperparameter_gradient are not saved
-eliobj_m2.history[0].keys()
+list(eliobj_m1.results.groups)
 
 # %% [markdown]
 # ## Save and reload the *fitted* eliobj
 
 # %%
 # save the fitted object
-eliobj_m2.save(name="m2")
+eliobj_m1.save(name="m2")
 
 # load the fitted object
-eliobj_m2_reload = el.utils.load("./results/parametric_prior/m2_0.pkl")
-eliobj_m2_reload.history[0]["loss"]
+eliobj_m1_reload = el.utils.load("./results/parametric_prior/m2_0.pkl")
+eliobj_m1_reload.results
 
 # %% [markdown]
 # ## Q & A
@@ -321,7 +286,7 @@ eliobj_m2_reload.history[0]["loss"]
 # `overwrite=True` to enable re-fitting without any prompts.
 
 # %%
-eliobj_m2_reload.fit(overwrite=True)
+eliobj_m1_reload.fit(overwrite=True)
 
 # %% [markdown]
 # ### Can I overwrite an eliobj that already exits as file on disk?
@@ -340,4 +305,4 @@ eliobj_m2_reload.fit(overwrite=True)
 # ### Can I force overwriting an existing eliobj file?
 
 # %%
-eliobj_m2_reload.save(name="m2", overwrite=True)
+eliobj_m1_reload.save(name="m1", overwrite=True)

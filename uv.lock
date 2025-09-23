@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12' and sys_platform == 'win32'",
@@ -15,6 +15,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/10/2a/c93173ffa1b39c1d0395b7e842bbdc62e556ca9d8d3b5572926f3e4ca752/absl_py-2.3.1.tar.gz", hash = "sha256:a97820526f7fbfd2ec1bce83f3f25e3a14840dac0d8e02a0b71cd75db3f77fc9", size = 116588, upload-time = "2025-07-03T09:31:44.05Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8f/aa/ba0014cc4659328dc818a28827be78e6d97312ab0cb98105a770924dc11e/absl_py-2.3.1-py3-none-any.whl", hash = "sha256:eeecf07f0c2a93ace0772c92e596ace6d3d3996c042b2128459aaae2a76de11d", size = 135811, upload-time = "2025-07-03T09:31:42.253Z" },
+]
+
+[[package]]
+name = "accessor-stubs"
+version = "0.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mypy" },
+    { name = "pandas" },
+    { name = "xarray" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/f4/b89dcd3a9cc12642073683c7fb882cbd8b9e0354cc7c3622b917b681aa1d/accessor_stubs-0.0.1-py3-none-any.whl", hash = "sha256:bc42947450735695fb9fd7d67af7145ada8a16fab76af6428e2c55285bd60c52", size = 6353, upload-time = "2024-05-29T16:42:51.007Z" },
 ]
 
 [[package]]
@@ -458,6 +471,7 @@ dependencies = [
     { name = "tensorflow-probability" },
     { name = "tf-keras" },
     { name = "tqdm" },
+    { name = "xarray" },
 ]
 
 [package.optional-dependencies]
@@ -480,6 +494,7 @@ scipy = [
 
 [package.dev-dependencies]
 all-dev = [
+    { name = "accessor-stubs" },
     { name = "anyio" },
     { name = "appnope", marker = "sys_platform == 'darwin'" },
     { name = "argon2-cffi" },
@@ -626,6 +641,7 @@ all-dev = [
     { name = "websocket-client" },
 ]
 dev = [
+    { name = "accessor-stubs" },
     { name = "cfgv" },
     { name = "click" },
     { name = "colorama", marker = "sys_platform == 'win32'" },
@@ -816,11 +832,13 @@ requires-dist = [
     { name = "tensorflow-probability", specifier = ">=0.24.0" },
     { name = "tf-keras", specifier = ">=2.16.0" },
     { name = "tqdm", specifier = ">=4.38" },
+    { name = "xarray", specifier = ">=2025.9.0" },
 ]
 provides-extras = ["plots", "pandas", "scipy", "full"]
 
 [package.metadata.requires-dev]
 all-dev = [
+    { name = "accessor-stubs", specifier = ">=0.0.1" },
     { name = "anyio", specifier = "==4.8.0" },
     { name = "appnope", marker = "sys_platform == 'darwin'", specifier = "==0.1.4" },
     { name = "argon2-cffi", specifier = "==23.1.0" },
@@ -968,6 +986,7 @@ all-dev = [
     { name = "websocket-client", specifier = "==1.8.0" },
 ]
 dev = [
+    { name = "accessor-stubs", specifier = ">=0.0.1" },
     { name = "cfgv", specifier = "==3.4.0" },
     { name = "click", specifier = "==8.1.8" },
     { name = "colorama", marker = "sys_platform == 'win32'", specifier = "==0.4.6" },
@@ -3604,4 +3623,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/17/27/4fe749a54e7fae6e7146f1c7d914d28ef599dacd4416566c055564080fe2/wrapt-1.17.2-cp312-cp312-win32.whl", hash = "sha256:468090021f391fe0056ad3e807e3d9034e0fd01adcd3bdfba977b6fdf4213ea9", size = 36672, upload-time = "2025-01-14T10:34:17.727Z" },
     { url = "https://files.pythonhosted.org/packages/15/06/1dbf478ea45c03e78a6a8c4be4fdc3c3bddea5c8de8a93bc971415e47f0f/wrapt-1.17.2-cp312-cp312-win_amd64.whl", hash = "sha256:ec89ed91f2fa8e3f52ae53cd3cf640d6feff92ba90d62236a81e4e563ac0e991", size = 38865, upload-time = "2025-01-14T10:34:19.577Z" },
     { url = "https://files.pythonhosted.org/packages/2d/82/f56956041adef78f849db6b289b282e72b55ab8045a75abad81898c28d19/wrapt-1.17.2-py3-none-any.whl", hash = "sha256:b18f2d1533a71f069c7f82d524a52599053d4c7166e9dd374ae2136b7f40f7c8", size = 23594, upload-time = "2025-01-14T10:35:44.018Z" },
+]
+
+[[package]]
+name = "xarray"
+version = "2025.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pandas" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4e/0b/bbb76e05c8e2099baf90e259c29cafe6a525524b1d1da8bfbc39577c043e/xarray-2025.9.0.tar.gz", hash = "sha256:7dd6816fe0062c49c5e9370dd483843bc13e5ed80a47a9ff10baff2b51e070fb", size = 3040318, upload-time = "2025-09-04T04:20:26.296Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8d/f0/73c24457c941b8b08f7d090853e40f4b2cdde88b5da721f3f28e98df77c9/xarray-2025.9.0-py3-none-any.whl", hash = "sha256:79f0e25fb39571f612526ee998ee5404d8725a1db3951aabffdb287388885df0", size = 1349595, upload-time = "2025-09-04T04:20:24.36Z" },
 ]

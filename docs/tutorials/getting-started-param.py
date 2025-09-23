@@ -220,7 +220,7 @@ targets = [
     ),
     el.target(
         name="R2",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
+        query=el.queries.quantiles((0.05, 0.50, 0.95)),
         loss=el.losses.L2,
         weight=0.5,
         target_method=custom_r2,
@@ -265,7 +265,7 @@ eliobj = el.Elicit(
 )
 
 # %% [markdown]
-# Inspect summary of eliobj
+# **Inspect summary of eliobj**
 
 # %%
 eliobj
@@ -274,14 +274,22 @@ eliobj
 # **Fit eliobj**
 
 # %%
-eliobj.fit()
+eliobj.fit(parallel=el.utils.parallel())
+
+# %% [markdown]
+# **Inspect results**
+
+# %%
+eliobj.results
 
 # %% [markdown]
 # ## Results
 # ### Initialization of hyperparameters
 
 # %%
-el.plots.initialization(eliobj, cols=5);
+fig, axes = el.plots.initialization(eliobj, cols=4)
+for i, hyp in enumerate(["\mu_0", "\sigma_0", "\mu_2", "\sigma_1", "\sigma_2"]):
+    axes[i].set_title(rf"${hyp}$")
 
 # %% [markdown]
 # ### Convergence - Loss
@@ -293,7 +301,9 @@ el.plots.loss(eliobj);
 # ### Convergence - hyperparameters
 
 # %%
-el.plots.hyperparameter(eliobj);
+fig, axs = el.plots.hyperparameter(eliobj, cols=5)
+for i, hyp in enumerate(["\mu_0", "\sigma_0", "\mu_2", "\sigma_1", "\sigma_2"]):
+    axs[i].set_title(rf"${hyp}$")
 
 # %% [markdown]
 # ### Expert expectations
@@ -306,6 +316,12 @@ el.plots.elicits(eliobj, cols=4);
 
 # %%
 el.plots.prior_marginals(eliobj, cols=3);
+
+# %%
+el.plots.priorpredictive(eliobj, target="R2");
+
+# %%
+el.plots.prior_averaging(eliobj);
 
 # %% [markdown]
 # ## Add-on: Shared parameters
@@ -386,7 +402,7 @@ expert_dat = {
     "quantiles_y_X0": [-12.5, -0.6, 3.3, 7.1, 19.1],
     "quantiles_y_X1": [-11.2, 1.5, 5.0, 8.8, 20.4],
     "quantiles_y_X2": [-9.3, 3.1, 6.8, 10.5, 23.3],
-    "quantiles_R2": [0.001, 0.02, 0.09, 0.41, 0.96],
+    "quantiles_R2": [0.001, 0.09, 0.96]
 }
 
 # update expert in eliobj

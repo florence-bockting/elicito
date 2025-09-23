@@ -1,3 +1,4 @@
+import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp
 
@@ -8,6 +9,8 @@ tfd = tfp.distributions
 
 
 def test_parametric_prior():
+    pytest.importorskip("scipy")
+
     class GenerativeModel:
         def __call__(self, prior_samples, design_matrix, n_gr):
             # extract prior samples per parameter type
@@ -112,6 +115,8 @@ def test_parametric_prior():
 
 
 def test_invertible_network():
+    pytest.importorskip("scipy")
+
     class GenerativeModel:
         def __call__(self, prior_samples, design_matrix, n_gr):
             # extract prior samples per parameter type
@@ -254,5 +259,4 @@ def test_invertible_network():
     # fit updated eliobj
     eliobj_deep.fit()  # parallel=parallel=el.utils.parallel(runs=5))
 
-    assert len(eliobj_deep.results[0]) != 0
-    assert len(eliobj_deep.history[0]) != 0
+    assert len(eliobj_deep.results) != 0

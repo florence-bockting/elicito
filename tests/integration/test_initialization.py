@@ -225,30 +225,17 @@ def test_integration_initialization():
 
     # check that initial values drawn from the initialization distribution
     # match with the specification of the initialization distr.
-    for k, t in zip(eliobj.results[0]["init_matrix"], [0.0, 1.0, 2.0, 3.0]):
-        assert tf.reduce_mean(
-            eliobj.results[0]["init_matrix"][k]
-        ).numpy() == pytest.approx(t, abs=0.01)
-
-    # check whether initialized hyperparameter correspond to drawn initial
-    # values
-    hist = eliobj.history[0]
-    res = eliobj.results[0]
-    assert hist["hyperparameter"]["mu0"][0] == res["init_matrix"]["mu0"]
-    assert hist["hyperparameter"]["mu1"][0] == res["init_matrix"]["mu1"]
-    assert hist["hyperparameter"]["sigma0"][0] == pytest.approx(
-        res["init_matrix"]["sigma0"], abs=0.5
-    )
-    assert hist["hyperparameter"]["sigma1"][0] == pytest.approx(
-        res["init_matrix"]["sigma1"], abs=0.5
+    np.testing.assert_array_almost_equal(
+        eliobj.results.initialization.hyperparameters.mean(
+            ("replication", "iteration")
+        ),
+        [0.0, 1.0, 2.0, 3.0],
+        decimal=2,
     )
 
     # check whether prior samples reflect corresponding initial hyperparameter
-    means = tf.reduce_mean(res["prior_samples"], (0, 1))
-    stds = tf.reduce_mean(tf.math.reduce_std(res["prior_samples"], 1), 0)
+    means = eliobj.results.prior.mean().to_dataset().to_array().values
+    stds = eliobj.results.prior.std().to_dataset().to_array().values
 
-    for m, t in zip(means, [0.0, 1.0]):
-        assert abs(m.numpy()) == pytest.approx(t, abs=0.03)
-
-    for s, t in zip(stds, [2.0, 3.0]):
-        assert s.numpy() == pytest.approx(t, abs=0.13)
+    np.testing.assert_allclose(means, [0.0, 1.0], atol=0.03)
+    np.testing.assert_allclose(stds, [2.0, 3.0], atol=0.13)

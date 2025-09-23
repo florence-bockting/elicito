@@ -4,7 +4,6 @@ helper functions for setting up the Elicit object
 
 import os
 import pickle
-import warnings
 from typing import Any, Optional
 
 import cloudpickle  # type: ignore
@@ -24,8 +23,6 @@ from elicito.types import (
     NFDict,
     Parallel,
     Parameter,
-    SaveHist,
-    SaveResults,
     Target,
     Trainer,
 )
@@ -580,8 +577,13 @@ def save(
         storage["initializer"] = eliobj.initializer
         storage["network"] = eliobj.network
         # results
-        storage["results"] = eliobj.results
-        storage["history"] = eliobj.history
+        try:
+            eliobj.history
+        except:  # noqa: E722
+            storage["results"] = eliobj.results
+        else:
+            storage["results"] = eliobj.results
+            storage["history"] = eliobj.history
 
         save_as_pkl(storage, path + ".pkl")
         print(f"saved in: {path}.pkl")
@@ -624,8 +626,13 @@ def load(file: str) -> Any:
     )
 
     # add results if already fitted
-    eliobj.history = obj["history"]
-    eliobj.results = obj["results"]
+    try:
+        obj["history"]
+    except:  # noqa: E722
+        eliobj.results = obj["results"]
+    else:
+        eliobj.history = obj["history"]
+        eliobj.results = obj["results"]
 
     return eliobj
 
@@ -664,265 +671,6 @@ def parallel(
         parallel_dict["cores"] = runs
 
     return parallel_dict
-
-
-def save_history(
-    loss: bool = True,
-    loss_component: bool = True,
-    time: bool = True,
-    hyperparameter: bool = True,
-    hyperparameter_gradient: bool = True,
-) -> SaveHist:
-    """
-    Control sub-results of the history object
-
-    define which results should be included or excluded.
-    Results are saved across epochs.
-    By default all sub-results are included.
-
-    Parameters
-    ----------
-    loss
-        Total loss per epoch.
-
-    loss_component
-        Loss per loss-component per epoch.
-
-    time
-        Time in sec per epoch.
-
-    hyperparameter
-        'parametric_prior' method: Trainable hyperparameters of parametric
-        prior distributions.
-        'deep_prior' method: Mean and standard deviation of each marginal
-        from the joint prior.
-
-    hyperparameter_gradient
-        Gradients of the hyperparameter. Only for 'parametric_prior' method.
-
-    Returns
-    -------
-    save_hist_dict :
-        dictionary with inclusion/exclusion settings for each sub-result in
-        history object.
-
-    Warnings
-    --------
-    if ``loss_component`` or ``loss`` are excluded, :func:`elicit.plots.loss`
-    can't be used as it requires this information.
-
-    if ``hyperparameter`` is excluded, :func:`elicit.plots.hyperparameter`
-    can't be used as it requires this information.
-    Only parametric_prior method.
-
-    if ``hyperparameter`` is excluded, :func:`elicit.plots.marginals`
-    can't be used as it requires this information.
-    Only deep_prior method.
-
-    """
-    if not loss or not loss_component:
-        warnings.warn(
-            "el.plots.loss() requires information about "
-            + "'loss' and 'loss_component'. If you don't save this information "
-            + "el.plot.loss() can't be used."
-        )
-    if not hyperparameter:
-        warnings.warn(
-            "el.plots.hyperparameter() and el.plots.marginals() require"
-            + " information about 'hyperparameter'. If you don't save this"
-            + " information these plots can't be used."
-        )
-
-    save_hist_dict: SaveHist = dict(
-        loss=loss,
-        time=time,
-        loss_component=loss_component,
-        hyperparameter=hyperparameter,
-        hyperparameter_gradient=hyperparameter_gradient,
-    )
-    return save_hist_dict
-
-
-def save_results(  # noqa: PLR0913
-    target_quantities: bool = True,
-    elicited_statistics: bool = True,
-    prior_samples: bool = True,
-    model_samples: bool = True,
-    expert_elicited_statistics: bool = True,
-    expert_prior_samples: bool = True,
-    init_loss_list: bool = True,
-    init_prior: bool = True,
-    init_matrix: bool = True,
-    loss_tensor_expert: bool = True,
-    loss_tensor_model: bool = True,
-) -> SaveResults:
-    """
-    Control sub-results of the result object
-
-    Specify whether results should be included or excluded in the final result file.
-    Results are based on the computation of the last epoch.
-    By default all sub-results are included.
-
-    Parameters
-    ----------
-    target_quantities
-        simulation-based target quantities.
-
-    elicited_statistics
-        simulation-based elicited statistics.
-
-    prior_samples
-        samples from simulation-based prior distributions.
-
-    model_samples
-        output variables from the simulation-based generative model.
-
-    expert_elicited_statistics
-        expert-elicited statistics.
-
-    expert_prior_samples
-        if oracle is used: samples from the true prior distribution,
-        otherwise it is None.
-
-    init_loss_list
-        initialization phase: Losses related to the samples drawn from the
-        initialization distribution.
-        Only included for method 'parametric_prior'.
-
-    init_prior
-        initialized elicit model object including the trainable variables.
-        Only included for method 'parametric_prior'.
-
-    init_matrix
-        initialization phase: samples drawn from the initialization
-        distribution for each hyperparameter.
-        Only included for method 'parametric_prior'.
-
-    loss_tensor_expert
-        expert term in loss component for computing the discrepancy.
-
-    loss_tensor_model
-        simulation-based term in loss component for computing the
-        discrepancy.
-
-    Returns
-    -------
-    save_res_dict :
-        dictionary with inclusion/exclusion settings for each sub-result
-        in results object.
-
-    Warnings
-    --------
-    if ``elicited_statistics`` is excluded :func:`elicit.plots.loss` can't be
-    used as it requires this information.
-
-    if ``init_matrix`` is excluded :func:`elicit.plots.initialization` can't be
-    used as it requires this information.
-
-    if ``prior_samples`` is excluded :func:`elicit.plots.prior_joint` can't be
-    used as it requires this information.
-
-    if ``target_quantities`` is excluded :func:`elicit.plots.priorpredictive`
-    can't be used as it requires this information.
-
-    if ``expert_elicited_statistics`` or ``elicited_statistics`` is
-    excluded :func:`elicit.plots.elicits` can't be used as it requires this
-    information.
-
-    """
-    if not elicited_statistics:
-        warnings.warn(
-            "el.plots.loss() requires information about "
-            + "'elicited_statistics'. If you don't save this information "
-            + "el.plot.loss() can't be used."
-        )
-    if not init_matrix:
-        warnings.warn(
-            "el.plots.initialization() requires information about "
-            + "'init_matrix'. If you don't save this information "
-            + "this plotting function can't be used."
-        )
-    if not prior_samples:
-        warnings.warn(
-            "el.plots.priors() requires information about "
-            + "'prior_samples'. If you don't save this information "
-            + "this plotting function can't be used."
-        )
-    if not target_quantities:
-        warnings.warn(
-            "el.plots.priorpredictive() requires information about "
-            + "'target_quantities'. If you don't save this information "
-            + "this plotting function can't be used."
-        )
-    if (not expert_elicited_statistics) or (not elicited_statistics):
-        warnings.warn(
-            "el.plots.elicits() requires information about "
-            + "'expert_elicited_statistics' and 'elicited_statistics'. "
-            + "If you don't save this information this plotting function"
-            + " can't be used."
-        )
-
-    save_res_dict: SaveResults = dict(
-        target_quantities=target_quantities,
-        elicited_statistics=elicited_statistics,
-        prior_samples=prior_samples,
-        model_samples=model_samples,
-        expert_elicited_statistics=expert_elicited_statistics,
-        expert_prior_samples=expert_prior_samples,
-        init_loss_list=init_loss_list,
-        init_prior=init_prior,
-        init_matrix=init_matrix,
-        loss_tensor_expert=loss_tensor_expert,
-        loss_tensor_model=loss_tensor_model,
-    )
-    return save_res_dict
-
-
-def clean_savings(
-    history: dict[str, Any],
-    results: dict[str, Any],
-    save_history: SaveHist,
-    save_results: SaveResults,
-) -> tuple[dict[Any, Any], dict[Any, Any]]:
-    """
-    clean-up result dictionaries
-
-    Parameters
-    ----------
-    history
-        Results that are saved across epochs including among others loss,
-        loss_component, time, and hyperparameter.
-        See [`save_history`][elicito.utils.save_history] for complete list.
-
-    results
-        Results that are saved for the last epoch only including prior_samples,
-        elicited_statistics, target_quantities, etc.
-        See [`save_results`][elicito.utils.save_results] for complete list.
-
-    save_history
-        Exclude or include sub-results in the final result file.
-        In the ``history`` object are all results that are saved across epochs.
-
-    save_results
-        Exclude or include sub-results in the final result file.
-        In the ``results`` object are all results that are saved for the last
-        epoch only.
-
-    Returns
-    -------
-    results, history :
-        final results taking in consideration exclusion criteria as specified
-        in `save_history` and `save_results`.
-
-    """
-    for key_hist in save_history:
-        if not save_history[key_hist]:  # type: ignore
-            history.pop(key_hist)
-
-    for key_res in save_results:
-        if not save_results[key_res]:  # type: ignore
-            results.pop(key_res)
-    return results, history
 
 
 def get_expert_datformat(targets: list[Target]) -> dict[str, list[Any]]:

@@ -205,7 +205,7 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
 
         # savings per epoch (independent from chosen method)
         time_per_epoch.append(epoch_time)
-        total_losses.append(loss)
+        total_losses.append(tf.squeeze(loss))
         component_losses.append(indiv_losses)
 
     res_ep = {

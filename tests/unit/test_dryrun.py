@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import tensorflow_probability as tfp
 
 import elicito as el
@@ -46,6 +47,8 @@ initializer = el.initializer(
 
 
 def test_dryrun():
+    pytest.importorskip("scipy")
+
     res_dry = el.utils.dry_run(
         model, parameters, targets, trainer, initializer, network=None
     )

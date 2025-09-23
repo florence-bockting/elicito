@@ -19,7 +19,7 @@ def std_predictor(N, quantiles):
     return X_sel
 
 
-def log_R2(ypred: tf.Tensor, epred: tf.Tensor) -> float:
+def log_R2_func(ypred: tf.Tensor, epred: tf.Tensor) -> float:
     """
     compute log R2
 
@@ -69,10 +69,9 @@ class ToyModel2:
         y_X0, y_X1, y_X2 = (ypred[:, :, 0], ypred[:, :, 1], ypred[:, :, 2])
 
         # log R2 (log for numerical stability)
-        logR2 = log_R2(ypred, epred)
+        logR2 = log_R2_func(ypred, epred)
 
         return dict(
-            likelihood=likelihood,
             ypred=ypred,
             epred=epred,
             prior_samples=prior_samples,
@@ -144,8 +143,8 @@ eliobj = el.Elicit(
     ),
     trainer=el.trainer(method="parametric_prior", seed=0, epochs=100),
     initializer=el.initializer(
-        method="random",
-        iterations=1,
+        method="sobol",
+        iterations=2,
         distribution=el.initialization.uniform(radius=1, mean=0),
     ),
     # network = el.networks.NF(...) # TODO vs. el.normalizing_flow(...)
