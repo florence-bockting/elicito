@@ -2,11 +2,12 @@
 Tests for plotting functions
 """
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
 import elicito as el
+
+plt = pytest.importorskip("matplotlib.pyplot")
 
 
 @pytest.fixture

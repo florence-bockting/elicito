@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 def initialization(
     eliobj: Any, cols: int = 4, titles: list[str] | None = None, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the ecdf of the initialization distribution per hyperparameter
 
@@ -109,7 +109,7 @@ def loss(
     eliobj: Any,
     weighted: bool = True,
     **kwargs: Any,
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the total loss and the loss per component.
 
@@ -197,7 +197,7 @@ def loss(
 
 def hyperparameter(
     eliobj: Any, cols: int = 4, titles: list[str] | None = None, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the convergence of each hyperparameter across epochs.
 
@@ -420,7 +420,7 @@ def prior_joint(
 
 def prior_marginals(
     eliobj: Any, cols: int = 4, titles: list[str] | None = None, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the convergence of each hyperparameter across epochs.
 
@@ -513,7 +513,7 @@ def prior_marginals(
 
 def elicits(
     eliobj: Any, cols: int = 4, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the expert-elicited vs. model-simulated statistics.
 
@@ -740,7 +740,7 @@ def marginals(
 
 def priorpredictive(
     eliobj: Any, target: str, replication: int = 0, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot prior predictive distribution (PPD)
 
@@ -1193,7 +1193,7 @@ def _check_NaN(eliobj: Any, n_reps: int) -> tuple[Any, ...]:
 
 def _setup_grid(
     rows: int, cols: int, k: int = 0, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Create a flattened grid of subplots and handles unused axes.
 
