@@ -130,6 +130,8 @@ def eliobj():
 
 
 def test_save_and_load_path(eliobj):
+    pytest.importorskip("scipy")
+
     file_path = "tests/test-data/dummy_eliobj.pkl"
 
     save(eliobj, file=file_path, overwrite=True)
@@ -148,6 +150,8 @@ def test_save_and_load_path(eliobj):
 
 
 def test_save_and_load_name(eliobj):
+    pytest.importorskip("scipy")
+
     save(eliobj, name="dummy_eliobj", overwrite=True)
 
     expected_path = "results/parametric_prior/dummy_eliobj_42.pkl"
