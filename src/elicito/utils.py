@@ -121,7 +121,7 @@ class DoubleBound:
 
         """
         # log-odds definition
-        v = tf.math.log(u) - tf.math.log(1 - u)
+        v = tf.math.log(u / (1 - u))
         # cast v into correct dtype
         v = tf.cast(v, dtype=tf.float32)
         return v
@@ -149,7 +149,7 @@ class DoubleBound:
 
         """
         # logistic sigmoid transform
-        u = tf.divide(1.0, (1.0 + tf.exp(v)))
+        u = tf.divide(1.0, (1.0 + tf.exp(-v)))
         # cast v to correct dtype
         u = tf.cast(u, dtype=tf.float32)
         return u
