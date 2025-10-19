@@ -185,38 +185,56 @@ class DummyEliobj_fitted:
         self.history = [1, 2, 3, 4]
 
 
+@pytest.mark.parametrize("overwrite", [True, False])
 @pytest.mark.parametrize("eliobj", [DummyEliobj_empty(), DummyEliobj_fitted()])
 @pytest.mark.parametrize(
     "test_path", ["tests/test-data/dummy_eliobj", "tests/test-data/dummy_eliobj.pkl"]
 )
-def test_save_and_load_path(eliobj, test_path):
+def test_save_and_load_path(monkeypatch, eliobj, test_path, overwrite):
     pytest.importorskip("scipy")
+
+    # Ensure the directory exists
     os.makedirs("tests/test-data", exist_ok=True)
 
     expected_file = "tests/test-data/dummy_eliobj.pkl"
-
-    # Check saving object works
-    save(eliobj, file=test_path, overwrite=True)
-
-    assert os.path.isfile(expected_file)
 
     # Check that assert statement works
     with pytest.raises(AssertionError):
         save(eliobj, name=None, file=None)
 
-    # Check that loading object works
-    loaded_eliobj = load(expected_file)
+    if not overwrite:
+        # Mock os.path.isfile to return True for our path
+        monkeypatch.setattr("os.path.isfile", lambda p: True)
 
-    assert loaded_eliobj.model["obj"] == TestModel
-    assert loaded_eliobj.parameters[0]["name"] == "b0"
-    assert loaded_eliobj.targets[0]["name"] == "b0"
-    assert loaded_eliobj.trainer["method"] == "parametric_prior"
-    assert loaded_eliobj.trainer["seed"] == 42
-    assert loaded_eliobj.results == eliobj.results
-    assert loaded_eliobj.history == eliobj.history
+        # Mock input() to simulate user typing 'n'
+        monkeypatch.setattr("builtins.input", lambda _: "n")
 
-    # clean-up directory
-    shutil.rmtree("tests/test-data")
+        called = {"used": False}
+        monkeypatch.setattr(
+            "elicito.utils.save", lambda eliobj, file: called.update("used", True)
+        )
+
+    # Check saving object works
+    save(eliobj, file=test_path, overwrite=overwrite)
+
+    if not overwrite:
+        assert not called["used"]
+    else:
+        assert os.path.isfile(expected_file)
+
+        # Check that loading object works
+        loaded_eliobj = load(expected_file)
+
+        assert loaded_eliobj.model["obj"] == TestModel
+        assert loaded_eliobj.parameters[0]["name"] == "b0"
+        assert loaded_eliobj.targets[0]["name"] == "b0"
+        assert loaded_eliobj.trainer["method"] == "parametric_prior"
+        assert loaded_eliobj.trainer["seed"] == 42
+        assert loaded_eliobj.results == eliobj.results
+        assert loaded_eliobj.history == eliobj.history
+
+        # clean-up directory
+        shutil.rmtree("tests/test-data")
 
 
 @pytest.mark.parametrize("eliobj", [DummyEliobj_empty(), DummyEliobj_fitted()])
