@@ -2,6 +2,7 @@
 helper functions for setting up the Elicit object
 """
 
+import logging
 import os
 import pickle
 from typing import Any, Optional
@@ -28,6 +29,7 @@ from elicito.types import (
 )
 
 tfd = tfp.distributions
+logger = logging.getLogger(__name__)
 
 
 def save_as_pkl(obj: Any, save_dir: str) -> None:
@@ -553,17 +555,17 @@ def save(
         user_ans = input(
             f"{path=} is not empty."
             + "\nDo you want to overwrite it?"
-            + " Press 'y' for overwriting and 'n' for abording."
+            + " Press 'y' for overwriting and 'n' to abort."
         )
         while user_ans not in ["n", "y"]:
             user_ans = input(
                 "Please press either 'y' for overwriting or 'n'"
-                + "for abording the process."
+                + "to abort the process."
             )
 
         if user_ans == "n":
             overwrite = False
-            print("Process aborded. File is not overwritten.")
+            logger.info("Process aborted. File is not overwritten.")
 
     if not os.path.isfile(path + ".pkl") or overwrite:
         storage = dict()
@@ -775,11 +777,6 @@ def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6)
             " expanding the batch-shape of the likelihood.",
         )
         raise ValueError(msg)
-
-    # check value/type of likelihood object
-    if likelihood.name.lower() not in dir(tfd):
-        msg1: str = "Likelihood in generative model must be a tfp.distribution object."
-        raise ValueError(msg1)
 
     # set seed
     tf.random.set_seed(el.SEED)
