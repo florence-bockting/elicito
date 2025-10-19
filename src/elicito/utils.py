@@ -2,6 +2,7 @@
 helper functions for setting up the Elicit object
 """
 
+import logging
 import os
 import pickle
 from typing import Any, Optional
@@ -28,6 +29,7 @@ from elicito.types import (
 )
 
 tfd = tfp.distributions
+logger = logging.getLogger(__name__)
 
 
 def save_as_pkl(obj: Any, save_dir: str) -> None:
@@ -121,7 +123,7 @@ class DoubleBound:
 
         """
         # log-odds definition
-        v = tf.math.log(u) - tf.math.log(1 - u)
+        v = tf.math.log(u / (1 - u))
         # cast v into correct dtype
         v = tf.cast(v, dtype=tf.float32)
         return v
@@ -149,7 +151,7 @@ class DoubleBound:
 
         """
         # logistic sigmoid transform
-        u = tf.divide(1.0, (1.0 + tf.exp(v)))
+        u = tf.divide(1.0, (1.0 + tf.exp(-v)))
         # cast v to correct dtype
         u = tf.cast(u, dtype=tf.float32)
         return u
@@ -553,17 +555,17 @@ def save(
         user_ans = input(
             f"{path=} is not empty."
             + "\nDo you want to overwrite it?"
-            + " Press 'y' for overwriting and 'n' for abording."
+            + " Press 'y' for overwriting and 'n' to abort."
         )
         while user_ans not in ["n", "y"]:
             user_ans = input(
                 "Please press either 'y' for overwriting or 'n'"
-                + "for abording the process."
+                + "to abort the process."
             )
 
         if user_ans == "n":
             overwrite = False
-            print("Process aborded. File is not overwritten.")
+            logger.info("Process aborted. File is not overwritten.")
 
     if not os.path.isfile(path + ".pkl") or overwrite:
         storage = dict()
@@ -586,6 +588,7 @@ def save(
             storage["history"] = eliobj.history
 
         save_as_pkl(storage, path + ".pkl")
+
         print(f"saved in: {path}.pkl")
 
 
@@ -774,11 +777,6 @@ def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6)
             " expanding the batch-shape of the likelihood.",
         )
         raise ValueError(msg)
-
-    # check value/type of likelihood object
-    if likelihood.name.lower() not in dir(tfd):
-        msg1: str = "Likelihood in generative model must be a tfp.distribution object."
-        raise ValueError(msg1)
 
     # set seed
     tf.random.set_seed(el.SEED)
