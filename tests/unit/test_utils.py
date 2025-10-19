@@ -44,56 +44,88 @@ def test_save_as_pkl():
     assert loaded_obj == test_object
 
 
-for boundary in ["lower-bound", "upper-bound", "double-bound"]:
-    if boundary == "double-bound":
+@pytest.fixture
+def doublebound():
+    return DoubleBound(lower=1.0, upper=5.0)
 
-        @pytest.fixture
-        def bound():
-            return DoubleBound(lower=1.0, upper=5.0)
 
-    if boundary == "lower-bound":
+@pytest.mark.parametrize("x", [3.5, 1.0, 5.0, [1.5, 2.5, 3.5, 4.5]])
+def test_forward_inverse_doublebound(doublebound, x):
+    x = tf.constant(x, dtype=tf.float32)
+    y = doublebound.forward(x)
+    x_recovered = doublebound.inverse(y)
 
-        @pytest.fixture
-        def bound():
-            return LowerBound(lower=1.0)
+    np.testing.assert_allclose(x, x_recovered, rtol=1e-6)
 
-    if boundary == "upper-bound":
 
-        @pytest.fixture
-        def bound():
-            return UpperBound(upper=5.0)
+@pytest.mark.parametrize("x", [-3.0, 1.0, 3.0, [-2.0, 0.0, 2.0]])
+def test_inverse_forward_doublebound(doublebound, x):
+    y = tf.constant(x, dtype=tf.float32)
+    x = doublebound.inverse(y)
+    y_recovered = doublebound.forward(x)
 
-    @pytest.mark.parametrize("x", [3.5, 1.0, 5.0, [1.5, 2.5, 3.5, 4.5]])
-    def test_forward_inverse_doublebound(bound, x):
-        x = tf.constant(x, dtype=tf.float32)
-        y = bound.forward(x)
-        x_recovered = bound.inverse(y)
+    np.testing.assert_allclose(y, y_recovered, rtol=1e-6)
 
-        np.testing.assert_allclose(x, x_recovered, rtol=1e-6)
 
-    @pytest.mark.parametrize("x", [-3.0, 1.0, 3.0, [-2.0, 0.0, 2.0]])
-    def test_inverse_forward_doublebound(bound, x):
-        y = tf.constant(x, dtype=tf.float32)
-        x = bound.inverse(y)
-        y_recovered = bound.forward(x)
+@pytest.mark.parametrize("p", [0.4, 0.0, 1.0, [0.1, 0.5, 0.9]])
+def test_logit_doublebound(doublebound, p):
+    u = tf.constant(p, dtype=tf.float32)
+    v = doublebound.logit(u)
+    u_recovered = doublebound.inv_logit(v)
 
-        np.testing.assert_allclose(y, y_recovered, rtol=1e-6)
+    np.testing.assert_allclose(u, u_recovered, rtol=1e-6)
 
-    if boundary == "double-bound":
 
-        @pytest.mark.parametrize("p", [0.4, 0.0, 1.0, [0.1, 0.5, 0.9]])
-        def test_logit_doublebound(bound, p):
-            u = tf.constant(p, dtype=tf.float32)
-            v = bound.logit(u)
-            u_recovered = bound.inv_logit(v)
+@pytest.fixture
+def lowerbound():
+    return LowerBound(lower=1.0)
 
-            np.testing.assert_allclose(u, u_recovered, rtol=1e-6)
+
+@pytest.mark.parametrize("x", [3.5, 1.0, 5.0, [1.5, 2.5, 3.5, 4.5]])
+def test_forward_inverse_lowerbound(lowerbound, x):
+    x = tf.constant(x, dtype=tf.float32)
+    y = lowerbound.forward(x)
+    x_recovered = lowerbound.inverse(y)
+
+    np.testing.assert_allclose(x, x_recovered, rtol=1e-6)
+
+
+@pytest.mark.parametrize("x", [-3.0, 1.0, 3.0, [-2.0, 0.0, 2.0]])
+def test_inverse_forward_lowerbound(lowerbound, x):
+    y = tf.constant(x, dtype=tf.float32)
+    x = lowerbound.inverse(y)
+    y_recovered = lowerbound.forward(x)
+
+    np.testing.assert_allclose(y, y_recovered, rtol=1e-6)
 
 
 class TestModel:
     def __call__(self, prior_samples):
         b0 = tfd.Normal(0, 1).sample((3, 3, 1))
         return dict(prior_samples=prior_samples, b0=b0)
+
+
+@pytest.fixture
+def upperbound():
+    return UpperBound(upper=5.0)
+
+
+@pytest.mark.parametrize("x", [3.5, 1.0, 5.0, [1.5, 2.5, 3.5, 4.5]])
+def test_forward_inverse_upperbound(upperbound, x):
+    x = tf.constant(x, dtype=tf.float32)
+    y = upperbound.forward(x)
+    x_recovered = upperbound.inverse(y)
+
+    np.testing.assert_allclose(x, x_recovered, rtol=1e-6)
+
+
+@pytest.mark.parametrize("x", [-3.0, 1.0, 3.0, [-2.0, 0.0, 2.0]])
+def test_inverse_forward_upperbound(upperbound, x):
+    y = tf.constant(x, dtype=tf.float32)
+    x = upperbound.inverse(y)
+    y_recovered = upperbound.forward(x)
+
+    np.testing.assert_allclose(y, y_recovered, rtol=1e-6)
 
 
 class DummyEliobj:
