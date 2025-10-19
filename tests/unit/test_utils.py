@@ -18,6 +18,7 @@ from elicito.utils import (
     DoubleBound,
     LowerBound,
     UpperBound,
+    gumbel_softmax_trick,
     load,
     parallel,
     save,
@@ -128,7 +129,7 @@ def test_inverse_forward_upperbound(upperbound, x):
     np.testing.assert_allclose(y, y_recovered, rtol=1e-6)
 
 
-class DummyEliobj:
+class DummyEliobj_empty:
     def __init__(self):
         self.model = el.model(TestModel)
         self.parameters = [
@@ -156,37 +157,77 @@ class DummyEliobj:
         self.history = None
 
 
-@pytest.fixture
-def eliobj():
-    return DummyEliobj()
+class DummyEliobj_fitted:
+    def __init__(self):
+        self.model = el.model(TestModel)
+        self.parameters = [
+            el.parameter(
+                name="b0",
+                family=tfd.Normal,
+                hyperparams=dict(loc=el.hyper(name="mu0"), scale=el.hyper("sigma0")),
+            )
+        ]
+        self.targets = [
+            el.target(name="b0", loss=el.losses.L2, query=el.queries.quantiles((0.5,)))
+        ]
+        self.expert = el.expert.data({"quantiles_b0": 0.5})
+        self.optimizer = el.optimizer(
+            optimizer=tf.keras.optimizers.Adam, learning_rate=0.1
+        )
+        self.trainer = el.trainer(method="parametric_prior", seed=42, epochs=1)
+        self.initializer = el.initializer(
+            "sobol",
+            distribution=el.initialization.uniform(radius=1, mean=0),
+            iterations=1,
+        )
+        self.network = None
+        self.results = [1, 2, 3, 4]
+        self.history = [1, 2, 3, 4]
 
 
-def test_save_and_load_path(eliobj):
+@pytest.mark.parametrize("eliobj", [DummyEliobj_empty(), DummyEliobj_fitted()])
+@pytest.mark.parametrize(
+    "test_path", ["tests/test-data/dummy_eliobj", "tests/test-data/dummy_eliobj.pkl"]
+)
+def test_save_and_load_path(eliobj, test_path):
     pytest.importorskip("scipy")
+    os.makedirs("tests/test-data", exist_ok=True)
 
-    file_path = "tests/test-data/dummy_eliobj.pkl"
+    expected_file = "tests/test-data/dummy_eliobj.pkl"
 
-    save(eliobj, file=file_path, overwrite=True)
+    # Check saving object works
+    save(eliobj, file=test_path, overwrite=True)
 
-    # Check that the file exists
-    assert os.path.exists(file_path)
+    assert os.path.isfile(expected_file)
 
-    loaded_eliobj = load(file_path)
+    # Check that assert statement works
+    with pytest.raises(AssertionError):
+        save(eliobj, name=None, file=None)
 
-    # Check that loaded object is correct
+    # Check that loading object works
+    loaded_eliobj = load(expected_file)
+
     assert loaded_eliobj.model["obj"] == TestModel
     assert loaded_eliobj.parameters[0]["name"] == "b0"
     assert loaded_eliobj.targets[0]["name"] == "b0"
     assert loaded_eliobj.trainer["method"] == "parametric_prior"
     assert loaded_eliobj.trainer["seed"] == 42
+    assert loaded_eliobj.results == eliobj.results
+    assert loaded_eliobj.history == eliobj.history
+
+    # clean-up directory
+    shutil.rmtree("tests/test-data")
 
 
-def test_save_and_load_name(eliobj):
+@pytest.mark.parametrize("eliobj", [DummyEliobj_empty(), DummyEliobj_fitted()])
+@pytest.mark.parametrize("test_file", ["dummy_eliobj.pkl", "dummy_eliobj"])
+def test_save_and_load_name(eliobj, test_file):
     pytest.importorskip("scipy")
 
-    save(eliobj, name="dummy_eliobj", overwrite=True)
+    save(eliobj, name=test_file, overwrite=True)
 
     expected_path = "results/parametric_prior/dummy_eliobj_42.pkl"
+
     assert os.path.exists(expected_path)
 
     loaded_eliobj = load(expected_path)
@@ -197,6 +238,8 @@ def test_save_and_load_name(eliobj):
     assert loaded_eliobj.targets[0]["name"] == "b0"
     assert loaded_eliobj.trainer["method"] == "parametric_prior"
     assert loaded_eliobj.trainer["seed"] == 42
+    assert loaded_eliobj.results == eliobj.results
+    assert loaded_eliobj.history == eliobj.history
 
     # clean-up directory
     shutil.rmtree("results/parametric_prior")
@@ -215,3 +258,35 @@ def test_parallel(runs, cores):
     expected_cores = runs if cores is None else cores
 
     assert result == {"runs": runs, "cores": expected_cores, "seeds": None}
+
+
+def test_gumble_softmax_trick_assert():
+    likelihood = tfd.Poisson(rate=tf.ones((3, 2, 4)))
+
+    # check assert statement
+    with pytest.raises(ValueError, match="batch_shape"):
+        gumbel_softmax_trick(likelihood, upper_thres=10)
+
+
+def test_gumble_softmax_trick():
+    B, S, N = 2, 3, 4
+
+    valid_likelihood = tfd.Poisson(rate=tf.ones((B, S, N, 1)) * 2.0)
+
+    upper_thres = 10
+    temp = 1.6
+
+    ypred = gumbel_softmax_trick(valid_likelihood, upper_thres=upper_thres, temp=temp)
+
+    # Expected shape: (B, S, N)
+    assert ypred.shape == (2, 3, 4)
+
+    # Must be finite
+    assert tf.math.reduce_all(tf.math.is_finite(ypred))
+
+    # Values should be in [0, upper_thres]
+    assert np.all(ypred.numpy() >= 0)
+    assert np.all(ypred.numpy() <= upper_thres)
+
+    # dtype should be float32
+    assert ypred.dtype == tf.float32

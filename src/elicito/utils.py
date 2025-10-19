@@ -586,6 +586,7 @@ def save(
             storage["history"] = eliobj.history
 
         save_as_pkl(storage, path + ".pkl")
+
         print(f"saved in: {path}.pkl")
 
 
