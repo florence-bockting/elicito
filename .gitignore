@@ -12,6 +12,7 @@ notes/
 
 # Databases
 *.db
+tests/test-data/*
 
 # Jupyter cache
 .jupyter_cache
