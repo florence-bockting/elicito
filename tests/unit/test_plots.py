@@ -7,8 +7,8 @@ import pytest
 
 import elicito as el
 
-plt = pytest.importorskip("matplotlib.pyplot")
 matplotlib = pytest.importorskip("matplotlib")
+plt = pytest.importorskip("matplotlib.pyplot")
 
 matplotlib.use("Agg")
 
