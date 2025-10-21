@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 def initialization(
     eliobj: Any, cols: int = 4, titles: list[str] | None = None, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the ecdf of the initialization distribution per hyperparameter
 
@@ -109,7 +109,7 @@ def loss(
     eliobj: Any,
     weighted: bool = True,
     **kwargs: Any,
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the total loss and the loss per component.
 
@@ -197,7 +197,7 @@ def loss(
 
 def hyperparameter(
     eliobj: Any, cols: int = 4, titles: list[str] | None = None, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the convergence of each hyperparameter across epochs.
 
@@ -267,7 +267,7 @@ def hyperparameter(
             + "'eliobj.results.history_stats'."
         )
 
-    fig, axes = _setup_grid(rows, cols, **kwargs)
+    fig, axes = _setup_grid(rows, cols, k, **kwargs)
     for ax, hyp, title in zip(axes, names, titles):
         for i in success:
             ax.plot(
@@ -286,9 +286,6 @@ def hyperparameter(
         ax.spines[["right", "top"]].set_visible(False)
 
     fig.suptitle("Convergence of hyperparameter", fontsize="medium")
-
-    for i in range(k):
-        axes[-(i + 1)].set_axis_off()
 
     return fig, axes
 
@@ -423,7 +420,7 @@ def prior_joint(
 
 def prior_marginals(
     eliobj: Any, cols: int = 4, titles: list[str] | None = None, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the convergence of each hyperparameter across epochs.
 
@@ -516,7 +513,7 @@ def prior_marginals(
 
 def elicits(
     eliobj: Any, cols: int = 4, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the expert-elicited vs. model-simulated statistics.
 
@@ -577,7 +574,7 @@ def elicits(
             )
 
     # plotting
-    fig, axes = _setup_grid(rows, cols, **kwargs)
+    fig, axes = _setup_grid(rows, cols, k, **kwargs)
 
     for ax, elicit, meth in zip(axes, name_elicits, method_name):
         # Configure plotting method and preparation
@@ -743,7 +740,7 @@ def marginals(
 
 def priorpredictive(
     eliobj: Any, target: str, replication: int = 0, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot prior predictive distribution (PPD)
 
@@ -753,6 +750,10 @@ def priorpredictive(
     ----------
     eliobj : instance of :func:`elicit.elicit.Elicit`
         fitted ``eliobj`` object.
+    target : str
+        name of the target quantity to be plotted.
+    replication : int, optional
+        index of the replication to be plotted. The default is ``0``.
     kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -1192,7 +1193,7 @@ def _check_NaN(eliobj: Any, n_reps: int) -> tuple[Any, ...]:
 
 def _setup_grid(
     rows: int, cols: int, k: int = 0, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
+) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Create a flattened grid of subplots and handles unused axes.
 
@@ -1218,10 +1219,13 @@ def _setup_grid(
         ) from exc
 
     fig, axs = plt.subplots(rows, cols, **kwargs)
-    axes = axs.ravel() if rows * cols > 1 else [axs]
+    axes = axs.ravel() if rows * cols > 1 else np.array([axs])
 
-    for i in range(k):
-        axes[-(i + 1)].set_axis_off()
+    if k > 0:
+        for ax in axes[-k:]:
+            ax.set_axis_off()
+            fig.delaxes(ax)
+        axes = axes[:-k]
 
     return fig, axes
 
