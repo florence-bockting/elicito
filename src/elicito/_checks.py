@@ -27,9 +27,9 @@ def check_elicit(  # noqa: PLR0913, PLR0912, PLR0915
         # input expert data: ensure data has expected format
         if list(expert["data"].keys()) != list(expected_dict.keys()):
             msg = (
-                "[section: expert] Provided expert data is not in the "
-                + "correct format. Please use "
-                + "el.utils.get_expert_datformat to check expected format.",
+                "Provided expert data is not in the "
+                "correct format. Please use "
+                "el.utils.get_expert_datformat to check expected format."
             )
             raise AssertionError(msg)
 
@@ -57,46 +57,42 @@ def check_elicit(  # noqa: PLR0913, PLR0912, PLR0915
 
         if len(expected_params) != num_params:
             msg = (
-                "[section: expert] Dimensionality of ground truth in "  # type: ignore
-                + "'expert' is not the same  as number of model "
-                + f"parameters. Got {num_params=}, expected "
-                + f"{len(expected_params)}."
+                "Dimensionality of ground truth in "  # type: ignore
+                "'expert' is not the same  as number of model "
+                f"parameters. Got {num_params=}, expected "
+                f"{len(expected_params)}."
             )
-        # raise AssertionError(msg)
+        raise AssertionError(msg)
 
     # check that network architecture is provided when method is deep prior
     # and initializer is none
     if trainer["method"] == "deep_prior":
         if network is None:
-            msg = (
-                "[section network] If method is 'deep prior', "
-                + " the section 'network' can't be None.",
-            )
+            msg = "If method is 'deep prior', " " the section 'network' can't be None."
             raise ValueError(msg)
 
         if initializer is not None:
             msg = (
-                "[section initializer] For method 'deep_prior' the "
-                + "'initializer' is not used and should be set to None.",
+                "For method 'deep_prior' the "
+                "'initializer' is not used and should be set to None."
             )
             raise ValueError(msg)
 
         if network["network_specs"]["num_params"] != len(parameters):
             msg = (
-                "[section network] The number of model parameters as "
-                + "specified in the parameters section, must match the "
-                + "number of parameters specified in the network (see "
-                + "network_specs['num_params'] argument).\n"
-                + f"Expected {len(parameters)} but got "
-                + f"{network['network_specs']['num_params']}",
+                "The number of model parameters as "
+                "specified in the parameters section, must match the "
+                "number of parameters specified in the network."
+                f"Expected {len(parameters)} but got "
+                f"{network['network_specs']['num_params']}"
             )
             raise ValueError(msg)
 
         if network["base_distribution"].__class__ != networks.BaseNormal:
             msg = (
-                "[network] Currently only the standard normal distribution "
-                + "is implemented as base distribution. "
-                + "See GitHub issue #35.",
+                "Currently only the standard normal distribution "
+                "is implemented as base distribution. "
+                "See GitHub issue #35."
             )
             raise NotImplementedError(msg)
 
@@ -105,15 +101,15 @@ def check_elicit(  # noqa: PLR0913, PLR0912, PLR0915
     if trainer["method"] == "parametric_prior":
         if initializer is None:
             msg = (
-                "[section initializer] If method is 'parametric_prior', "
-                + " the section 'initializer' can't be None.",
+                "If method is 'parametric_prior', "
+                " the section 'initializer' can't be None."
             )
             raise ValueError(msg)
 
         if network is not None:
             msg = (
-                "[section network] If method is 'parametric prior' "
-                + "the 'network' is not used and should be set to None.",
+                "If method is 'parametric prior' "
+                "the 'network' is not used and should be set to None."
             )
             raise ValueError(msg)
 
@@ -124,8 +120,8 @@ def check_elicit(  # noqa: PLR0913, PLR0912, PLR0915
             if parameters[i]["hyperparams"] is None:
                 msg = (
                     "When using method='parametric_prior', the argument "
-                    + "'hyperparams' of el.parameter "
-                    + "cannot be None.",
+                    "'hyperparams' of el.parameter "
+                    "cannot be None."
                 )
                 raise ValueError(msg)
 
@@ -149,9 +145,9 @@ def check_elicit(  # noqa: PLR0913, PLR0912, PLR0915
             for k in initializer["hyperparams"]:  # type: ignore
                 if k not in hyp_names_flat:
                     msg = (
-                        f"[initializer] Hyperparameter name '{k}' doesn't "
-                        + "match any name specified in the parameters "
-                        + "section. Have you misspelled the name?",
+                        f"Hyperparameter name '{k}' doesn't "
+                        "match any name specified in the parameters "
+                        "section. Have you misspelled the name?"
                     )
                     raise ValueError(msg)
 
@@ -168,8 +164,8 @@ def check_elicit(  # noqa: PLR0913, PLR0912, PLR0915
 
         if len(duplicate) != 0:
             msg = (
-                "[parameters] The following hyperparameter have the same "
-                + f"name but are not shared: {duplicate}. \n"
-                + "Have you forgot to set shared=True?",
+                "The following hyperparameter have the same "
+                f"name but are not shared: {duplicate}. \n"
+                "Have you forgot to set shared=True?"
             )
             raise ValueError(msg)

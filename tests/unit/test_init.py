@@ -2,6 +2,8 @@
 Unittest for init.py module
 """
 
+import re
+
 import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -11,6 +13,8 @@ from elicito import Elicit
 from elicito.utils import get_expert_datformat
 
 tfd = tfp.distributions
+
+scipy = pytest.importorskip("scipy")
 
 
 class TestModel:
@@ -78,14 +82,25 @@ def test_expert_input(eliobj):
 
     assert dat_format["data"].keys() == expected_format.keys()
 
-    # test wrong format
-    with pytest.raises(AssertionError):
+    # error; wrong format
+    msg = (
+        "Provided expert data is not in the "
+        "correct format. Please use "
+        "el.utils.get_expert_datformat to check expected format."
+    )
+
+    with pytest.raises(AssertionError, match=msg):
         eliobj.update(expert=el.expert.data({"b0": 0.5}))
 
-    # test ground truth
-    eliobj.update(expert=el.expert.simulator(ground_truth={"b0": tfd.Normal(0, 1)}))
-
-    assert "ground_truth" in eliobj.expert.keys()
+    # error; wrong number of parameters
+    msg2 = (
+        "Dimensionality of ground truth in "  # type: ignore
+        "'expert' is not the same  as number of model "
+        "parameters. Got num_params=1, expected "
+        "2."
+    )
+    with pytest.raises(AssertionError, match=msg2):
+        eliobj.update(expert=el.expert.simulator(ground_truth={"b0": tfd.Normal(0, 1)}))
 
 
 def test_initializer_network(eliobj, network):
@@ -95,13 +110,18 @@ def test_initializer_network(eliobj, network):
     assert eliobj.network is None
 
     # error message if initializer is None
-    with pytest.raises(ValueError):
-        eliobj.update(initializer=None, network=network)
+    msg1 = (
+        "If method is 'parametric_prior', " " the section 'initializer' can't be None."
+    )
+    with pytest.raises(ValueError, match=msg1):
+        eliobj.update(initializer=None, network=None)
 
-    # deep_prior method
-    # error message if network is None
-    with pytest.raises(ValueError):
-        eliobj.update(trainer=el.trainer(method="deep_prior", epochs=1, seed=123))
+    msg2 = (
+        "If method is 'parametric prior' "
+        "the 'network' is not used and should be set to None."
+    )
+    with pytest.raises(ValueError, match=msg2):
+        eliobj.update(network=network)
 
     # correct
     eliobj.update(
@@ -112,11 +132,91 @@ def test_initializer_network(eliobj, network):
 
     assert eliobj.network == network
 
+    msg3 = "If method is 'deep prior', " " the section 'network' can't be None."
+    with pytest.raises(ValueError, match=msg3):
+        eliobj.update(network=None)
+
+    msg4 = (
+        "For method 'deep_prior' the "
+        "'initializer' is not used and should be set to None."
+    )
+    with pytest.raises(ValueError, match=msg4):
+        eliobj.update(
+            initializer=el.initializer(
+                "sobol",
+                distribution=el.initialization.uniform(radius=1, mean=0),
+                iterations=1,
+            )
+        )
+
+
+def test_network_parameter(eliobj, network):
+    # error due to wrong number of parameters
+    msg = (
+        "The number of model parameters as "
+        "specified in the parameters section, must match the "
+        "number of parameters specified in the network."
+        "Expected 1 but got 2"
+    )
+    with pytest.raises(ValueError, match=msg):
+        eliobj.update(
+            trainer=el.trainer(method="deep_prior", epochs=1, seed=123),
+            initializer=None,
+            network=network,
+            parameters=[
+                el.parameter(
+                    name="b0",
+                    family=tfd.Normal,
+                    hyperparams=dict(
+                        loc=el.hyper(name="mu0"), scale=el.hyper("sigma0")
+                    ),
+                )
+            ],
+        )
+
+
+def test_network_base(eliobj):
+    # error; distribution is not basenormal
+    msg = (
+        "Currently only the standard normal distribution "
+        "is implemented as base distribution. "
+        "See GitHub issue #35."
+    )
+    with pytest.raises(NotImplementedError, match=msg):
+        eliobj.update(
+            trainer=el.trainer(method="deep_prior", epochs=1, seed=123),
+            initializer=None,
+            network=el.networks.NF(
+                inference_network=el.networks.InvertibleNetwork,
+                network_specs=dict(
+                    num_params=2,
+                    num_coupling_layers=3,
+                    coupling_design="affine",
+                    coupling_settings={
+                        "dropout": False,
+                        "dense_args": {
+                            "units": 128,
+                            "activation": "relu",
+                            "kernel_regularizer": None,
+                        },
+                        "num_dense": 2,
+                    },
+                    permutation="fixed",
+                ),
+                base_distribution=tfd.Normal,
+            ),
+        )
+
 
 def test_shared_hyperparameter(eliobj):
     # raise error if same name for hyperparameter
     # but shared is False (default)
-    with pytest.raises(ValueError):
+    msg = (
+        "The following hyperparameter have the same "
+        "name but are not shared: ['mu0', 'sigma0']. \n"
+        "Have you forgot to set shared=True?"
+    )
+    with pytest.raises(ValueError, match=re.escape(msg)):
         eliobj.update(
             parameters=[
                 el.parameter(
@@ -162,7 +262,12 @@ def test_initializer_setup(eliobj):
     assert eliobj.initializer["hyperparams"]["sigma1"] == 0.2
 
     # error; hyperparameter names do not match
-    with pytest.raises(ValueError):
+    msg = (
+        "Hyperparameter name 'mu2' doesn't "
+        "match any name specified in the parameters "
+        "section. Have you misspelled the name?"
+    )
+    with pytest.raises(ValueError, match=msg):
         eliobj.update(
             initializer=el.initializer(
                 hyperparams=dict(mu2=0.1, sigma2=0.2, mu1=0.1, sigma1=0.2)
@@ -172,5 +277,10 @@ def test_initializer_setup(eliobj):
 
 def test_hyperparameters(eliobj):
     # error; as parametric prior needs family and hyperparams arg.
-    with pytest.raises(ValueError):
+    msg = (
+        "When using method='parametric_prior', the argument "
+        "'hyperparams' of el.parameter "
+        "cannot be None."
+    )
+    with pytest.raises(ValueError, match=msg):
         eliobj.update(parameters=[el.parameter(name=f"b{i}") for i in range(2)])
