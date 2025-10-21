@@ -145,7 +145,7 @@ def test_initializer_network(eliobj, network):
     with pytest.raises(ValueError, match=msg4):
         eliobj.update(
             initializer=el.initializer(
-                "sobol",
+                "random",
                 distribution=el.initialization.uniform(radius=1, mean=0),
                 iterations=1,
             )

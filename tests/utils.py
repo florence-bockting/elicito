@@ -143,7 +143,7 @@ eliobj = el.Elicit(
     ),
     trainer=el.trainer(method="parametric_prior", seed=0, epochs=100),
     initializer=el.initializer(
-        method="sobol",
+        method="random",
         iterations=2,
         distribution=el.initialization.uniform(radius=1, mean=0),
     ),
