@@ -15,7 +15,6 @@ from elicito import Elicit
 from elicito.utils import get_expert_datformat
 
 tfd = tfp.distributions
-
 scipy = pytest.importorskip("scipy")
 
 

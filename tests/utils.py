@@ -3,12 +3,14 @@ helper functions for tests
 """
 
 import numpy as np
+import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
 import elicito as el
 
 tfd = tfp.distributions
+scipy = pytest.importorskip("scipy")
 
 
 # numeric, standardized predictor
