@@ -46,7 +46,7 @@ def eliobj():
         optimizer=el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.1),
         trainer=el.trainer(method="parametric_prior", seed=42, epochs=1),
         initializer=el.initializer(
-            "sobol",
+            "random",
             distribution=el.initialization.uniform(radius=1, mean=0),
             iterations=1,
         ),
