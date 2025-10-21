@@ -3,10 +3,12 @@ Unittest for init.py module
 """
 
 import re
+from unittest.mock import patch
 
 import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp
+from tests.utils import eliobj as base_eliobj
 
 import elicito as el
 from elicito import Elicit
@@ -284,3 +286,30 @@ def test_hyperparameters(eliobj):
     )
     with pytest.raises(ValueError, match=msg):
         eliobj.update(parameters=[el.parameter(name=f"b{i}") for i in range(2)])
+
+
+def test_checks_fit(capsys):
+    base_eliobj.results = [1, 2, 3]
+
+    # negate
+    with patch("builtins.input", side_effect=["n"]):
+        base_eliobj.fit(overwrite=False)
+
+    captured = capsys.readouterr()
+    assert "not re-fitted" in captured.out
+
+    # wrong input
+    msg = "Invalid input. Please use 'y' or 'n'."
+    with pytest.raises(ValueError, match=msg):
+        with patch("builtins.input", side_effect=["x"]):
+            base_eliobj.fit(overwrite=False)
+
+    # approve
+    with patch("builtins.input", side_effect=["y"]):
+        base_eliobj.fit(overwrite=False)
+
+    epochs = base_eliobj.results["history_stats"]["epoch"].shape[0]
+    assert base_eliobj.results["history_stats"]["loss"]["total_loss"].values.shape == (
+        1,
+        epochs,
+    )

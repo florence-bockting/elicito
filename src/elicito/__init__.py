@@ -356,11 +356,8 @@ class Elicit:
                 + " Press 'n' to stop process and 'y' to continue fitting."
             )
 
-            while user_answ not in ["n", "y"]:
-                user_answ = input(
-                    "Please press either 'y' for fitting or 'n'"
-                    + " for abording the process."
-                )
+            if user_answ not in ["y", "n"]:
+                raise ValueError("Invalid input. Please use 'y' or 'n'.")  # noqa: TRY003
 
             if user_answ == "n":
                 refit = False
