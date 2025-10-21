@@ -7,7 +7,10 @@ import pytest
 
 import elicito as el
 
+matplotlib = pytest.importorskip("matplotlib")
 plt = pytest.importorskip("matplotlib.pyplot")
+
+matplotlib.use("Agg")
 
 
 @pytest.fixture
