@@ -5,7 +5,7 @@ Check user input of Elicit object
 from elicito import networks, utils
 
 
-def check_elicit(  # noqa: PLR0913, PLR0912, PLR0915
+def check_elicit(  # type: ignore  # noqa: PLR0913, PLR0912, PLR0915
     model,
     parameters,
     targets,
@@ -57,7 +57,7 @@ def check_elicit(  # noqa: PLR0913, PLR0912, PLR0915
 
         if len(expected_params) != num_params:
             msg = (
-                "Dimensionality of ground truth in "  # type: ignore
+                "Dimensionality of ground truth in "
                 "'expert' is not the same  as number of model "
                 f"parameters. Got {num_params=}, expected "
                 f"{len(expected_params)}."
@@ -142,7 +142,7 @@ def check_elicit(  # noqa: PLR0913, PLR0912, PLR0915
         hyp_shared_flat = sum(hyp_shared, [])  # noqa: RUF017
 
         if initializer["method"] is None:
-            for k in initializer["hyperparams"]:  # type: ignore
+            for k in initializer["hyperparams"]:
                 if k not in hyp_names_flat:
                     msg = (
                         f"Hyperparameter name '{k}' doesn't "
