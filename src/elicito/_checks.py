@@ -62,7 +62,7 @@ def check_elicit(  # noqa: PLR0913, PLR0912, PLR0915
                 f"parameters. Got {num_params=}, expected "
                 f"{len(expected_params)}."
             )
-        raise AssertionError(msg)
+            raise AssertionError(msg)
 
     # check that network architecture is provided when method is deep prior
     # and initializer is none

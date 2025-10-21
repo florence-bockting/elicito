@@ -8,6 +8,9 @@ import pytest
 import elicito as el
 
 plt = pytest.importorskip("matplotlib.pyplot")
+matplotlib = pytest.importorskip("matplotlib")
+
+matplotlib.use("Agg")
 
 
 @pytest.fixture
