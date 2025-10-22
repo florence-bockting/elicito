@@ -3,6 +3,7 @@ setting-up the elicitation method with Elicit
 """
 
 import inspect
+from enum import Enum
 from typing import Any, Callable, Optional
 
 import tensorflow as tf
@@ -29,6 +30,15 @@ from elicito.utils import (
 tfd = tfp.distributions
 
 
+class VariableType(str, Enum):
+    """Type of variable"""
+
+    real = "real"
+    array = "array"
+    cov = "cov"
+    cov2tril = "cov2tril"
+
+
 class Dtype:
     """
     Create a tensorflow scalar or array depending on the vtype attribute.
@@ -48,7 +58,7 @@ class Dtype:
         Tensor of shape depending on `vtype` and `dim`.
     """
 
-    def __init__(self, vtype: str, dim: int):
+    def __init__(self, vtype: VariableType, dim: int):
         """
         Initialize Dtype
 
@@ -56,6 +66,7 @@ class Dtype:
         ----------
         vtype
             Type of input x.
+            either real, array, cov, or cov2tril
 
         dim
             Dimensionality of input
@@ -77,13 +88,13 @@ class Dtype:
         :
             input x with correct type
         """
-        if self.vtype == "real":
+        if self.vtype == VariableType.real:
             dtype_dim = tf.cast(x, dtype=tf.float32)
-        if self.vtype == "array":
+        if self.vtype == VariableType.array:
             dtype_dim = tf.constant(x, dtype=tf.float32, shape=(self.dim,))
-        if self.vtype == "cov":
+        if self.vtype == VariableType.cov:
             dtype_dim = tf.constant(x, dtype=tf.float32, shape=(self.dim, self.dim))
-        if self.vtype == "cov2tril":
+        if self.vtype == VariableType.cov2tril:
             dtype_dim = tf.linalg.cholesky(
                 tf.constant(x, dtype=tf.float32, shape=(self.dim, self.dim))
             )
@@ -94,7 +105,7 @@ def hyper(  # noqa: PLR0913
     name: str,
     lower: float = float("-inf"),
     upper: float = float("inf"),
-    vtype: str = "real",
+    vtype: VariableType = VariableType.real,
     dim: int = 1,
     shared: bool = False,
 ) -> Hyper:
@@ -155,37 +166,31 @@ def hyper(  # noqa: PLR0913
         lower = float("-inf")
 
     if (type(lower) is str) and (lower != "-inf"):  # type: ignore
-        msg = (
-            "lower must be either '-inf' or a float.",
-            "Other strings are not allowed.",
-        )
+        msg = "Lower must be either '-inf' or a float." "Other strings are not allowed."
         raise ValueError(msg)
 
     # check correct value for upper
     if upper == "inf":  # type: ignore
         upper = float("inf")
     if (type(upper) is str) and (upper != "inf"):  # type: ignore
-        msg = (
-            "upper must be either 'inf' or a float.",
-            "Other strings are not allowed.",
-        )
+        msg = "Upper must be either 'inf' or a float." "Other strings are not allowed."
         raise ValueError(msg)
 
     if lower > upper:
-        msg = "The value for 'lower' must be smaller than the value for 'upper'."  # type: ignore
+        msg = "The value for 'lower' must be smaller than the value for 'upper'."
         raise ValueError(msg)
 
     # check values for vtype are implemented
     if vtype not in ["real", "array", "cov", "cov2tril"]:
         msg = (
-            "vtype must be either 'real', 'array', 'cov', 'cov2tril'. "  # type: ignore
-            + f"You provided '{vtype=}'."
+            "vtype must be either 'real', 'array', 'cov', 'cov2tril'. "
+            f"You provided {vtype=}."
         )
         raise ValueError(msg)
 
     # check that dimensionality is adapted when "array" is chosen
     if (vtype == "array") and dim == 1:
-        msg = "For vtype='array', the 'dim' argument must have a value greater 1."  # type: ignore
+        msg = "For vtype='array', the 'dim' argument must have a value greater 1."
         raise ValueError(msg)
 
     # constraints
@@ -286,10 +291,10 @@ def parameter(
     if hyperparams is not None:
         for key in hyperparams:
             if key not in inspect.getfullargspec(family)[0]:
-                raise ValueError(
-                    f"[section: parameters] '{family.__module__.split('.')[-1]}'"
-                    + f" family has no argument '{key}'. Check keys of "
-                    + "'hyperparams' dict."
+                raise ValueError(  # noqa: TRY003
+                    f"'{family.__module__.split('.')[-1]}'"
+                    f" family has no argument '{key}'. Check keys of "
+                    "'hyperparams' dict."
                 )
 
     # constraints
@@ -380,9 +385,9 @@ def model(obj: Callable[[str], tf.Tensor], **kwargs: dict[Any, Any]) -> dict[str
     # check correct input form of generative model class
     if "prior_samples" not in input_args:
         msg = (
-            "[section: model] The generative model class 'obj' requires the",
-            " input variable 'prior_samples' but argument has not been found",
-            " in 'obj'.",
+            "The generative model class 'obj' requires the"
+            " input variable 'prior_samples' but argument has not been found"
+            " in 'obj'."
         )
         raise ValueError(msg)
 
@@ -391,9 +396,9 @@ def model(obj: Callable[[str], tf.Tensor], **kwargs: dict[Any, Any]) -> dict[str
     for arg in optional_args:
         if arg not in list(kwargs.keys()):
             msg = (
-                f"[section: model] The argument '{arg=}' required by the",
-                "generative model class 'obj' is missing.",
-            )  # type: ignore
+                f"The argument {arg=} required by the"
+                "generative model class 'obj' is missing."
+            )
             raise ValueError(msg)
 
     generator_dict = dict(obj=obj)
@@ -437,9 +442,8 @@ class Queries:
         for quantile in quantiles:
             if (quantile < 0) or (quantile > 1):
                 msg = (
-                    "[section: targets] Quantiles have to be expressed as",
-                    "probability (between 0 and 1).",
-                    f" Found quantile={quantile=}",
+                    "Quantiles have to be expressed as "
+                    f"probability (between 0 and 1). Got {quantile=}."
                 )
                 raise ValueError(msg)
 
@@ -718,25 +722,6 @@ def optimizer(
     >>>     clipnorm=1.0  # doctest: +SKIP
     >>> )  # doctest: +SKIP
     """
-    # check whether optimizer is a tf.keras.optimizers object
-    opt_module = ".".join(optimizer.__module__.split(".")[:-1])
-    if opt_module != "keras.src.optimizers":
-        msg = (
-            "[section: optimizer] The 'optimizer' must be a",
-            " tf.keras.optimizers object.",
-        )
-        raise TypeError(msg)
-
-    # check whether the optimizer object can be found in tf.keras.optimizers
-    opt_name = str(optimizer).split(".")[-1][:-2]
-    if opt_name not in dir(tf.keras.optimizers):
-        msg = (  # type: ignore
-            "[section: optimizer] The argument 'optimizer' has to be a",
-            " tf.keras.optimizers object.",
-            f" Couldn't find {opt_name=} in list of tf.keras.optimizers.",
-        )
-        raise ValueError(msg)
-
     optimizer_dict = dict(optimizer=optimizer)
 
     for key in kwargs:  # noqa: PLC0206
@@ -745,8 +730,16 @@ def optimizer(
     return optimizer_dict
 
 
+class SamplingMethod(str, Enum):
+    """Sampling method used for initialization"""
+
+    sobol = "sobol"
+    random = "random"
+    lhs = "lhs"
+
+
 def initializer(
-    method: Optional[str] = None,
+    method: Optional[SamplingMethod] = None,
     distribution: Optional[Uniform] = None,
     iterations: Optional[int] = None,
     hyperparams: Optional[dict[str, Any]] = None,
@@ -826,17 +819,18 @@ def initializer(
     # check that method is implemented
 
     if method is None:
-        for arg in [distribution, iterations]:
-            if arg is not None:
-                msg = f"If method is None {arg=} must also be None."
-                raise ValueError(msg)
+        args = {"distribution": distribution, "iterations": iterations}
+
+        for name, value in args.items():
+            if value is not None:
+                raise ValueError(f"If method is None, '{name}' must also be None.")  # noqa: TRY003
 
         if hyperparams is None:
-            msg = (  # type: ignore
-                "[section: initializer] Either 'method' or 'hyperparams' has",
-                "to be specified. Use method for sampling from an",
-                "initialization distribution and 'hyperparams' for",
-                "specifying exact initial values per hyperparameter.",
+            msg = (
+                "Either 'method' or 'hyperparams' has"
+                "to be specified. Use method for sampling from an"
+                "initialization distribution and 'hyperparams' for"
+                "specifying exact initial values per hyperparameter."
             )
             raise ValueError(msg)
 
@@ -848,9 +842,11 @@ def initializer(
         quantile_perc = loss_quantile
 
     else:
-        for arg in [distribution, iterations]:
-            if arg is None:
-                msg = f"If {arg=}, then method must also be None."
+        args = {"distribution": distribution, "iterations": iterations}
+
+        for name, value in args.items():
+            if value is None:
+                msg = f"If '{name}' is None, then 'method' must also be None."
                 raise ValueError(msg)
 
         # hardcode loss_quantile as it was rather meant for experimental purposes
@@ -866,22 +862,12 @@ def initializer(
             iterations = int(iterations)
 
         if method not in ["random", "lhs", "sobol"]:
-            msg = (  # type: ignore
-                "[section: initializer] Currently implemented initialization",
-                f"methods are 'random', 'sobol', and 'lhs', but got '{method=}'",
-                "as input.",
+            msg = (
+                "Currently implemented initialization "
+                f"methods are 'random', 'sobol', and 'lhs', but got {method=}"
+                " as input."
             )
             raise ValueError(msg)
-
-        # check that quantile is provided as probability
-        if loss_quantile is not None:
-            if (loss_quantile < 0.0) or (loss_quantile > 1.0):
-                msg = (  # type: ignore
-                    "[section: initializer] 'loss_quantile' must be a",
-                    "value between 0",
-                    f"and 1. Found 'loss_quantile={loss_quantile=}'.",
-                )
-                raise ValueError(msg)
 
     init_dict: Initializer = dict(
         method=method,
@@ -894,13 +880,27 @@ def initializer(
     return init_dict
 
 
+class PriorMethods(str, Enum):
+    """Method used for learning prior distribution"""
+
+    parametric_prior = "parametric_prior"
+    deep_prior = "deep_prior"
+
+
+class ProgressMethod(int, Enum):
+    """Printing status of optimization"""
+
+    HIDE_PROGRESS = 0
+    SHOW_PROGRESS = 1
+
+
 def trainer(  # noqa: PLR0913
-    method: str,
+    method: PriorMethods,
     seed: int,
     epochs: int,
     B: int = 128,
     num_samples: int = 200,
-    progress: int = 1,
+    progress: ProgressMethod = ProgressMethod.SHOW_PROGRESS,
 ) -> Trainer:
     """
     Specify training settings for learning the prior distribution(s).
@@ -956,20 +956,17 @@ def trainer(  # noqa: PLR0913
     """
     # check that progress is either 0 or 1
     if progress not in [0, 1]:
-        raise ValueError("Progress has to be either 0 or 1. " + "Got {progress=}.")
+        raise ValueError(f"Progress has to be either 0 or 1. Got {progress=}.")  # noqa: TRY003
     # check that epochs are positive numbers
     if epochs <= 0:
-        msg = (
-            "[section: trainer] The number of epochs has to be at least 1.",
-            f" Got {epochs=} epochs",
-        )
+        msg = "The number of epochs has to be greater 0." f" Got {epochs=}."
         raise ValueError(msg)
 
     # check that method is implemented
     if method not in ["parametric_prior", "deep_prior"]:
         msg = (
-            "[section: trainer] Currently only the methods 'deep_prior' and",
-            f"'parametric prior' are implemented but got '{method=}'.",
+            "Currently only the methods 'deep_prior' and"
+            f"'parametric prior' are implemented but got {method=}."
         )
         raise ValueError(msg)
 
