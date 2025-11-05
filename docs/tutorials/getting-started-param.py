@@ -256,7 +256,7 @@ eliobj = el.Elicit(
     optimizer=el.optimizer(
         optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
     ),
-    trainer=el.trainer(method="parametric_prior", seed=2025, epochs=400, progress=0),
+    trainer=el.trainer(method="parametric_prior", seed=2025, epochs=500, progress=0),
     initializer=el.initializer(
         method="sobol",
         iterations=32,

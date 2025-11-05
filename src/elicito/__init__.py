@@ -572,6 +572,12 @@ class Elicit:
         for i, key in enumerate(kwargs):
             setattr(self, key, kwargs[key])
             # reset results
+            try:
+                self.results  # type: ignore
+            except AttributeError:
+                pass
+            else:
+                delattr(self, "results")
             self.temp_results = list()
             self.temp_history = list()
             if i == 0:

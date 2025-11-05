@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp
+import xarray as xr
 from tests.utils import eliobj as base_eliobj
 
 import elicito as el
@@ -41,7 +42,7 @@ def eliobj():
         targets=[
             el.target(name="b0", loss=el.losses.L2, query=el.queries.quantiles((0.5,)))
         ],
-        expert=el.expert.data({"quantiles_b0": 0.5}),
+        expert=el.expert.data({"quantiles_b0": [0.5]}),
         optimizer=el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.1),
         trainer=el.trainer(method="parametric_prior", seed=42, epochs=1),
         initializer=el.initializer(
@@ -74,6 +75,17 @@ def network():
         ),
         base_distribution=el.networks.base_normal,
     )
+
+
+def test_eliobj_attributes(eliobj):
+    # check unfitted obj
+    assert "temp_results" in dir(eliobj)
+    assert "temp_history" in dir(eliobj)
+
+    # check fitted obj
+    assert "results" in dir(base_eliobj)
+    assert "temp_results" not in dir(base_eliobj)
+    assert "temp_history" not in dir(base_eliobj)
 
 
 def test_expert_input(eliobj):
@@ -310,6 +322,10 @@ def test_checks_fit(capsys):
         1,
         epochs,
     )
+
+    base_eliobj.fit(overwrite=True)
+    assert hasattr(base_eliobj, "results")
+    assert isinstance(base_eliobj.results, xr.DataTree)
 
 
 @pytest.mark.parametrize("dry_run", [True, False])
