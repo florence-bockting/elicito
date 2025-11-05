@@ -26,7 +26,7 @@ jobs:
         os: ["ubuntu-latest", "macos-latest"]#, "windows-latest"]
         # Test against all security and bugfix versions: https://devguide.python.org/versions/
         # currently elicito supports only versions below 3.13
-        python-version: [ "3.11", "3.12"]#, "3.13" ]
+        python-version: [ "3.11", "3.12", "3.13" ]
         # Check both 'library' install and the 'application' (i.e. locked) install
         # TODO: include a elicito-locked version in conda-forge
         install-target: ["elicito"]#, "elicito-locked"]

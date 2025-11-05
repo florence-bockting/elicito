@@ -6,7 +6,7 @@ authors = [
     { name = "Florence Bockting", email = "florence.bockting@tu-dortmund.de" },
 ]
 license = { text = "Apache-2.0" }
-requires-python = ">=3.11, <3.13"
+requires-python = ">=3.11, <3.14"
 dependencies = [
     "tqdm >= 4.38",
     "numpy >= 1.24",
@@ -31,7 +31,7 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-   # "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
 ]
 
@@ -49,16 +49,16 @@ plots = [
     "arviz_stats>=0.6.0",
 ]
 pandas = [
-    "pandas==2.2.3"
+    "pandas>=2.2.3"
 ]
 scipy = [
-    "scipy==1.13.1"
+    "scipy>=1.14.0"
 ]
 
 full = [
     "elicito[plots]",
+    "elicito[pandas]",
     "elicito[scipy]",
-    "elicito[pandas]"
 ]
 
 [dependency-groups]
@@ -436,6 +436,7 @@ authorized_licenses = [
     "GNU Lesser General Public License v2 or later (LGPLv2+)",
     "mit",
     "mit license",
+    'MIT-CMU',
     "Mozilla Public License 2.0 (MPL 2.0)",
     "python software foundation",
     "python software foundation license",
