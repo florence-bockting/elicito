@@ -13,34 +13,38 @@ With its modulare framework `elicito` supports
 + loss functions (criterion used to match expert knowledge with simulated model quantities)
 
 ## Conceptual background
-The general workflow underlying **elicito** closely resembles the approach of prior
-predictive checks: We simulate from the joint model $p(\theta, y)$ and
-assess how well the resulting prior predictions align with the expert’s expectations. If
-there is a discrepancy between the expert’s expectations and the model simulations,
-the prior specification needs to be adjusted accordingly.
-The general workflow of our framework can be summarized as follows:
+Given a generative model and a set of initial hyperparameters defining the prior distributions,
+the model can be run in forward mode to simulate elicited summaries by computing the predefined
+target quantities and summary statistics. These simulated summaries are then compared with the
+expert-elicited summaries obtained during the expert-elicitation stage. An iterative optimization
+scheme is employed to update the hyperparameters of the parametric prior distributions so as to
+minimize the discrepancy between simulated and expert-elicited summaries. In other words, the
+objective is to identify the vector of hyperparameters that yields the closest alignment between
+simulated and expert-elicited summaries.
 
-1. Define the generative model : Define the generative model including dimensionality
-and parameterization of prior distribution(s). (Setup stage)
-2. Identify variables and elicitation techniques for querying expert knowledge: Select
-the set of variables to be elicited from the domain expert (target quantities) and
-determine which elicitation techniques to use for querying the selected variables
-from the expert (elicited statistics). (Setup stage)
-3. Elicit statistics from expert and simulate corresponding predictions from the gener-
-ative model : Sample from the generative model and perform all necessary computa-
-tional steps to generate model predictions (model-elicited statistics) corresponding
-to the set of expert-elicited statistics. (Elicitation stage)
-4. Evaluate consistency between expert knowledge and model predictions: Evaluate the
-discrepancy between the model- and expert-elicited statistics via a multi-objective
-loss function. (Fitting stage)
-5. Adjust prior to align model predictions more closely with expert knowledge: Use
-mini-batch stochastic gradient descent to adjust the prior so as to reduce the loss.
-(Fitting stage)
+![conceptual workflow](graphics/conceptual-workflow.png)
+
+The core logic of the expert prior elicitation method proposed in Bockting et al. (2024) can be summarized in a five-step workflow:
+
+/// note | Core logic of method underlying elicito
+1. *Define the generative model*: Specify the generative model, including the functional form
+of the data distribution and the parametric family of prior distributions.
+2. *Define target quantities and elicitation techniques*: Select the set of target quantities
+and determine the elicitation techniques to query the expert (cf. elicited summaries).
+3. *Simulate elicited summaries*: Draw samples from the generative model and compute the
+corresponding set of simulated elicited summaries.
+4. *Evaluate discrepancy between simulated and expert-elicited summaries*: Assess the
+discrepancy between the simulated and expert-elicited summaries using a multi-objective loss
+function.
+5. *Adjust prior hyperparameters to minimize discrepancy*: Apply an optimization scheme to
+update the prior hyperparameters such that the loss function is minimized.
+///
+
 
 ### Main References
 
-+ [Software Paper] Bockting F. & Bürkner PC (2025). elicito: A Python package for expert-prior elicitation.
-[PDF is coming soon]()
++ [Software Paper] Bockting F. & Bürkner PC (2025). elicito: A Python package for expert-prior elicitation. arXiv.
+[Preprint](https://arxiv.org/pdf/2506.16830)
 + [Methods Paper] Bockting F., Radev ST, Bürkner PC (2024). Simulation-based prior knowledge elicitation
 for parametric Bayesian models. *Scientific Report, 14*(1), 17330. [PDF](https://www.nature.com/articles/s41598-024-68090-7)
 + [Methods Paper] Bockting F., Radev ST, Bürkner PC (2025). Expert-elicitation method for non-parametric joint priors using
