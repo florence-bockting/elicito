@@ -82,7 +82,7 @@ plugins:
             - https://pint.readthedocs.io/en/stable/objects.inv
             - https://www.fatiando.org/pooch/latest/objects.inv
             - https://docs.python.org/3/objects.inv
-            - https://docs.scipy.org/doc/scipy/objects.inv
+            #- https://docs.scipy.org/doc/scipy/objects.inv
             - https://scitools-iris.readthedocs.io/en/stable/objects.inv
             - https://scmdata.readthedocs.io/en/stable/objects.inv
             # # Not available for tqdm

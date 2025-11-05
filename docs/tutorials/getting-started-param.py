@@ -287,10 +287,9 @@ eliobj.results
 # ### Initialization of hyperparameters
 
 # %%
-fig, axes = el.plots.initialization(eliobj, cols=4)
-for i, hyp in enumerate(["\mu_0", "\sigma_0", "\mu_2", "\sigma_1", "\sigma_2"]):
-    axes[i].set_title(rf"${hyp}$")
-
+el.plots.initialization(eliobj,
+                        titles=["$\mu_0$", "$\sigma_0$", "$\mu_2$", "$\sigma_1$", "$\sigma_2$"],
+                        cols=4);
 # %% [markdown]
 # ### Convergence - Loss
 
@@ -301,9 +300,9 @@ el.plots.loss(eliobj);
 # ### Convergence - hyperparameters
 
 # %%
-fig, axs = el.plots.hyperparameter(eliobj, cols=5)
-for i, hyp in enumerate(["\mu_0", "\sigma_0", "\mu_2", "\sigma_1", "\sigma_2"]):
-    axs[i].set_title(rf"${hyp}$")
+el.plots.hyperparameter(eliobj,
+                        titles=["$\mu_0$", "$\sigma_0$", "$\mu_2$", "$\sigma_1$", "$\sigma_2$"],
+                        cols=5);
 
 # %% [markdown]
 # ### Expert expectations
