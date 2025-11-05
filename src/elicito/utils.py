@@ -635,7 +635,7 @@ def load(file: str) -> Any:
         eliobj.temp_history = obj["temp_history"]
         eliobj.temp_results = obj["temp_results"]
     else:
-        eliobj.results = obj["results"]
+        eliobj.results = obj["results"]  # type: ignore
 
     return eliobj
 

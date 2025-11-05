@@ -10,7 +10,7 @@ from typing import Any
 import joblib
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
-import xarray as xr  # type: ignore
+import xarray as xr
 
 from elicito import (
     _checks,
@@ -233,7 +233,7 @@ class Elicit:
         """Return a readable summary of the object."""
         # fitted eliobj with shape information
         try:
-            self.results
+            self.results  # type: ignore
         except AttributeError:
             if len(self.temp_results) != 0:
                 targets_str = "\n".join(
@@ -265,12 +265,12 @@ class Elicit:
                     )
                 )
         else:
-            target_list = list(self.results.target_quantity.data_vars.keys())
-            elicit_list = list(self.results.elicited_summary.data_vars.keys())
+            target_list = list(self.results.target_quantity.data_vars.keys())  # type: ignore
+            elicit_list = list(self.results.elicited_summary.data_vars.keys())  # type: ignore
 
             targets_str = "\n".join(
-                f"  - {k1} {self.results.target_quantity[k1].shape[1:]} -> "
-                f"{k2} {self.results.elicited_summary[k2].shape[1:]}"
+                f"  - {k1} {self.results.target_quantity[k1].shape[1:]} -> "  # type: ignore
+                f"{k2} {self.results.elicited_summary[k2].shape[1:]}"  # type: ignore
                 for k1, k2 in zip(target_list, elicit_list)
             )
 
@@ -279,13 +279,13 @@ class Elicit:
 
         get_num_hyperpar: int | str
         try:
-            self.results
+            self.results  # type: ignore
         except AttributeError:
             pass
         else:
             if self.trainer["method"] == "deep_prior":
                 get_num_hyperpar = utils.compute_num_weights(
-                    self.results[0]["num_NN_weights"]
+                    self.results[0]["num_NN_weights"]  # type: ignore
                 )
 
         if (self.trainer["method"] == "deep_prior") and (self.dry_run):
@@ -374,7 +374,7 @@ class Elicit:
         # check whether elicit object is already fitted
         refit = True
         try:
-            self.results
+            self.results  # type: ignore
         except AttributeError:
             # run single time if no parallelization is required
             if (parallel is None) and (refit):
@@ -388,7 +388,7 @@ class Elicit:
                 self.temp_history.append(history)
                 self.temp_results.append(results)
 
-                res = _outputs.create_datatree(
+                results = _outputs.create_datatree(
                     self.temp_history,
                     self.temp_results,
                     self.trainer,
@@ -396,7 +396,7 @@ class Elicit:
                     self.expert,
                 )
 
-                self.results.update(res)
+                self.results.update(results)
                 delattr(self, "temp_history")
                 delattr(self, "temp_results")
 
@@ -423,7 +423,7 @@ class Elicit:
                     self.temp_history.append(res[i][1])
                     self.temp_results[i]["seed"] = seed
 
-                res = _outputs.create_datatree(
+                results = _outputs.create_datatree(
                     self.temp_history,
                     self.temp_results,
                     self.trainer,
@@ -431,7 +431,7 @@ class Elicit:
                     self.expert,
                 )
 
-                self.results = res
+                self.results = results
                 delattr(self, "temp_history")
                 delattr(self, "temp_results")
         else:

@@ -9,6 +9,8 @@ import numpy as np
 import tensorflow as tf
 import xarray as xr
 
+from elicito.types import ExpertDict, Parameter, Trainer
+
 MAIN_DIMS = ["replication", "epoch"]
 """main dimensions for history result objects"""
 
@@ -128,7 +130,7 @@ def to_dataset(
 
 
 def create_initialization_group(
-    parameters: dict[str, Any], results: list[Any]
+    parameters: list[Any], results: list[Any]
 ) -> xr.Dataset:
     """
     Create result group for initialization runs
@@ -266,7 +268,9 @@ def create_hyperparameter_group(history: list[Any]) -> xr.Dataset:
     return hyp_group
 
 
-def create_marginal_group(history: list[Any], parameters: dict[str, Any]) -> xr.Dataset:
+def create_marginal_group(
+    history: list[Any], parameters: list[Parameter]
+) -> xr.Dataset:
     """
     Create xr.Dataset from marginal prior updates
 
@@ -429,7 +433,7 @@ def create_result_group(
     return ds_group
 
 
-def create_prior_ds(results: list[Any], parameters: dict[str, Any]) -> xr.Dataset:
+def create_prior_ds(results: list[Any], parameters: list[Parameter]) -> xr.Dataset:
     """Create prior group for Inference data
 
     Parameters
@@ -474,7 +478,7 @@ def create_prior_ds(results: list[Any], parameters: dict[str, Any]) -> xr.Datase
     return ds_prior
 
 
-def create_oracle_ds(results: list[Any], parameters: dict[str, Any]) -> xr.Dataset:
+def create_oracle_ds(results: list[Any], parameters: list[Parameter]) -> xr.Dataset:
     """Create oracle group for Inference data
 
     Parameters
@@ -574,9 +578,9 @@ def create_expert_ds(results: list[Any]) -> xr.Dataset:
 def create_datatree(
     history: list[Any],
     results: list[Any],
-    trainer: dict[str, Any],
-    parameters: dict[str, Any],
-    expert: dict[str, Any],
+    trainer: Trainer,
+    parameters: list[Parameter],
+    expert: ExpertDict,
 ) -> xr.DataTree:
     """
     Create data tree as final results object
