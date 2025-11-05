@@ -237,12 +237,8 @@ class Elicit:
         except AttributeError:
             if len(self.temp_results) != 0:
                 targets_str = "\n".join(
-                    f"  - {k1} {tuple(
-                        self.temp_results[0]['target_quantities'][k1].shape
-                        )} -> "
-                    f"{k2} {tuple(
-                        self.temp_results[0]['elicited_statistics'][k2].shape
-                        )}"
+                    f"  - {k1} {tuple(self.temp_results[0]['target_quantities'][k1].shape)} -> "  # noqa: E501
+                    f"{k2} {tuple(self.temp_results[0]['elicited_statistics'][k2].shape)}"  # noqa: E501
                     for k1, k2 in zip(
                         self.temp_results[0]["target_quantities"],
                         self.temp_results[0]["elicited_statistics"],
