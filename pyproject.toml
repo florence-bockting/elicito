@@ -49,16 +49,16 @@ plots = [
     "arviz_stats>=0.6.0",
 ]
 pandas = [
-    "pandas==2.2.3"
+    "pandas>=2.2.3"
 ]
 scipy = [
-    "scipy==1.13.1"
+    "scipy>=1.14.0"
 ]
 
 full = [
     "elicito[plots]",
+    "elicito[pandas]",
     "elicito[scipy]",
-    "elicito[pandas]"
 ]
 
 [dependency-groups]
