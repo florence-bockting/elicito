@@ -212,9 +212,6 @@ class Elicit:
         # set seed
         tf.random.set_seed(SEED)
 
-        # add seed information into model attribute
-        # (required for discrete likelihood)
-        # self.model["seed"] = self.trainer["seed"]
         if self.dry_run:
             (
                 self.dry_elicits,
@@ -231,9 +228,10 @@ class Elicit:
                 self.network,
             )
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # noqa: PLR0912
         """Return a readable summary of the object."""
-        if self.results:
+        # fitted eliobj with shape information
+        if len(self.results) != 0:
             targets_str = "\n".join(
                 f"  - {k1} {tuple(self.results[0]['target_quantities'][k1].shape)} -> "
                 f"{k2} {tuple(self.results[0]['elicited_statistics'][k2].shape)}"
@@ -242,19 +240,24 @@ class Elicit:
                     self.results[0]["elicited_statistics"],
                 )
             )
-        elif self.dry_run:
+        # unfitted eliobj with shape information due to dry run
+        elif len(self.results) == 0 and self.dry_run:
             targets_str = "\n".join(
                 f"  - {k1} {tuple(self.dry_targets[k1].shape)} -> "
                 f"{k2} {tuple(self.dry_elicits[k2].shape)}"
                 for k1, k2 in zip(self.dry_targets, self.dry_elicits)
             )
-        else:
+        # unfitted eliobj without shape information
+        elif len(self.results) == 0 and not self.dry_run:
             targets_str = "\n".join(
-                f"  - {self.dry_targets[tar]['name']} -> {eli}"
+                f"  - {self.targets[tar]['name']} -> {eli}"
                 for tar, eli in zip(
                     range(len(self.targets)), utils.get_expert_datformat(self.targets)
                 )
             )
+        else:
+            targets_str = ""
+
         opt_name = self.optimizer["optimizer"].__name__
         opt_lr = self.optimizer["learning_rate"]
 
@@ -374,7 +377,7 @@ class Elicit:
             self.history.append(history)
             self.results.append(results)
 
-            self.results = _outputs.create_datatree(self)  # type: ignore
+            _outputs.create_datatree(self)  # type: ignore
             delattr(self, "history")
 
         # run multiple replications
@@ -400,7 +403,7 @@ class Elicit:
                 self.history.append(res[i][1])
                 self.results[i]["seed"] = seed
 
-            self.results = _outputs.create_datatree(self)  # type: ignore
+            _outputs.create_datatree(self)  # type: ignore
             delattr(self, "history")
 
     def save(

@@ -571,9 +571,9 @@ def create_expert_ds(eliobj: Any) -> xr.Dataset:
     return ds_elicit
 
 
-def create_datatree(eliobj: Any) -> xr.DataTree:
+def create_datatree(eliobj: Any):
     """
-    Create data tree as final result object
+    Create data tree as final results object
 
     Parameters
     ----------
@@ -582,10 +582,6 @@ def create_datatree(eliobj: Any) -> xr.DataTree:
         in nested dict format incl. history and result
         attribute
 
-    Returns
-    -------
-    :
-        xr.DataTree with final results
     """
     # Create the base DataTree
     res = xr.DataTree(name="results")
@@ -692,5 +688,3 @@ def create_datatree(eliobj: Any) -> xr.DataTree:
     ):
         init_ds = create_initialization_group(eliobj)
         res = res.assign({"initialization": xr.DataTree(init_ds)})
-
-    return res
