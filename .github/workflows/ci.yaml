@@ -195,6 +195,7 @@ jobs:
         os: [ "ubuntu-latest" ]
         # Test against all security and bugfix versions: https://devguide.python.org/versions/
         python-version: ["3.11", "3.12", "3.13" ]
+    runs-on: "${{ matrix.os }}"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
