@@ -573,7 +573,7 @@ class Elicit:
             setattr(self, key, kwargs[key])
             # reset results
             try:
-                self.results  # type: ignore
+                self.results
             except AttributeError:
                 pass
             else:
