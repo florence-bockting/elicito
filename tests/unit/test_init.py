@@ -288,8 +288,6 @@ def test_hyperparameters(eliobj):
 
 
 def test_checks_fit(capsys):
-    base_eliobj.results = [1, 2, 3]
-
     # negate
     with patch("builtins.input", side_effect=["n"]):
         base_eliobj.fit(overwrite=False)

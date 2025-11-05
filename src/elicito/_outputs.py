@@ -13,13 +13,13 @@ MAIN_DIMS = ["replication", "epoch"]
 """main dimensions for history result objects"""
 
 
-def create_hist_corrds(eliobj: Any) -> dict[str, Iterable[int]]:
+def create_hist_corrds(history: list[Any]) -> dict[str, Iterable[int]]:
     """Create coordinates for dim: replication, epoch
 
     Parameters
     ----------
-    eliobj :
-        fitted eliobj
+    history :
+        results of fitted eliobj per epoch
 
     Returns
     -------
@@ -27,8 +27,8 @@ def create_hist_corrds(eliobj: Any) -> dict[str, Iterable[int]]:
         mapping for coords property of xr.Dataset
     """
     return dict(
-        replication=range(len(eliobj.history)),
-        epoch=range(len(eliobj.history[0]["loss"])),
+        replication=range(len(history)),
+        epoch=range(len(history[0]["loss"])),
     )
 
 
@@ -127,14 +127,19 @@ def to_dataset(
     return ds
 
 
-def create_initialization_group(eliobj: Any) -> xr.Dataset:
+def create_initialization_group(
+    parameters: dict[str, Any], results: list[Any]
+) -> xr.Dataset:
     """
     Create result group for initialization runs
 
     Parameters
     ----------
-    eliobj :
-        fitted eliobj
+    parameters :
+        parameter information from eliobj
+
+    results :
+        results of fitted eliobj for the final epoch
 
     Returns
     -------
@@ -143,16 +148,16 @@ def create_initialization_group(eliobj: Any) -> xr.Dataset:
         hyperparameter values and corresponding loss per
         iteration.
     """
-    init_loss = combine_reps(eliobj.results, "init_loss_list")
+    init_loss = combine_reps(results, "init_loss_list")
 
     # use set and then list to remove duplicate labels,
     # due to pot. hyperparameter sharing
     hyp_names = list(
         set(
             [
-                eliobj.parameters[i]["hyperparams"][k]["name"]
-                for i in range(len(eliobj.parameters))
-                for k in eliobj.parameters[i]["hyperparams"]
+                parameters[i]["hyperparams"][k]["name"]
+                for i in range(len(parameters))
+                for k in parameters[i]["hyperparams"]
             ]
         )
     )
@@ -160,20 +165,15 @@ def create_initialization_group(eliobj: Any) -> xr.Dataset:
     da_init_hyp = xr.DataArray(
         data=tf.stack(
             [
-                tf.stack(
-                    [
-                        eliobj.results[i]["init_matrix"][k]
-                        for i in range(len(eliobj.results))
-                    ]
-                )
-                for k in eliobj.results[0]["init_matrix"].keys()
+                tf.stack([results[i]["init_matrix"][k] for i in range(len(results))])
+                for k in results[0]["init_matrix"].keys()
             ],
             -1,
         ),
         dims=["replication", "iteration", "hyperparameter"],
         coords=dict(
-            replication=range(len(eliobj.results)),
-            iteration=range(len(eliobj.results[0]["init_loss_list"])),
+            replication=range(len(results)),
+            iteration=range(len(results[0]["init_loss_list"])),
             hyperparameter=hyp_names,
         ),
         name="hyperparameter",
@@ -184,8 +184,8 @@ def create_initialization_group(eliobj: Any) -> xr.Dataset:
         data=init_loss[..., 0],  # type: ignore[index]
         dims=["replication", "iteration"],
         coords=dict(
-            replication=range(len(eliobj.results)),
-            iteration=range(len(eliobj.results[0]["init_loss_list"])),
+            replication=range(len(results)),
+            iteration=range(len(results[0]["init_loss_list"])),
         ),
         name="loss",
         attrs=dict(
@@ -212,13 +212,14 @@ def create_initialization_group(eliobj: Any) -> xr.Dataset:
     return init
 
 
-def create_hyperparameter_group(eliobj: Any) -> xr.Dataset:
+def create_hyperparameter_group(history: list[Any]) -> xr.Dataset:
     """Create xr.Dataset from hyperparameter results in eliobj
 
     Parameters
     ----------
-    eliobj :
-        fitted eliobj
+    history :
+        results of fitted eliobj per epoch stored in a list of
+        dictionaries
 
     Returns
     -------
@@ -228,17 +229,12 @@ def create_hyperparameter_group(eliobj: Any) -> xr.Dataset:
     """
     # transform to set and then list to remove duplicate
     # names due to pot. sharing of hyperparameters
-    hyp_names = eliobj.history[0]["hyperparameter"].keys()
+    hyp_names = history[0]["hyperparameter"].keys()
 
     obj_hyp = tf.stack(
         [
-            tf.stack(
-                [
-                    eliobj.history[i]["hyperparameter"][k][1:]
-                    for i in range(len(eliobj.history))
-                ]
-            )
-            for k in eliobj.history[0]["hyperparameter"]
+            tf.stack([history[i]["hyperparameter"][k][1:] for i in range(len(history))])
+            for k in history[0]["hyperparameter"]
         ],
         -1,
     )
@@ -251,14 +247,14 @@ def create_hyperparameter_group(eliobj: Any) -> xr.Dataset:
     )
 
     ds_hyp_grad = to_dataset(
-        obj=eliobj.history,
+        obj=history,
         group="hyperparameter_gradient",
         dims=MAIN_DIMS,
         names_subgroups=[f"grad_{k}" for k in hyp_names],
     )
     hyp_group = ds_hyp.merge(ds_hyp_grad)
 
-    hyp_group = hyp_group.assign_coords(create_hist_corrds(eliobj))
+    hyp_group = hyp_group.assign_coords(create_hist_corrds(history))
     hyp_group = hyp_group.assign_attrs(
         {
             "description": (
@@ -270,7 +266,7 @@ def create_hyperparameter_group(eliobj: Any) -> xr.Dataset:
     return hyp_group
 
 
-def create_marginal_group(eliobj: Any) -> xr.Dataset:
+def create_marginal_group(history: list[Any], parameters: dict[str, Any]) -> xr.Dataset:
     """
     Create xr.Dataset from marginal prior updates
 
@@ -280,8 +276,12 @@ def create_marginal_group(eliobj: Any) -> xr.Dataset:
 
     Parameters
     ----------
-    eliobj :
-        fitted eliobj
+    history :
+        results of fitted eliobj per epoch stored in a list of
+        dictionaries
+
+    parameters :
+        parameter information from eliobj
 
     Returns
     -------
@@ -289,21 +289,18 @@ def create_marginal_group(eliobj: Any) -> xr.Dataset:
         xr.Dataset including information about mean and sd
         of the marginal priors across epochs
     """
-    param_names = [eliobj.parameters[i]["name"] for i in range(len(eliobj.parameters))]
+    param_names = [parameters[i]["name"] for i in range(len(parameters))]
 
     marginal_group = xr.Dataset()
     for m in ["means", "stds"]:
         marginal_group[m[:-1]] = xr.DataArray(
             data=tf.stack(
-                [
-                    eliobj.history[i]["hyperparameter"][m]
-                    for i in range(len(eliobj.history))
-                ]
+                [history[i]["hyperparameter"][m] for i in range(len(history))]
             ),
             dims=["replication", "epoch", "parameter"],
             coords=dict(
-                replication=range(len(eliobj.history)),
-                epoch=range(len(eliobj.history[0]["loss"])),
+                replication=range(len(history)),
+                epoch=range(len(history[0]["loss"])),
                 parameter=param_names,
             ),
             name=m[:-1],
@@ -321,7 +318,7 @@ def create_marginal_group(eliobj: Any) -> xr.Dataset:
     return marginal_group
 
 
-def create_loss_group(eliobj: Any) -> xr.Dataset:
+def create_loss_group(history: list[Any], results: list[Any]) -> xr.Dataset:
     """
     Create xr.Dataset for loss section
 
@@ -330,8 +327,12 @@ def create_loss_group(eliobj: Any) -> xr.Dataset:
 
     Parameters
     ----------
-    eliobj :
-        fitted eliobj
+    history :
+        results of fitted eliobj per epoch stored in a list of
+        dictionaries
+
+    results :
+        results of fitted eliobj for the final epoch
 
     Returns
     -------
@@ -341,21 +342,21 @@ def create_loss_group(eliobj: Any) -> xr.Dataset:
     """
     ds_loss = xr.Dataset()
     ds_loss["total_loss"] = to_dataarray(
-        obj=eliobj.history,
+        obj=history,
         group="loss",
         dims=MAIN_DIMS,
         name="loss",
     )
 
     ds_loss_comp = to_dataset(
-        obj=eliobj.history,
+        obj=history,
         group="loss_component",
         dims=MAIN_DIMS,
-        names_subgroups=eliobj.results[0]["loss_tensor_model"].keys(),
+        names_subgroups=results[0]["loss_tensor_model"].keys(),
     )
     loss_group = ds_loss.merge(ds_loss_comp)
 
-    loss_group = loss_group.assign_coords(create_hist_corrds(eliobj))
+    loss_group = loss_group.assign_coords(create_hist_corrds(history))
     loss_group = loss_group.assign_attrs(
         {
             "description": (
@@ -368,7 +369,7 @@ def create_loss_group(eliobj: Any) -> xr.Dataset:
 
 
 def create_result_group(
-    eliobj: Any,
+    results: list[Any],
     group: str,
     description: str,
     dim_name: Optional[str] = None,
@@ -379,8 +380,8 @@ def create_result_group(
 
     Parameters
     ----------
-    eliobj :
-        fitted eliobj
+    results :
+        results of fitted eliobj for the final epoch
 
     group :
         Name of the group to extract (e.g. "model_samples").
@@ -401,10 +402,10 @@ def create_result_group(
     """
     ds_group = xr.Dataset(attrs=dict(description=description))
 
-    n_replications = len(eliobj.results)
-    for num, (k, _) in enumerate(eliobj.results[0][group].items()):
+    n_replications = len(results)
+    for num, (k, _) in enumerate(results[0][group].items()):
         # stack over replications
-        var = tf.stack([eliobj.results[i][group][k] for i in range(n_replications)])
+        var = tf.stack([results[i][group][k] for i in range(n_replications)])
         shape = var.shape
 
         # separate base dims and extra dims
@@ -428,14 +429,16 @@ def create_result_group(
     return ds_group
 
 
-def create_prior_ds(eliobj: Any) -> xr.Dataset:
+def create_prior_ds(results: list[Any], parameters: dict[str, Any]) -> xr.Dataset:
     """Create prior group for Inference data
 
     Parameters
     ----------
-    eliobj :
-        eliobj containing results section with training information
-        about prior samples
+    results :
+        results of fitted eliobj for the final epoch
+
+    parameters :
+        parameter information from eliobj
 
     Returns
     -------
@@ -450,14 +453,9 @@ def create_prior_ds(eliobj: Any) -> xr.Dataset:
             )
         }
     )
-    for j, k in enumerate(
-        [eliobj.parameters[k]["name"] for k in range(len(eliobj.parameters))]
-    ):
+    for j, k in enumerate([parameters[k]["name"] for k in range(len(parameters))]):
         prior = tf.stack(
-            [
-                eliobj.results[i]["prior_samples"][:, :, j]
-                for i in range(len(eliobj.results))
-            ]
+            [results[i]["prior_samples"][:, :, j] for i in range(len(results))]
         )
 
         da_prior = xr.DataArray(
@@ -476,15 +474,19 @@ def create_prior_ds(eliobj: Any) -> xr.Dataset:
     return ds_prior
 
 
-def create_oracle_ds(eliobj: Any) -> xr.Dataset:
+def create_oracle_ds(results: list[Any], parameters: dict[str, Any]) -> xr.Dataset:
     """Create oracle group for Inference data
 
     Parameters
     ----------
-    eliobj :
+    results :
+        results of fitted eliobj for the final epocheliobj :
         eliobj containing results section with training information
         about ground truth containt prior_samples and elicited_summaries
         used for learning
+
+    parameters :
+        parameter information from eliobj
 
     Returns
     -------
@@ -508,7 +510,7 @@ def create_oracle_ds(eliobj: Any) -> xr.Dataset:
         }
     )
     priors_oracle = tf.stack(
-        [eliobj.results[i]["expert_prior_samples"] for i in range(len(eliobj.results))],
+        [results[i]["expert_prior_samples"] for i in range(len(results))],
         0,
     )
 
@@ -519,9 +521,7 @@ def create_oracle_ds(eliobj: Any) -> xr.Dataset:
             replication=tf.range(priors_oracle.shape[0]),
             batch=tf.range(priors_oracle.shape[1]),
             draw=tf.range(priors_oracle.shape[2]),
-            parameter=[
-                eliobj.parameters[k]["name"] for k in range(len(eliobj.parameters))
-            ],
+            parameter=[parameters[k]["name"] for k in range(len(parameters))],
         ),
         name="prior samples",
         attrs=dict(description="Prior samples from ground truth (oracle)"),
@@ -530,7 +530,7 @@ def create_oracle_ds(eliobj: Any) -> xr.Dataset:
     ds_oracle["prior"] = da_priors_oracle
 
     ds_elicit = create_result_group(
-        eliobj,
+        results,
         group="expert_elicited_statistics",
         description="Expert-elicited summaries",
         dim_name="summary",
@@ -540,7 +540,7 @@ def create_oracle_ds(eliobj: Any) -> xr.Dataset:
     return xr.merge([ds_oracle, ds_elicit])
 
 
-def create_expert_ds(eliobj: Any) -> xr.Dataset:
+def create_expert_ds(results: list[Any]) -> xr.Dataset:
     """
     Create expert group
 
@@ -549,8 +549,8 @@ def create_expert_ds(eliobj: Any) -> xr.Dataset:
 
     Parameters
     ----------
-    eliobj :
-        fitted eliobj
+    results :
+        results of fitted eliobj for the final epoch
 
     Returns
     -------
@@ -559,7 +559,7 @@ def create_expert_ds(eliobj: Any) -> xr.Dataset:
         expert-elicited summaries
     """
     ds_elicit = create_result_group(
-        eliobj,
+        results,
         group="expert_elicited_statistics",
         description=(
             "Expert-elicited summaries used to train " "the optimization algorithm."
@@ -571,30 +571,51 @@ def create_expert_ds(eliobj: Any) -> xr.Dataset:
     return ds_elicit
 
 
-def create_datatree(eliobj: Any):
+def create_datatree(
+    history: list[Any],
+    results: list[Any],
+    trainer: dict[str, Any],
+    parameters: dict[str, Any],
+    expert: dict[str, Any],
+) -> xr.DataTree:
     """
     Create data tree as final results object
 
     Parameters
     ----------
-    eliobj :
-        fitted eliobj containing training information
-        in nested dict format incl. history and result
-        attribute
+    history :
+        results of fitted eliobj per epoch stored in a list of
+        dictionaries
 
+    results :
+        results of fitted eliobj for the final epoch
+
+    trainer :
+        eliobj trainer dictionary
+
+    parameters :
+        parameter information from eliobj
+
+    expert :
+        eliobj expert dictionary
+
+    Returns
+    -------
+    :
+        xr.DataTree with final results
     """
     # Create the base DataTree
     res = xr.DataTree(name="results")
 
     # Create datasets for history_stats group
-    coords = create_hist_corrds(eliobj)
+    coords = create_hist_corrds(history)
 
     # loss information across epochs
-    loss_ds = create_loss_group(eliobj)
+    loss_ds = create_loss_group(history, results)
 
     # time per epoch
     time_ds = to_dataarray(
-        eliobj.history,
+        history,
         "time",
         MAIN_DIMS,
         "time_epoch",
@@ -606,7 +627,7 @@ def create_datatree(eliobj: Any):
 
     # seed per replication
     seed_ds = to_dataarray(
-        eliobj.results,
+        results,
         "seed",
         ["replication"],
         "seed_replication",
@@ -619,11 +640,11 @@ def create_datatree(eliobj: Any):
     # dependening on the used method
     history_dict = dict()
     history_dict["loss"] = xr.DataTree(loss_ds.assign_coords(coords))
-    if eliobj.trainer["method"] == "deep_prior":
-        marginal_ds = create_marginal_group(eliobj)
+    if trainer["method"] == "deep_prior":
+        marginal_ds = create_marginal_group(history, parameters)
         history_dict["prior_marginal"] = xr.DataTree(marginal_ds)
     else:
-        hyp_ds = create_hyperparameter_group(eliobj)
+        hyp_ds = create_hyperparameter_group(history)
         history_dict["hyperparameter"] = xr.DataTree(hyp_ds.assign_coords(coords))
 
     # combine history information in a tree
@@ -632,9 +653,9 @@ def create_datatree(eliobj: Any):
     )
 
     # Create datasets for remaining groups
-    prior_ds = create_prior_ds(eliobj)
+    prior_ds = create_prior_ds(results, parameters)
     model_ds = create_result_group(
-        eliobj,
+        results,
         group="model_samples",
         dim_name="model",
         description=(
@@ -643,7 +664,7 @@ def create_datatree(eliobj: Any):
         ),
     )
     target_ds = create_result_group(
-        eliobj,
+        results,
         group="target_quantities",
         dim_name="target",
         description=(
@@ -654,7 +675,7 @@ def create_datatree(eliobj: Any):
         ),
     )
     elicit_ds = create_result_group(
-        eliobj,
+        results,
         group="elicited_statistics",
         dim_name="summary",
         description=(
@@ -675,16 +696,18 @@ def create_datatree(eliobj: Any):
     res = res.assign({"elicited_summary": xr.DataTree(elicit_ds)})
 
     try:
-        eliobj.expert["ground_truth"]
+        expert["ground_truth"]
     except KeyError:
-        expert_ds = create_expert_ds(eliobj)
+        expert_ds = create_expert_ds(results)
         res = res.assign({"expert": xr.DataTree(expert_ds)})
     else:
-        oracle_ds = create_oracle_ds(eliobj)
+        oracle_ds = create_oracle_ds(results, parameters)
         res = res.assign({"oracle": xr.DataTree(oracle_ds)})
 
-    if (eliobj.trainer["method"] == "parametric_prior") and (
-        eliobj.results[0]["init_loss_list"] is not None
+    if (trainer["method"] == "parametric_prior") and (
+        results[0]["init_loss_list"] is not None
     ):
-        init_ds = create_initialization_group(eliobj)
+        init_ds = create_initialization_group(parameters, results)
         res = res.assign({"initialization": xr.DataTree(init_ds)})
+
+    return res

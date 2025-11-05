@@ -580,12 +580,12 @@ def save(
         storage["network"] = eliobj.network
         # results
         try:
-            eliobj.history
+            eliobj.results
         except:  # noqa: E722
-            storage["results"] = eliobj.results
+            storage["temp_results"] = []
+            storage["temp_history"] = []
         else:
             storage["results"] = eliobj.results
-            storage["history"] = eliobj.history
 
         save_as_pkl(storage, path + ".pkl")
 
@@ -630,11 +630,11 @@ def load(file: str) -> Any:
 
     # add results if already fitted
     try:
-        obj["history"]
+        obj["results"]
     except:  # noqa: E722
-        eliobj.results = obj["results"]
+        eliobj.temp_history = obj["temp_history"]
+        eliobj.temp_results = obj["temp_results"]
     else:
-        eliobj.history = obj["history"]
         eliobj.results = obj["results"]
 
     return eliobj
