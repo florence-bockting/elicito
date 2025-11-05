@@ -3,12 +3,14 @@ helper functions for tests
 """
 
 import numpy as np
+import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
 import elicito as el
 
 tfd = tfp.distributions
+scipy = pytest.importorskip("scipy")
 
 
 # numeric, standardized predictor
@@ -143,7 +145,7 @@ eliobj = el.Elicit(
     ),
     trainer=el.trainer(method="parametric_prior", seed=0, epochs=100),
     initializer=el.initializer(
-        method="sobol",
+        method="random",
         iterations=2,
         distribution=el.initialization.uniform(radius=1, mean=0),
     ),
