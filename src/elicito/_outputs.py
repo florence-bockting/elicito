@@ -228,15 +228,7 @@ def create_hyperparameter_group(eliobj: Any) -> xr.Dataset:
     """
     # transform to set and then list to remove duplicate
     # names due to pot. sharing of hyperparameters
-    hyp_names = list(
-        set(
-            [
-                eliobj.parameters[i]["hyperparams"][k]["name"]
-                for i in range(len(eliobj.parameters))
-                for k in eliobj.parameters[i]["hyperparams"]
-            ]
-        )
-    )
+    hyp_names = eliobj.history[0]["hyperparameter"].keys()
 
     obj_hyp = tf.stack(
         [

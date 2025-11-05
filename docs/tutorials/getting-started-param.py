@@ -12,7 +12,7 @@
 #     name: python3
 # ---
 
-# %% [markdown]
+# %% [markdown] editable=true slideshow={"slide_type": ""}
 # # Getting started with parameteric priors
 #
 # Here we introduce how to specify the elicitation method for
