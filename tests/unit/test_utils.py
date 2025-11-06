@@ -153,8 +153,8 @@ class DummyEliobj_empty:
             iterations=1,
         )
         self.network = None
-        self.results = None
-        self.history = None
+        self.temp_results = []
+        self.temp_history = []
 
 
 class DummyEliobj_fitted:
@@ -182,15 +182,16 @@ class DummyEliobj_fitted:
         )
         self.network = None
         self.results = [1, 2, 3, 4]
-        self.history = [1, 2, 3, 4]
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
-@pytest.mark.parametrize("eliobj", [DummyEliobj_empty(), DummyEliobj_fitted()])
+@pytest.mark.parametrize(
+    "eliobj, fit", [(DummyEliobj_empty(), False), (DummyEliobj_fitted(), True)]
+)
 @pytest.mark.parametrize(
     "test_path", ["tests/test-data/dummy_eliobj", "tests/test-data/dummy_eliobj.pkl"]
 )
-def test_save_and_load_path(monkeypatch, eliobj, test_path, overwrite):
+def test_save_and_load_path(monkeypatch, eliobj, fit, test_path, overwrite):
     pytest.importorskip("scipy")
 
     # Ensure the directory exists
@@ -230,16 +231,21 @@ def test_save_and_load_path(monkeypatch, eliobj, test_path, overwrite):
         assert loaded_eliobj.targets[0]["name"] == "b0"
         assert loaded_eliobj.trainer["method"] == "parametric_prior"
         assert loaded_eliobj.trainer["seed"] == 42
-        assert loaded_eliobj.results == eliobj.results
-        assert loaded_eliobj.history == eliobj.history
+        if fit:
+            assert loaded_eliobj.results == eliobj.results
+        else:
+            assert loaded_eliobj.temp_history == eliobj.temp_history
+            assert loaded_eliobj.temp_results == eliobj.temp_results
 
         # clean-up directory
         shutil.rmtree("tests/test-data")
 
 
-@pytest.mark.parametrize("eliobj", [DummyEliobj_empty(), DummyEliobj_fitted()])
+@pytest.mark.parametrize(
+    "eliobj, fit", [(DummyEliobj_empty(), False), (DummyEliobj_fitted(), True)]
+)
 @pytest.mark.parametrize("test_file", ["dummy_eliobj.pkl", "dummy_eliobj"])
-def test_save_and_load_name(eliobj, test_file):
+def test_save_and_load_name(eliobj, fit, test_file):
     pytest.importorskip("scipy")
 
     save(eliobj, name=test_file, overwrite=True)
@@ -256,8 +262,11 @@ def test_save_and_load_name(eliobj, test_file):
     assert loaded_eliobj.targets[0]["name"] == "b0"
     assert loaded_eliobj.trainer["method"] == "parametric_prior"
     assert loaded_eliobj.trainer["seed"] == 42
-    assert loaded_eliobj.results == eliobj.results
-    assert loaded_eliobj.history == eliobj.history
+    if fit:
+        assert loaded_eliobj.results == eliobj.results
+    else:
+        assert loaded_eliobj.temp_history == eliobj.temp_history
+        assert loaded_eliobj.temp_results == eliobj.temp_results
 
     # clean-up directory
     shutil.rmtree("results/parametric_prior")

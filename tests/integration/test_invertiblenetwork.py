@@ -256,6 +256,7 @@ def test_invertible_network():
         initializer=None,
         network=network,
     )
+
     # fit updated eliobj
     eliobj_deep.fit()  # parallel=parallel=el.utils.parallel(runs=5))
 
