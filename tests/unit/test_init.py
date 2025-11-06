@@ -3,12 +3,14 @@ Unittest for init.py module
 """
 
 import re
+from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp
 import xarray as xr
+from numpy import testing as npt
 from tests.utils import eliobj as base_eliobj
 
 import elicito as el
@@ -391,3 +393,93 @@ def test_str_method(dry_run):
     obs_eliobj2 = eliobj.__str__()
 
     assert "y_obs (128, 200, 50) -> quantiles_y_obs (128, 5)" in obs_eliobj2
+
+
+def test_eliobj_fit():
+    summary_data = {
+        "quantiles_y_obs": [0, -0.012148, 0.049513, 0.100585, 0.153291, 0.634314]
+    }
+
+    class GenerativeModel:
+        def __call__(self, prior_samples, N, se_y):
+            sigma_j = tf.cast(se_y, tf.float32)
+            mu = prior_samples[:, :, 0]
+            tau = prior_samples[:, :, 1]
+
+            theta_j = tfd.Normal(loc=mu, scale=tau).sample(N)
+            y_pred = tfd.Normal(
+                loc=tf.transpose(theta_j, perm=[1, 2, 0]), scale=sigma_j[None, None, :]
+            ).sample()
+
+            return dict(y_obs=y_pred)
+
+    eliobj = el.Elicit(
+        model=el.model(obj=GenerativeModel, N=50, se_y=tfd.Normal(0, 1).sample(50)),
+        parameters=[
+            el.parameter(
+                name="mu",
+                family=tfd.Normal,
+                hyperparams=dict(loc=el.hyper("mu_mu"), scale=el.hyper("sigma_mu")),
+            ),
+            el.parameter(
+                name="tau",
+                family=tfd.Normal,
+                hyperparams=dict(loc=el.hyper("l_tau"), scale=el.hyper("d_tau")),
+            ),
+        ],
+        targets=[
+            el.target(
+                name="y_obs",
+                query=el.queries.quantiles([0.05, 0.25, 0.5, 0.75, 0.95]),
+                loss=el.losses.MMD2(kernel="energy"),
+            ),
+        ],
+        expert=el.expert.data(summary_data),
+        optimizer=el.optimizer(
+            optimizer=tf.keras.optimizers.Adam, learning_rate=0.0, clipnorm=1.0
+        ),
+        trainer=el.trainer(method="parametric_prior", seed=123, epochs=1, progress=1),
+        initializer=el.initializer(
+            hyperparams=dict(mu_mu=1.0, sigma_mu=0.5, l_tau=0.1, d_tau=0.4)
+        ),
+    )
+
+    # check parallel fit with specific seeds set by the user
+    eliobj1 = deepcopy(eliobj)
+    expected_seeds = [2021, 2022, 2023, 2024]
+    eliobj1.fit(parallel=el.utils.parallel(runs=4, seeds=expected_seeds))
+
+    assert hasattr(eliobj1, "results")
+
+    npt.assert_array_equal(
+        eliobj1.results.history_stats.seed_replication.values, expected_seeds
+    )
+
+    with npt.assert_raises(AssertionError):
+        assert hasattr(eliobj1, "temp_results")
+        assert hasattr(eliobj1, "temp_history")
+
+    # check parallel fit with seeds randomly generated
+    eliobj2 = deepcopy(eliobj)
+    eliobj2.fit(parallel=el.utils.parallel(runs=4), overwrite=True)
+
+    assert hasattr(eliobj2, "results")
+
+    with npt.assert_raises(AssertionError):
+        assert hasattr(eliobj2, "temp_results")
+        assert hasattr(eliobj2, "temp_history")
+        npt.assert_array_equal(
+            eliobj2.results.history_stats.seed_replication.values, expected_seeds
+        )
+
+    # check that placeholder for storing results are accurately
+    # reset when updating eliobj
+    eliobj2.update(
+        trainer=el.trainer(method="parametric_prior", seed=125, epochs=1, progress=0)
+    )
+
+    assert hasattr(eliobj2, "temp_results")
+    assert hasattr(eliobj2, "temp_history")
+
+    with npt.assert_raises(AssertionError):
+        assert hasattr(eliobj2, "results")

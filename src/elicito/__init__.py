@@ -368,15 +368,15 @@ class Elicit:
         tf.random.set_seed(self.trainer["seed"])
 
         # check whether elicit object is already fitted
-        refit = True
         try:
             self.results  # type: ignore
         except AttributeError:
             # run single time if no parallelization is required
-            if (parallel is None) and (refit):
+            if parallel is None:
                 self.temp_results = []
                 self.temp_history = []
                 self.results = xr.DataTree()
+
                 results, history = self.workflow(self.trainer["seed"])
                 # include seed information into results
                 results["seed"] = self.trainer["seed"]
@@ -397,9 +397,11 @@ class Elicit:
                 delattr(self, "temp_results")
 
             # run multiple replications
-            if (parallel is not None) and (refit):
+            if parallel is not None:
                 self.temp_results = []
                 self.temp_history = []
+                self.results = xr.DataTree()
+
                 # create a list of seeds if not provided
                 if parallel["seeds"] is None:
                     # generate seeds
@@ -442,7 +444,6 @@ class Elicit:
                     raise ValueError("Invalid input. Please use 'y' or 'n'.")  # noqa: TRY003
 
                 if user_answ == "n":
-                    refit = False
                     print("Process aborded; eliobj is not re-fitted.")
 
     def save(
