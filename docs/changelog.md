@@ -21,6 +21,53 @@ from the examples given in that link.
 
 <!-- towncrier release notes start -->
 
+## Expert prior elicitation method v0.7.0 (2025-11-12)
+
+### 🆕 Features
+
+- + convert eliobj.results object into xr.DataTree
+  + adjust plots corresponding to new output format
+  + adjust tests corresponding to new output format
+  + adjust documentation to new output format
+  + include xarray as new dependency ([#32](https://github.com/florence-bockting/elicito/pull/32))
+
+### 🎉 Improvements
+
+- + add possibility for a dry run when initializing the `Elicit` object
+      + include in `Elicit` a new `meta_settings` parameter which includes a `dry_run=True` argument
+
+  + adjust the summary information when printing `eliobj`
+      + include information about shape
+      + differentiate between target quantity and elicited summary
+      + correct the computation of the number of hyperparameters for parametric method
+      + compute number of weights (incl. biases) of NNs when using deep_prior method and include as info for computing number of hyperparameters ([#30](https://github.com/florence-bockting/elicito/pull/30))
+
+### 🐛 Bug Fixes
+
+- + add tests for `elicit.py` module
+  + use `Enum` where appropriate to make valid options of an argument explicit. ([#30](https://github.com/florence-bockting/elicito/pull/30))
+- + add tests for functions in `utils.py` module
+  + discovered bug in computation of inverse_logif in `DoubleBounded` transformation ([#38](https://github.com/florence-bockting/elicito/pull/38))
+- + outsource checks for `Elicit` object into new module called `_checks.py`
+  + include checks when initializing the `Elicit` object and when using the `.update` method
+  + add unittest for checks in `test_init.py` ([#39](https://github.com/florence-bockting/elicito/pull/39))
+- + The hyperparameter names were not correctly matched with the hyperparameter values in the final output
+  + This issue has been fixed in `src\elicito\_outputs.py`
+  + A corresponding test has been added in `tests\unit\test_outputs.py` ([#41](https://github.com/florence-bockting/elicito/pull/41))
+- + update elicito such that it is compatible with Python 3.13
+  + This involved updating the dependencies in `pyproject.toml` to versions that support Python 3.13
+  + relaxing scipy and pandas dependencies to allow for future versions
+  + closes [Issue#19](https://github.com/florence-bockting/elicito/issues/19) ([#42](https://github.com/florence-bockting/elicito/pull/42))
+- + an error occured when using the `__str__` method for the fitted eliobj
+  + reason was a wrong assignment of the fitted results to the attribute (overwriting the self object)
+  + fixed assignment in `fit()` method in `__init__.py`
+  + added test to `tests\unit\test_init.py::test_str_method` ([#43](https://github.com/florence-bockting/elicito/pull/43))
+
+### 📚 Improved Documentation
+
+- + add information on print method for `eliobj` to How-To-Guides: *save-and-load* ([#25](https://github.com/florence-bockting/elicito/pull/25))
+
+
 ## Expert prior elicitation method v0.6.0 (2025-06-16)
 
 No significant changes.
