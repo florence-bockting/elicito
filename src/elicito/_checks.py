@@ -41,19 +41,16 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
             pass
         else:
             for k in expert["ground_truth"]:
+                # sample once; .sample() is not free and the shape is all we need
+                ground_truth_sample = expert["ground_truth"][k].sample(1)
                 # type list can result in cases where a tfd.Sequential/
                 # Jointdistribution is used
-                if type(expert["ground_truth"][k].sample(1)) is list:
+                if type(ground_truth_sample) is list:
                     num_params += sum(
-                        [
-                            param.shape[-1]
-                            for i, param in enumerate(
-                                expert["ground_truth"][k].sample(1)
-                            )
-                        ]
+                        [param.shape[-1] for param in ground_truth_sample]
                     )
                 else:
-                    num_params += expert["ground_truth"][k].sample(1).shape[-1]
+                    num_params += ground_truth_sample.shape[-1]
 
         if len(expected_params) != num_params:
             msg = (
