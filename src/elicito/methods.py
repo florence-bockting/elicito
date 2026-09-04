@@ -4,8 +4,8 @@ Strategy objects for the prior-learning methods
 
 from typing import Any, Protocol
 
+import numpy as np
 import tensorflow as tf
-import tensorflow_probability as tfp  # type: ignore
 
 import elicito as el
 from elicito import networks
@@ -387,14 +387,38 @@ class ParametricPrior:
 
         # extract pre-specified quantile loss out of all runs
         # get corresponding set of initial values
+        # elicit.initializer always sets this; the default keeps the best
+        # candidate if it is ever left unset
         loss_quantile = initializer["loss_quantile"]
+        if loss_quantile is None:
+            loss_quantile = 0.0
 
-        boolean_mask = tf.math.equal(
-            loss_list, tfp.stats.percentile(loss_list, loss_quantile)
-        )
-        idx = tf.where(tf.squeeze(boolean_mask, 1))
+        # A candidate whose loss is not finite must not take part in the
+        # selection. Without this, a single NAN makes the percentile NAN, no
+        # candidate matches, and the index lookup below fails with an error
+        # that does not name the cause.
+        losses = np.asarray(loss_list, dtype=np.float64).reshape(-1)
+        finite = np.flatnonzero(np.isfinite(losses))
 
-        init_prior_model = init_prior[int(tf.squeeze(idx))]
+        if finite.size == 0:
+            msg = (
+                f"All {losses.size} initialization candidates yield a "
+                "non-finite loss, so no start value can be selected. The "
+                "initialization distribution is centred at "
+                f"{initializer['distribution']['mean']} with radius "  # type: ignore [index]
+                f"{initializer['distribution']['radius']}, on the "  # type: ignore [index]
+                "unconstrained scale. Re-centre it on the expected "
+                "hyperparameter values, or reduce its radius."
+            )
+            raise ValueError(msg)
+
+        # pick the candidate closest to the requested quantile of the finite
+        # losses. argmin also settles a tie, which the previous equality test
+        # could not.
+        target = np.percentile(losses[finite], loss_quantile)
+        idx = finite[int(np.argmin(np.abs(losses[finite] - target)))]
+
+        init_prior_model = init_prior[idx]
         return init_prior_model, loss_list, init_prior, init_matrix
 
     def init_matrix_slice(  # noqa: D102

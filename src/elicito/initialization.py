@@ -2,9 +2,11 @@
 Hyperparameter initialization for parametric prior
 """
 
+import logging
 from collections.abc import Iterable
 from typing import Any, Optional, Union
 
+import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 from tqdm import tqdm
@@ -21,6 +23,8 @@ from elicito.types import (
 )
 
 tfd = tfp.distributions
+
+logger = logging.getLogger(__name__)
 
 
 def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
@@ -322,6 +326,18 @@ def init_runs(  # noqa: PLR0913
         loss_list.append(loss.numpy())
     if progress == 1:
         print(" ")
+
+    # A candidate with a non-finite loss cannot be used as a start value. It
+    # is kept in the list, so that loss_list stays aligned with init_matrix
+    # for the initialization plot. Selection skips it.
+    n_failed = int(np.sum(~np.isfinite(np.asarray(loss_list, dtype=np.float64))))
+    if n_failed > 0:
+        logger.info(
+            f"{n_failed} of {len(loss_list)} initialization candidates yield a"
+            " non-finite loss. They are excluded from the selection of the"
+            " start value."
+        )
+
     return loss_list, init_var_list, init_matrix
 
 

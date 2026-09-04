@@ -2,6 +2,7 @@
 Defines the optimization algorithm
 """
 
+import logging
 import time
 from typing import Any
 
@@ -16,6 +17,28 @@ from elicito.types import Parameter, Target, Trainer
 from elicito.utils import one_forward_simulation
 
 tfd = tfp.distributions
+
+logger = logging.getLogger(__name__)
+
+MAX_SKIPPED_STEPS = 5
+"""Number of non-finite steps in a row after which training stops."""
+
+
+def _halve_learning_rate(sgd_optimizer: Any) -> None:
+    """
+    Halve the learning rate of the optimizer
+
+    Used after a non-finite step. A smaller step often keeps the next update
+    inside the finite region.
+
+    Parameters
+    ----------
+    sgd_optimizer
+        the optimizer whose learning rate is reduced
+    """
+    lr = sgd_optimizer.learning_rate
+    if hasattr(lr, "assign"):
+        lr.assign(lr * 0.5)
 
 
 def sgd_training(  # noqa: PLR0913
@@ -101,6 +124,12 @@ def sgd_training(  # noqa: PLR0913
         print("Training")
         epochs = tqdm(tf.range(trainer["epochs"]))
 
+    # A single non-finite step must not end the run. The update is skipped and
+    # the learning rate is halved, which often lets the run recover. Training
+    # stops only after MAX_SKIPPED_STEPS steps in a row have failed.
+    n_skipped = 0
+    n_skipped_total = 0
+
     for epoch in epochs:
         # runtime of one epoch
         epoch_time_start = time.time()
@@ -125,14 +154,23 @@ def sgd_training(  # noqa: PLR0913
             # compute gradient of loss wrt trainable_variables
             gradients = tape.gradient(loss, trainable_vars)
 
-        # break for loop if loss is NAN and inform about cause
-        # check before the update, so NAN never reaches the variables
-        if tf.math.is_nan(loss):
-            print("Loss is NAN and therefore training stops.")
-            break
+        # check before the update, so a non-finite value never reaches the
+        # variables. A gradient can be non-finite while the loss is finite.
+        step_ok = bool(tf.math.is_finite(tf.squeeze(loss))) and all(
+            bool(tf.reduce_all(tf.math.is_finite(g)))
+            for g in gradients
+            if g is not None
+        )
 
-        # update trainable_variables using gradient info with adam optimizer
-        sgd_optimizer.apply_gradients(zip(gradients, trainable_vars))
+        if step_ok:
+            n_skipped = 0
+            # update trainable_variables using gradient info with adam
+            # optimizer
+            sgd_optimizer.apply_gradients(zip(gradients, trainable_vars))
+        else:
+            n_skipped += 1
+            n_skipped_total += 1
+            _halve_learning_rate(sgd_optimizer)
 
         # time end of epoch
         epoch_time_end = time.time()
@@ -145,6 +183,21 @@ def sgd_training(  # noqa: PLR0913
         time_per_epoch.append(epoch_time)
         total_losses.append(tf.squeeze(loss))
         component_losses.append(indiv_losses)
+
+        # the run cannot recover; stop after the epoch has been recorded
+        if n_skipped >= MAX_SKIPPED_STEPS:
+            print(
+                f"Loss is not finite for {MAX_SKIPPED_STEPS} steps in a row."
+                " Training stops."
+            )
+            break
+
+    if n_skipped_total > 0:
+        logger.info(
+            f"{n_skipped_total} of {len(total_losses)} steps were skipped"
+            " because the loss or a gradient was not finite. The learning rate"
+            " was halved for each of them."
+        )
 
     res_ep = {
         "loss": total_losses,
