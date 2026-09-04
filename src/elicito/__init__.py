@@ -3,7 +3,6 @@ A Python package for learning prior distributions based on expert knowledge
 """
 
 import importlib.metadata
-import warnings
 from types import SimpleNamespace
 from typing import Any
 
@@ -50,7 +49,6 @@ from elicito.types import (
 tfd = tfp.distributions
 
 tf.get_logger().setLevel("ERROR")
-warnings.filterwarnings("ignore")
 
 __version__ = importlib.metadata.version("elicito")
 
