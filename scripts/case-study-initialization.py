@@ -225,6 +225,7 @@ def build_eliobj(  # noqa: PLR0913
     clipnorm: float | None = 1.0,
     seed: int = 2025,
     derived: bool = False,
+    warmstart: bool = False,
 ) -> el.Elicit:
     """
     Build the elicitation object for one initialization box
@@ -257,6 +258,10 @@ def build_eliobj(  # noqa: PLR0913
         build the box from the expert data with
         [`from_elicits`][elicito.initialization.from_elicits]. ``mean`` and
         ``radius`` are then ignored.
+
+    warmstart
+        search the start value with Nelder-Mead instead of drawing candidates
+        from the box. The box then only provides the start point.
 
     Returns
     -------
@@ -327,8 +332,8 @@ def build_eliobj(  # noqa: PLR0913
             method="parametric_prior", seed=seed, epochs=epochs, progress=0
         ),
         initializer=el.initializer(
-            method="sobol",
-            iterations=32,
+            method="warmstart" if warmstart else "sobol",
+            iterations=300 if warmstart else 32,
             distribution=(
                 el.initialization.from_elicits()
                 if derived
@@ -423,6 +428,7 @@ def run_scenario(  # noqa: PLR0913
     epochs: int,
     clipnorm: float | None,
     sequential: bool,
+    warmstart: bool,
 ) -> Report:
     """
     Fit one scenario and measure it
@@ -446,6 +452,10 @@ def run_scenario(  # noqa: PLR0913
 
     clipnorm
         gradient clipping passed to the Adam optimizer. ``None`` disables it.
+
+    warmstart
+        search the start value with Nelder-Mead instead of drawing candidates
+        from the box
 
     sequential
         fit one chain at a time, instead of using joblib. Required for a
@@ -472,6 +482,7 @@ def run_scenario(  # noqa: PLR0913
                 clipnorm,
                 seed=2025 + i,
                 derived=scenario.derived,
+                warmstart=warmstart,
             )
             try:
                 eliobj.fit()
@@ -488,6 +499,7 @@ def run_scenario(  # noqa: PLR0913
             epochs,
             clipnorm,
             derived=scenario.derived,
+            warmstart=warmstart,
         )
         try:
             eliobj.fit(parallel=el.utils.parallel(runs=n_runs))
@@ -538,8 +550,13 @@ def to_markdown(reports: list[Report]) -> str:
     return "\n".join(lines)
 
 
-def main(
-    runs: int, epochs: int, out: Path, clipnorm: float | None, families: list[str]
+def main(  # noqa: PLR0913
+    runs: int,
+    epochs: int,
+    out: Path,
+    clipnorm: float | None,
+    families: list[str],
+    warmstart: bool,
 ) -> None:
     """
     Fit every scenario for every family and write the comparison tables
@@ -560,6 +577,10 @@ def main(
 
     families
         names of the noise families to sweep
+
+    warmstart
+        search the start value with Nelder-Mead instead of drawing candidates
+        from the box
     """
     sections = []
     for name in families:
@@ -571,7 +592,7 @@ def main(
         if sequential:
             print("    oracle prior does not pickle; fitting sequentially")
         reports = [
-            run_scenario(family, s, runs, epochs, clipnorm, sequential)
+            run_scenario(family, s, runs, epochs, clipnorm, sequential, warmstart)
             for s in SCENARIOS
         ]
         table = to_markdown(reports)
@@ -586,7 +607,9 @@ def main(
     out.parent.mkdir(parents=True, exist_ok=True)
     header = (
         "# Initialization case study\n\n"
-        f"`runs={runs}`, `epochs={epochs}`, `iterations=32`, `method=sobol`, "
+        f"`runs={runs}`, `epochs={epochs}`, "
+        f"`iterations={300 if warmstart else 32}`, "
+        f"`method={'warmstart' if warmstart else 'sobol'}`, "
         f"`clipnorm={clipnorm}`.\n\n"
         "The hyperparameter error is the mean relative error against the\n"
         "ground truth, over every hyperparameter and the surviving chains.\n\n"
@@ -616,6 +639,11 @@ if __name__ == "__main__":
         help="Gradient clipping for Adam. Use 0 to disable it.",
     )
     parser.add_argument(
+        "--warmstart",
+        action="store_true",
+        help="Search the start value with Nelder-Mead in every scenario.",
+    )
+    parser.add_argument(
         "--family",
         action="append",
         choices=sorted(FAMILIES),
@@ -628,4 +656,5 @@ if __name__ == "__main__":
         args.out,
         args.clipnorm or None,
         args.family or sorted(FAMILIES),
+        args.warmstart,
     )
