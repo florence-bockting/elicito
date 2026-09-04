@@ -529,67 +529,57 @@ def save(
     overwrite
         Whether to overwrite existing file.
 
+    Raises
+    ------
+    FileExistsError
+        The file exists and ``overwrite`` is ``False``.
+
     """
     # either name or file must be specified
-    if not ((name is None) ^ (file is None)):
-        msg = (
-            "Name and file cannot be both None or specified.",
-            "Either one has to be None.",
-        )
-        raise AssertionError(msg)
-
     if (name is not None) and (file is None):
         if name.endswith(".pkl"):
             name = name.removesuffix(".pkl")
         # create saving path
         path = f"./results/{eliobj.trainer['method']}/{name}_{eliobj.trainer['seed']}"
-
-    if (name is None) and (file is not None):
-        # postprocess file (or name) to avoid file.pkl.pkl
+    elif (file is not None) and (name is None):
+        # postprocess file to avoid file.pkl.pkl
         if file.endswith(".pkl"):
             file = file.removesuffix(".pkl")
         path = "./" + file
-
-    # check whether saving path is already used
-    if os.path.isfile(path + ".pkl") and not overwrite:
-        user_ans = input(
-            f"{path=} is not empty."
-            + "\nDo you want to overwrite it?"
-            + " Press 'y' for overwriting and 'n' to abort."
+    else:
+        msg = (
+            "Name and file cannot be both None or both specified. "
+            "Either one has to be None."
         )
-        while user_ans not in ["n", "y"]:
-            user_ans = input(
-                "Please press either 'y' for overwriting or 'n'"
-                + "to abort the process."
-            )
+        raise AssertionError(msg)
 
-        if user_ans == "n":
-            overwrite = False
-            logger.info("Process aborted. File is not overwritten.")
+    if os.path.isfile(path + ".pkl") and not overwrite:
+        msg = (
+            f"The file '{path}.pkl' already exists. "
+            "Use overwrite=True to replace it."
+        )
+        raise FileExistsError(msg)
 
-    if not os.path.isfile(path + ".pkl") or overwrite:
-        storage = dict()
-        # user inputs
-        storage["model"] = eliobj.model
-        storage["parameters"] = eliobj.parameters
-        storage["targets"] = eliobj.targets
-        storage["expert"] = eliobj.expert
-        storage["optimizer"] = eliobj.optimizer
-        storage["trainer"] = eliobj.trainer
-        storage["initializer"] = eliobj.initializer
-        storage["network"] = eliobj.network
-        # results
-        try:
-            eliobj.results
-        except:  # noqa: E722
-            storage["temp_results"] = []
-            storage["temp_history"] = []
-        else:
-            storage["results"] = eliobj.results
+    storage = dict()
+    # user inputs
+    storage["model"] = eliobj.model
+    storage["parameters"] = eliobj.parameters
+    storage["targets"] = eliobj.targets
+    storage["expert"] = eliobj.expert
+    storage["optimizer"] = eliobj.optimizer
+    storage["trainer"] = eliobj.trainer
+    storage["initializer"] = eliobj.initializer
+    storage["network"] = eliobj.network
+    # results
+    if hasattr(eliobj, "results"):
+        storage["results"] = eliobj.results
+    else:
+        storage["temp_results"] = []
+        storage["temp_history"] = []
 
-        save_as_pkl(storage, path + ".pkl")
+    save_as_pkl(storage, path + ".pkl")
 
-        print(f"saved in: {path}.pkl")
+    print(f"saved in: {path}.pkl")
 
 
 def load(file: str) -> Any:
@@ -629,13 +619,11 @@ def load(file: str) -> Any:
     )
 
     # add results if already fitted
-    try:
-        obj["results"]
-    except:  # noqa: E722
+    if "results" in obj:
+        eliobj.results = obj["results"]  # type: ignore
+    else:
         eliobj.temp_history = obj["temp_history"]
         eliobj.temp_results = obj["temp_results"]
-    else:
-        eliobj.results = obj["results"]  # type: ignore
 
     return eliobj
 

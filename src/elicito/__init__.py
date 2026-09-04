@@ -487,15 +487,6 @@ class Elicit:
         >>> eliobj.save(file="res/toymodel", overwrite=True)  # doctest: +SKIP
 
         """
-        # check that either name or file is specified
-        if not (name is None) ^ (file is None):
-            msg = (
-                "Name and file cannot be both None or both specified. "
-                + "Either one has to be None.",
-            )
-            raise AssertionError(msg)
-
-        # add a saving path
         return utils.save(self, name=name, file=file, overwrite=overwrite)
 
     def update(self, **kwargs: dict[Any, Any]) -> None:
