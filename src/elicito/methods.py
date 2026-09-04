@@ -361,6 +361,33 @@ class ParametricPrior:
             msg = "If method is 'parametric_prior', 'initializer' can't be None."
             raise ValueError(msg)
 
+        if initializer["method"] == "warmstart" and initializer["hyperparams"] is None:
+            # a derivative-free search needs no gradient, so it cannot diverge.
+            # The copy keeps the user's Elicit object unchanged.
+            distribution = initializer["distribution"]
+            iterations = initializer["iterations"]
+            if distribution is None or iterations is None:
+                # el.initializer rejects this earlier; the guard narrows the type
+                msg = (
+                    "If method is 'warmstart', 'distribution' and 'iterations'"
+                    " can't be None."
+                )
+                raise ValueError(msg)
+
+            initializer = dict(initializer)  # type: ignore [assignment]
+            initializer["hyperparams"] = el.warmstart.warm_start(
+                expert_elicited_statistics=expert_elicited_statistics,
+                parameters=parameters,
+                trainer=trainer,
+                model=model,
+                targets=targets,
+                expert=expert,
+                # dict() satisfies the signature; a TypedDict is invariant
+                distribution=dict(distribution),
+                max_evals=iterations,
+                seed=seed,
+            )
+
         if initializer["hyperparams"] is not None:
             # prepare generative model
             init_prior_model = el.simulations.Priors(
@@ -433,11 +460,17 @@ class ParametricPrior:
         if initializer["distribution"] is None:
             return initializer["hyperparams"]
 
+        # the dry run only needs a slice of the right shape. The warm start
+        # searches for the real values during `fit`.
+        method = initializer["method"]
+        if method == "warmstart":
+            method = "random"
+
         init_matrix = el.initialization.uniform_samples(
             seed=trainer["seed"],
             hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
             n_samples=initializer["iterations"],  # type: ignore [arg-type]
-            method=initializer["method"],  # type: ignore [arg-type]
+            method=method,  # type: ignore [arg-type]
             mean=initializer["distribution"]["mean"],
             radius=initializer["distribution"]["radius"],
             parameters=parameters,

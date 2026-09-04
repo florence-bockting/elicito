@@ -169,8 +169,8 @@ def test_initializer():
 
     msg = (
         "Currently implemented initialization "
-        "methods are 'random', 'sobol', and 'lhs', but got method='something'"
-        " as input."
+        "methods are 'random', 'sobol', 'lhs', and 'warmstart', but got "
+        "method='something' as input."
     )
     with pytest.raises(ValueError, match=msg):
         el.initializer(

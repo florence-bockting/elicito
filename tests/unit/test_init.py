@@ -595,3 +595,51 @@ def test_from_elicits_marks_the_box_as_deferred():
     assert box["from_elicits"] is True
     assert box["factor"] == 3.0
     assert box["hyper"] is None
+
+
+def test_initializer_rejects_an_unknown_method_name():
+    with pytest.raises(ValueError, match="warmstart"):
+        el.initializer(
+            method="nelder",
+            iterations=8,
+            distribution=el.initialization.uniform(radius=1, mean=0),
+        )
+
+
+def test_start_vector_reads_the_box():
+    names = ["mu0", "sigma0"]
+
+    scalar_box = el.initialization.uniform(radius=1.0, mean=2.0)
+    assert el.warmstart._start_vector(scalar_box, names) == [2.0, 2.0]
+
+    listed_box = el.initialization.uniform(
+        radius=[1.0, 1.0], mean=[3.0, 4.0], hyper=["sigma0", "mu0"]
+    )
+    assert el.warmstart._start_vector(listed_box, names) == [4.0, 3.0]
+
+
+def test_warm_start_returns_one_value_per_hyperparameter():
+    expert_elicits, _ = el.utils.get_expert_data(
+        base_eliobj.trainer,
+        base_eliobj.model,
+        base_eliobj.targets,
+        base_eliobj.expert,
+        base_eliobj.parameters,
+        base_eliobj.network,
+        base_eliobj.trainer["seed"],
+    )
+
+    hyperparams = el.warmstart.warm_start(
+        expert_elicited_statistics=expert_elicits,
+        parameters=base_eliobj.parameters,
+        trainer=base_eliobj.trainer,
+        model=base_eliobj.model,
+        targets=base_eliobj.targets,
+        expert=base_eliobj.expert,
+        distribution=el.initialization.from_elicits(),
+        max_evals=20,
+        seed=0,
+    )
+
+    assert list(hyperparams) == el.initialization.hyper_names(base_eliobj.parameters)
+    assert all(np.isfinite(v) for v in hyperparams.values())

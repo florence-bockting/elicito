@@ -279,10 +279,7 @@ def init_runs(  # noqa: PLR0913
     # sample initial values
     distribution: Any = initializer["distribution"]
     if distribution is not None:
-        if distribution.get("from_elicits", False):
-            distribution = _from_elicits_box(
-                expert_elicited_statistics, parameters, distribution["factor"]
-            )
+        distribution = build_box(distribution, expert_elicited_statistics, parameters)
         init_matrix = uniform_samples(
             seed=seed,
             hyppar=distribution["hyper"],
@@ -526,6 +523,69 @@ def uniform(
     return init_dict
 
 
+def hyper_names(parameters: list[Parameter]) -> list[str]:
+    """
+    List the hyperparameter names in the order the initializer uses
+
+    Parameters
+    ----------
+    parameters
+        List including dictionary with all information about the
+        (hyper-)parameters.
+
+    Returns
+    -------
+    names :
+        Hyperparameter names, in the order of ``parameters``.
+
+    """
+    names: list[str] = []
+    for param in parameters:
+        hyperparams = param["hyperparams"]
+        if hyperparams is None:
+            continue
+        for hyp in hyperparams:
+            names.append(hyperparams[hyp]["name"])
+    return names
+
+
+def build_box(
+    distribution: dict[str, Any],
+    expert_elicited_statistics: dict[str, Any],
+    parameters: list[Parameter],
+) -> dict[str, Any]:
+    """
+    Return the concrete initialization box
+
+    A box from [`from_elicits`][elicito.initialization.from_elicits] is
+    deferred, and is built here from the expert data. Any other box is
+    returned unchanged.
+
+    Parameters
+    ----------
+    distribution
+        Initialization box, as stored in the initializer.
+
+    expert_elicited_statistics
+        Elicited statistics of the expert.
+
+    parameters
+        List including dictionary with all information about the
+        (hyper-)parameters.
+
+    Returns
+    -------
+    box :
+        Box with a concrete ``mean``, ``radius`` and ``hyper``.
+
+    """
+    if distribution.get("from_elicits", False):
+        return _from_elicits_box(
+            expert_elicited_statistics, parameters, distribution["factor"]
+        )
+    return distribution
+
+
 def _from_elicits_box(
     expert_elicited_statistics: dict[str, Any],
     parameters: list[Parameter],
@@ -573,7 +633,7 @@ def _from_elicits_box(
     q25, median, q75 = np.percentile(pooled, [25.0, 50.0, 75.0])
     spread = float(max((q75 - q25) / 1.35, 1e-3))
 
-    hyper: list[str] = []
+    hyper = hyper_names(parameters)
     mean: list[float] = []
     radius: list[float] = []
     for param in parameters:
@@ -581,7 +641,6 @@ def _from_elicits_box(
         if hyperparams is None:
             continue
         for hyp in hyperparams:
-            hyper.append(hyperparams[hyp]["name"])
             if hyperparams[hyp]["constraint_name"] == "softplusL":
                 # the pooled spread mixes the prior scale with the noise, so
                 # it over-estimates the scale. Centre lower, and span from

@@ -220,6 +220,7 @@ class SamplingMethod(str, Enum):
     sobol = "sobol"
     random = "random"
     lhs = "lhs"
+    warmstart = "warmstart"
 
 
 class VariableType(str, Enum):

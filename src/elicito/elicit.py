@@ -748,7 +748,10 @@ def initializer(
     ----------
     method
         Name of initialization method.
-        Currently supported are "random", "lhs", and "sobol".
+        Currently supported are "random", "lhs", "sobol" and "warmstart".
+        The first three draw candidates from **distribution**. "warmstart"
+        instead runs a Nelder-Mead search from the centre of **distribution**,
+        before the first gradient step.
 
     distribution
         Specification of initialization distribution.
@@ -763,6 +766,8 @@ def initializer(
 
     iterations
         Number of samples drawn from the initialization distribution.
+        For method "warmstart" it is the number of objective evaluations of
+        the search, not a number of candidates.
 
     warmup_epochs
         Number of training epochs to run for each candidate before it is
@@ -863,11 +868,11 @@ def initializer(
         if iterations is not None:
             iterations = int(iterations)
 
-        if method not in ["random", "lhs", "sobol"]:
+        if method not in ["random", "lhs", "sobol", "warmstart"]:
             msg = (
                 "Currently implemented initialization "
-                f"methods are 'random', 'sobol', and 'lhs', but got {method=}"
-                " as input."
+                f"methods are 'random', 'sobol', 'lhs', and 'warmstart', but "
+                f"got {method=} as input."
             )
             raise ValueError(msg)
 

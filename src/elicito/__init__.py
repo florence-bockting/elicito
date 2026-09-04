@@ -23,6 +23,7 @@ from elicito import (
     targets,
     types,
     utils,
+    warmstart,
 )
 from elicito.elicit import (
     expert,
@@ -74,6 +75,7 @@ __all__ = [
     "trainer",
     "types",
     "utils",
+    "warmstart",
 ]
 
 # global variable (gets overwritten by user-defined
