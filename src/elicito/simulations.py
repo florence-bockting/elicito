@@ -7,6 +7,7 @@ from typing import Any, Callable, Optional, Union
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
+from elicito.methods import get_method
 from elicito.types import ExpertDict, NFDict, Parameter, Trainer
 
 tfd = tfp.distributions
@@ -104,13 +105,13 @@ class Priors(tf.Module):
         return prior_samples
 
 
-def intialize_priors(  # noqa: PLR0912
+def intialize_priors(
     init_matrix_slice: Optional[dict[str, tf.Tensor]],
     method: str,
     seed: int,
     parameters: list[Parameter],
     network: Optional[NFDict],
-) -> dict[str, tf.Tensor]:
+) -> Any:
     """
     Initialize prior distributions.
 
@@ -141,75 +142,8 @@ def intialize_priors(  # noqa: PLR0912
         returns initialized prior distributions ready for prior sampling.
 
     """
-    # set seed
     tf.random.set_seed(seed)
-
-    if method == "parametric_prior":
-        # create dict with all hyperparameters
-        hyp_dict = dict()
-        hp_keys = list()
-        param_names = list()
-        hp_names = list()
-        initialized_hyperparam: dict[str, Any] = dict()
-
-        for i in range(len(parameters)):
-            hyperparameter = parameters[i]["hyperparams"]
-            if hyperparameter is not None:
-                num_hyperpar = len(hyperparameter)
-
-                hyp_dict[f"param{i}"] = hyperparameter
-                param_names += [parameters[i]["name"]] * num_hyperpar
-                hp_keys += list(hyperparameter.keys())
-                for j in range(num_hyperpar):
-                    current_key = list(hyperparameter.keys())[j]
-                    hp_names.append(hyperparameter[current_key]["name"])
-
-        checked_params = list()
-        for j, (i, hp_n, hp_k) in enumerate(
-            zip(tf.unique(param_names).idx, hp_names, hp_keys)
-        ):
-            if parameters[i]["hyperparams"] is not None:
-                hp_dict = parameters[i]["hyperparams"][hp_k]
-
-            if hp_dict is not None:
-                if hp_dict["shared"] and hp_dict["name"] in checked_params:
-                    pass
-                else:
-                    # get initial value
-                    if init_matrix_slice is not None:
-                        initial_value: Any = init_matrix_slice[hp_n]
-                    # initialize hyperparameter
-                    initialized_hyperparam[f"{hp_k}_{hp_n}"] = tf.Variable(
-                        initial_value=initial_value,
-                        trainable=True,
-                        name=f"{hp_dict['constraint_name']}.{hp_n}",
-                    )
-
-                    # save initialized priors
-                    init_prior = initialized_hyperparam
-
-                if hp_dict["shared"]:
-                    checked_params.append(hp_n)
-
-    if method == "deep_prior":
-        # for more information see BayesFlow documentation
-        # https://bayesflow.org/api/bayesflow.inference_networks.html
-        if network is not None:
-            INN = network["inference_network"]
-
-            invertible_neural_network = INN(**network["network_specs"])  # type: ignore [call-arg]
-
-            # save initialized priors
-            init_prior = invertible_neural_network
-
-            # build network
-            # initialize base distribution
-            base_dist = network["base_distribution"](num_params=len(parameters))  # type: ignore
-            # sample from base distribution
-            u = base_dist.sample((128, 200))
-            init_prior(u, None)  # type: ignore
-
-    return init_prior
+    return get_method(method).build(parameters, network, init_matrix_slice, seed)
 
 
 def sample_from_priors(  # noqa: PLR0913, PLR0912
