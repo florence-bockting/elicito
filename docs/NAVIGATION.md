@@ -9,6 +9,7 @@ See https://oprypin.github.io/mkdocs-literate-nav/
     - [Save and load the eliobj](how-to-guides/save-and-load-eliobj.py)
     - [Discrete likelihood](how-to-guides/use-discrete-rv.py)
     - [Specify the generative model](how-to-guides/define-generative-model.md)
+    - [Choose an initialization method](how-to-guides/choose-initialization.py)
 - [Tutorials](tutorials/index.md)
     - [Independent, parametric priors](tutorials/getting-started-param.py)
     - [Joint, non-parametric priors](tutorials/getting-started-deep.py)

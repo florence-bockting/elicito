@@ -7,3 +7,4 @@ We'll go over how to solve common tasks.
 - ["How to load and save the eliobj"][save-and-load-the-eliobj].
 - ["How to specify a discrete likelihood"][using-discrete-random-variables-as-likelihood]
 - ["How to specify the generative model"][specify-the-generative-model-object]
+- ["How to choose an initialization method"][choose-an-initialization-method]
