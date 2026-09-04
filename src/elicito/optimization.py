@@ -125,18 +125,18 @@ def sgd_training(  # noqa: PLR0913
             # compute gradient of loss wrt trainable_variables
             gradients = tape.gradient(loss, trainable_vars)
 
-            # update trainable_variables using gradient info with adam
-            # optimizer
-            sgd_optimizer.apply_gradients(zip(gradients, trainable_vars))
+        # break for loop if loss is NAN and inform about cause
+        # check before the update, so NAN never reaches the variables
+        if tf.math.is_nan(loss):
+            print("Loss is NAN and therefore training stops.")
+            break
+
+        # update trainable_variables using gradient info with adam optimizer
+        sgd_optimizer.apply_gradients(zip(gradients, trainable_vars))
 
         # time end of epoch
         epoch_time_end = time.time()
         epoch_time = epoch_time_end - epoch_time_start
-
-        # break for loop if loss is NAN and inform about cause
-        if tf.math.is_nan(loss):
-            print("Loss is NAN and therefore training stops.")
-            break
 
         gradients_ep.append(gradients)
         method.record_epoch(res_dict, prior_sim, trainable_vars, parameters)
