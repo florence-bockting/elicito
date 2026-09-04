@@ -574,7 +574,6 @@ class Elicit:
         # TODO test correct seed usage for parallel processing
         globals()["SEED"] = seed
 
-        self.trainer["seed_chain"] = seed
         # get expert data; use trainer seed
         # (and not seed from list)
         expert_elicits, expert_prior = utils.get_expert_data(
