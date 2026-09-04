@@ -195,3 +195,10 @@ def test_trainer():
     )
     with pytest.raises(ValueError, match=msg):
         el.trainer(method="some_prior", seed=1, epochs=3)
+
+
+def test_optimizer_default_is_a_class():
+    opt = el.optimizer()
+    assert isinstance(
+        opt["optimizer"](learning_rate=0.1), tf.keras.optimizers.Optimizer
+    )
