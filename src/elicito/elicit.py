@@ -728,6 +728,7 @@ def initializer(
     method: Optional[SamplingMethod] = None,
     distribution: Optional[Uniform] = None,
     iterations: Optional[int] = None,
+    warmup_epochs: int = 0,
     hyperparams: Optional[dict[str, Any]] = None,
 ) -> Initializer:
     """
@@ -755,6 +756,14 @@ def initializer(
 
     iterations
         Number of samples drawn from the initialization distribution.
+
+    warmup_epochs
+        Number of training epochs to run for each candidate before it is
+        scored. With ``0`` a candidate is scored by its loss at epoch 0, which
+        does not show whether its trajectory is stable. A value of about 10
+        rejects a candidate that diverges early. Cost is
+        ``iterations * warmup_epochs`` extra epochs; ``iterations=32,
+        warmup_epochs=10`` costs 320 epochs against a 500-epoch run.
 
     hyperparams
         Dictionary with specific initial values per hyperparameter.
@@ -860,6 +869,7 @@ def initializer(
         distribution=distribution,
         loss_quantile=quantile_perc,
         iterations=iterations,
+        warmup_epochs=int(warmup_epochs),
         hyperparams=hyperparams,
     )
 

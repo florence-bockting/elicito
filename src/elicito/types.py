@@ -144,6 +144,7 @@ class Initializer(TypedDict):
     distribution: Uniform | None
     loss_quantile: float | None
     iterations: int | None
+    warmup_epochs: int
     hyperparams: dict[str, Any] | None
 
 

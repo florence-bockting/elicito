@@ -586,6 +586,7 @@ class Elicit:
                 self.initializer,
                 self.parameters,
                 self.trainer,
+                self.optimizer,
                 self.model,
                 self.targets,
                 self.network,

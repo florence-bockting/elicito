@@ -202,6 +202,7 @@ def init_runs(  # noqa: PLR0913
     initializer: Initializer,
     parameters: list[Parameter],
     trainer: Trainer,
+    optimizer: dict[str, Any],
     model: dict[str, Any],
     targets: list[Target],
     network: Optional[NFDict],
@@ -227,6 +228,10 @@ def init_runs(  # noqa: PLR0913
 
     trainer
         User-input from [`trainer`][elicito.elicit.trainer].
+
+    optimizer
+        User-input from [`optimizer`][elicito.elicit.optimizer]. Used to run
+        the warm-up epochs of a candidate.
 
     model
         User-input from [`model`][elicito.elicit.model].
@@ -290,6 +295,10 @@ def init_runs(  # noqa: PLR0913
     else:
         epochs = range(initializer["iterations"])  # type: ignore [arg-type]
 
+    # a candidate is scored by its loss after `warmup_epochs` training epochs.
+    # `0` scores it at epoch 0, which is the previous behaviour.
+    warmup_epochs = int(initializer.get("warmup_epochs", 0) or 0)
+
     for i in epochs:
         # update seed
         seed_copy = seed_copy + 1
@@ -306,19 +315,42 @@ def init_runs(  # noqa: PLR0913
             seed=seed_copy,
         )
 
-        # simulate from priors and generative model and compute the
-        # elicited statistics corresponding to the initial hyperparameters
-        (training_elicited_statistics, *_) = el.utils.one_forward_simulation(
-            prior_model=prior_model, model=model, targets=targets, seed=seed
-        )
+        if warmup_epochs > 0:
+            # a low loss at epoch 0 does not show whether the trajectory is
+            # stable. The candidate keeps its trained values; init_matrix
+            # records the drawn values from before the warm-up.
+            warmup_trainer = trainer.copy()
+            warmup_trainer["epochs"] = warmup_epochs
+            warmup_trainer["progress"] = 0
 
-        # compute discrepancy between expert elicited statistics and
-        # simulated data corresponding to initial hyperparameter values
-        (loss, *_) = el.losses.total_loss(
-            elicit_training=training_elicited_statistics,
-            elicit_expert=expert_elicited_statistics,
-            targets=targets,
-        )
+            history, _ = el.optimization.sgd_training(
+                expert_elicited_statistics=expert_elicited_statistics,
+                prior_model_init=prior_model,
+                trainer=warmup_trainer,
+                optimizer=optimizer,
+                model=model,
+                targets=targets,
+                parameters=parameters,
+                seed=seed_copy,
+                progress=0,
+            )
+            # sgd_training stores a scalar; the epoch-0 branch and
+            # _outputs.create_init_group both expect shape (1,)
+            loss = tf.reshape(history["loss"][-1], (1,))
+        else:
+            # simulate from priors and generative model and compute the
+            # elicited statistics corresponding to the initial hyperparameters
+            (training_elicited_statistics, *_) = el.utils.one_forward_simulation(
+                prior_model=prior_model, model=model, targets=targets, seed=seed
+            )
+
+            # compute discrepancy between expert elicited statistics and
+            # simulated data corresponding to initial hyperparameter values
+            (loss, *_) = el.losses.total_loss(
+                elicit_training=training_elicited_statistics,
+                elicit_expert=expert_elicited_statistics,
+                targets=targets,
+            )
         # save loss value, initial hyperparameter values and initialized prior
         # model for each run
         init_var_list.append(prior_model)
@@ -346,6 +378,7 @@ def init_prior(  # noqa: PLR0913
     initializer: Optional[Initializer],
     parameters: list[Parameter],
     trainer: Trainer,
+    optimizer: dict[str, Any],
     model: dict[str, Any],
     targets: list[Target],
     network: Optional[NFDict],
@@ -369,6 +402,10 @@ def init_prior(  # noqa: PLR0913
 
     trainer
         Specification of trainer settings for the optimization process
+
+    optimizer
+        User-input from [`optimizer`][elicito.elicit.optimizer]. Used to run
+        the warm-up epochs of a candidate.
 
     model
         Generative model
@@ -409,6 +446,7 @@ def init_prior(  # noqa: PLR0913
         initializer=initializer,
         parameters=parameters,
         trainer=trainer,
+        optimizer=optimizer,
         model=model,
         targets=targets,
         network=network,

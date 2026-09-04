@@ -41,7 +41,7 @@ def _halve_learning_rate(sgd_optimizer: Any) -> None:
         lr.assign(lr * 0.5)
 
 
-def sgd_training(  # noqa: PLR0913
+def sgd_training(  # noqa: PLR0913, PLR0915
     expert_elicited_statistics: dict[str, tf.Tensor],
     prior_model_init: Priors,
     trainer: Trainer,
@@ -186,10 +186,16 @@ def sgd_training(  # noqa: PLR0913
 
         # the run cannot recover; stop after the epoch has been recorded
         if n_skipped >= MAX_SKIPPED_STEPS:
-            print(
+            msg = (
                 f"Loss is not finite for {MAX_SKIPPED_STEPS} steps in a row."
                 " Training stops."
             )
+            # a warm-up run inside the initialization sets progress=0. It must
+            # not print for each candidate.
+            if progress == 1:
+                print(msg)
+            else:
+                logger.info(msg)
             break
 
     if n_skipped_total > 0:
