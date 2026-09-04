@@ -134,9 +134,9 @@ def computation_elicited_statistics(
                 quan_reshaped = target_tensor
             else:
                 msg = (
-                    "rank of tensor of target quantity must be <=3,",
-                    f"but got {tensor_rank}.",
-                    f"for target quantity {targets[i]['name']}",
+                    "Rank of tensor of target quantity must be <=3, "
+                    f"but got {tensor_rank}. "
+                    f"For target quantity {targets[i]['name']}"
                 )
                 raise ValueError(msg)
 

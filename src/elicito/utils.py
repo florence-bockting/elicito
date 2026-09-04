@@ -758,11 +758,11 @@ def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6)
     # check rank of likelihood object
     if len(likelihood.batch_shape) != 4:  # noqa: PLR2004
         msg = (
-            "The 'likelihood' in the generative model must have",
-            " batch_shape = (B, num_samples, num_obs, 1).",
-            " The additional final axis is required by the softmax-gumbel",
-            " computation. Use for example `tf.expand_dims(mu,-1)` for",
-            " expanding the batch-shape of the likelihood.",
+            "The 'likelihood' in the generative model must have "
+            "batch_shape = (B, num_samples, num_obs, 1). "
+            "The additional final axis is required by the softmax-gumbel "
+            "computation. Use for example `tf.expand_dims(mu,-1)` for "
+            "expanding the batch-shape of the likelihood."
         )
         raise ValueError(msg)
 
