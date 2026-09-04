@@ -113,6 +113,15 @@ class PriorMethod(Protocol):
         """Build the prior model used to start the training."""
         ...
 
+    def init_matrix_slice(
+        self,
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+    ) -> Any:
+        """Return the initial hyperparameter slice for a dry run."""
+        ...
+
 
 class ParametricPrior:
     """Independent parametric priors."""
@@ -381,6 +390,26 @@ class ParametricPrior:
         init_prior_model = init_prior[int(tf.squeeze(idx))]
         return init_prior_model, loss_list, init_prior, init_matrix
 
+    def init_matrix_slice(  # noqa: D102
+        self,
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+    ) -> Any:
+        if initializer["distribution"] is None:
+            return initializer["hyperparams"]
+
+        init_matrix = el.initialization.uniform_samples(
+            seed=trainer["seed"],
+            hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
+            n_samples=initializer["iterations"],  # type: ignore [arg-type]
+            method=initializer["method"],  # type: ignore [arg-type]
+            mean=initializer["distribution"]["mean"],
+            radius=initializer["distribution"]["radius"],
+            parameters=parameters,
+        )
+        return {f"{key}": init_matrix[key][0] for key in init_matrix}
+
 
 class DeepPrior:
     """Joint non-parametric prior via a normalizing flow."""
@@ -528,6 +557,14 @@ class DeepPrior:
         )
         # loss_list, init_prior and init_matrix stay empty for this method
         return init_prior_model, None, None, None
+
+    def init_matrix_slice(  # noqa: D102
+        self,
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+    ) -> Any:
+        return None
 
 
 _METHODS: dict[str, PriorMethod] = {

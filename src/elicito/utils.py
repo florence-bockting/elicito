@@ -845,27 +845,11 @@ def dry_run(  # noqa: PLR0913
         (elicited_statistics, prior_samples, model_simulations,
         target_quantities, prior_model)
     """
-    if (
-        trainer["method"] == "parametric_prior"
-        and initializer["distribution"] is not None
-    ):
-        init_matrix = el.initialization.uniform_samples(
-            seed=trainer["seed"],
-            hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
-            n_samples=initializer["iterations"],  # type: ignore [arg-type]
-            method=initializer["method"],  # type: ignore [arg-type]
-            mean=initializer["distribution"]["mean"],
-            radius=initializer["distribution"]["radius"],
-            parameters=parameters,
-        )
-
-        init_matrix_slice = {f"{key}": init_matrix[key][0] for key in init_matrix}
-
-    elif trainer["method"] == "deep_prior" and network is not None:
-        init_matrix_slice = None
-
-    else:
-        init_matrix_slice = initializer["hyperparams"]
+    init_matrix_slice = el.methods.get_method(trainer["method"]).init_matrix_slice(
+        initializer=initializer,
+        parameters=parameters,
+        trainer=trainer,
+    )
 
     prior_model = Priors(
         ground_truth=False,
