@@ -752,6 +752,9 @@ def initializer(
         The first three draw candidates from **distribution**. "warmstart"
         instead runs a Nelder-Mead search from the centre of **distribution**,
         before the first gradient step.
+        Use "warmstart" for a box you do not trust. It rescues a badly placed
+        box, but it does not beat sampling from a well-placed one: the loss at
+        the start does not predict the loss after training.
 
     distribution
         Specification of initialization distribution.
