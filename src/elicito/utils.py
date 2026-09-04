@@ -365,6 +365,59 @@ class UpperBound:
         return x
 
 
+def all_finite(quantities: dict[str, Any]) -> bool:
+    """
+    Report whether every target quantity is finite
+
+    A quantile query hides an overflow: the 95% quantile of a sample with a
+    few infinite draws is still finite. Check the target quantities to see
+    the overflow.
+
+    Parameters
+    ----------
+    quantities
+        Target quantities of one forward simulation.
+
+    Returns
+    -------
+    finite :
+        ``True`` if no target quantity holds an infinite or NAN value.
+
+    """
+    return all(
+        bool(tf.reduce_all(tf.math.is_finite(tf.cast(value, tf.float32))))
+        for value in quantities.values()
+    )
+
+
+def nonfinite_fraction(quantities: dict[str, Any]) -> float:
+    """
+    Compute the share of target quantities that are not finite
+
+    A search needs to know how bad a failure is, not only that it failed.
+
+    Parameters
+    ----------
+    quantities
+        Target quantities of one forward simulation.
+
+    Returns
+    -------
+    fraction :
+        Share of infinite or NAN values, over all target quantities.
+
+    """
+    bad = 0.0
+    total = 0.0
+    for value in quantities.values():
+        tensor = tf.cast(value, tf.float32)
+        bad += float(tf.reduce_sum(tf.cast(~tf.math.is_finite(tensor), tf.float32)))
+        total += float(tf.size(tensor, out_type=tf.int64))
+    if total == 0.0:
+        return 0.0
+    return bad / total
+
+
 def one_forward_simulation(
     prior_model: Priors, model: dict[str, Any], targets: list[Target], seed: int
 ) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any]]:

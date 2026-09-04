@@ -26,6 +26,25 @@ tfd = tfp.distributions
 
 logger = logging.getLogger(__name__)
 
+# Argument names that carry a shape, not a magnitude. A shape does not live on
+# the scale of the elicited data, so the pooled spread says nothing about it.
+SHAPE_ARGS = frozenset(
+    {
+        "concentration",
+        "concentration0",
+        "concentration1",
+        "df",
+        "power",
+        "skewness",
+        "tailweight",
+    }
+)
+
+# Natural range of a shape hyperparameter that the box covers. Below one, a
+# Weibull or a Gamma is so heavy-tailed that single draws overflow.
+SHAPE_LOW = 1.0
+SHAPE_HIGH = 5.0
+
 
 def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     seed: int,
@@ -342,8 +361,10 @@ def init_runs(  # noqa: PLR0913
         else:
             # simulate from priors and generative model and compute the
             # elicited statistics corresponding to the initial hyperparameters
-            (training_elicited_statistics, *_) = el.utils.one_forward_simulation(
-                prior_model=prior_model, model=model, targets=targets, seed=seed
+            (training_elicited_statistics, _, _, target_quantities) = (
+                el.utils.one_forward_simulation(
+                    prior_model=prior_model, model=model, targets=targets, seed=seed
+                )
             )
 
             # compute discrepancy between expert elicited statistics and
@@ -353,6 +374,12 @@ def init_runs(  # noqa: PLR0913
                 elicit_expert=expert_elicited_statistics,
                 targets=targets,
             )
+
+            # A quantile query hides an overflow: the 95% quantile of a sample
+            # with a few infinite draws is still finite. A candidate that
+            # overflows must not be selected, so mark it as failed here.
+            if not el.utils.all_finite(target_quantities):
+                loss = tf.fill(tf.shape(loss), tf.constant(np.nan, loss.dtype))
         # save loss value, initial hyperparameter values and initialized prior
         # model for each run
         init_var_list.append(prior_model)
@@ -594,11 +621,17 @@ def _from_elicits_box(
     """
     Derive a uniform initialization box from the expert data
 
-    Pools all elicited statistics into one location and one spread.
-    An unbounded hyperparameter is centred at the pooled median with
-    radius ``factor * spread``. A lower-bounded hyperparameter gets a box
-    that spans from near zero up to ``spread``, because the pooled spread
-    over-estimates the scale.
+    Pools all elicited statistics into one location and one spread. The box
+    of a hyperparameter then follows its role:
+
+    - An unbounded hyperparameter is a location. It is centred at the pooled
+      median, with radius ``factor * spread``.
+    - A lower-bounded hyperparameter whose name is in ``SHAPE_ARGS`` is a
+      shape. A shape has no relation to the scale of the data, so its box
+      covers the natural range ``SHAPE_LOW`` to ``SHAPE_HIGH``.
+    - Any other lower-bounded hyperparameter is a magnitude. Its box spans
+      from ``spread / 100`` up to the pooled 95% quantile, because it can be
+      a small prior scale or a scale as large as the elicited data.
 
     Pooling all targets is crude. The box is correct in order of
     magnitude only. That is enough to avoid a start value that is wrong
@@ -630,8 +663,15 @@ def _from_elicits_box(
             for v in expert_elicited_statistics.values()
         ]
     )
-    q25, median, q75 = np.percentile(pooled, [25.0, 50.0, 75.0])
+    q25, median, q75, q95 = np.percentile(pooled, [25.0, 50.0, 75.0, 95.0])
     spread = float(max((q75 - q25) / 1.35, 1e-3))
+    upper = float(max(q95, spread))
+
+    forward = el.utils.LowerBound(lower=0.0).forward
+    shape_low = float(forward(SHAPE_LOW))
+    shape_high = float(forward(SHAPE_HIGH))
+    magnitude_low = float(forward(max(spread / 100.0, 1e-3)))
+    magnitude_high = float(forward(upper))
 
     hyper = hyper_names(parameters)
     mean: list[float] = []
@@ -641,16 +681,15 @@ def _from_elicits_box(
         if hyperparams is None:
             continue
         for hyp in hyperparams:
-            if hyperparams[hyp]["constraint_name"] == "softplusL":
-                # the pooled spread mixes the prior scale with the noise, so
-                # it over-estimates the scale. Centre lower, and span from
-                # near zero up to the spread.
-                unconstrained = float(el.utils.LowerBound(lower=0.0).forward(spread))
-                mean.append(unconstrained / 2.0)
-                radius.append(unconstrained / 2.0 + factor)
-            else:
+            if hyperparams[hyp]["constraint_name"] != "softplusL":
                 mean.append(float(median))
                 radius.append(factor * spread)
+            elif hyp in SHAPE_ARGS:
+                mean.append((shape_low + shape_high) / 2.0)
+                radius.append((shape_high - shape_low) / 2.0)
+            else:
+                mean.append((magnitude_low + magnitude_high) / 2.0)
+                radius.append((magnitude_high - magnitude_low) / 2.0)
 
     return uniform(radius=radius, mean=mean, hyper=hyper)
 

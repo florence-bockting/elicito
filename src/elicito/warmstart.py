@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 SEARCH_FRACTION = 4
 MIN_SEARCH_SAMPLES = 100
 
+# Value reported for a set of hyperparameters that cannot be used. Nelder-Mead
+# needs a finite number, and a usable point always scores far below this one.
+PENALTY = 1e12
+
 
 def score(  # noqa: PLR0913
     hyperparams: dict[str, Any],
@@ -82,7 +86,7 @@ def score(  # noqa: PLR0913
         expert=expert,
         seed=seed,
     )
-    (elicited, *_) = el.utils.one_forward_simulation(
+    (elicited, _, _, target_quantities) = el.utils.one_forward_simulation(
         prior_model=prior_model, model=model, targets=targets, seed=seed
     )
     (loss, *_) = el.losses.total_loss(
@@ -91,8 +95,15 @@ def score(  # noqa: PLR0913
         targets=targets,
     )
     value = float(loss)
+    # A quantile query hides an overflow, so the loss alone is not enough.
+    # One flat failure value would give Nelder-Mead nothing to follow, so
+    # grade the penalty by the share of draws that overflow. The search can
+    # then walk out of the bad region.
+    bad = el.utils.nonfinite_fraction(target_quantities)
+    if bad > 0.0:
+        return PENALTY * (1.0 + bad)
     # Nelder-Mead cannot use a non-finite value. Steer it away instead.
-    return value if np.isfinite(value) else float(np.finfo(np.float64).max)
+    return value if np.isfinite(value) else PENALTY * 2.0
 
 
 def _start_vector(box: dict[str, Any], names: list[str]) -> list[float]:
@@ -184,8 +195,12 @@ def warm_start(  # noqa: PLR0913
         MIN_SEARCH_SAMPLES, trainer["num_samples"] // SEARCH_FRACTION
     )
 
+    # Nelder-Mead can end on a point that failed, because a failure is scored
+    # as a finite number. Keep the best usable point of the search instead.
+    best: dict[str, Any] = {"value": PENALTY, "values": None}
+
     def objective(values: Any) -> float:
-        return score(
+        value = score(
             hyperparams=dict(zip(names, values)),
             expert_elicited_statistics=expert_elicited_statistics,
             parameters=parameters,
@@ -195,16 +210,50 @@ def warm_start(  # noqa: PLR0913
             expert=expert,
             seed=seed,
         )
+        if value < best["value"]:
+            best["value"] = value
+            best["values"] = np.array(values, dtype=np.float64)
+        return value
 
     # the scipy stubs describe the objective as a variadic callable over a
     # float64 array, which no plain function matches
     search: Any = minimize
-    result = search(
-        objective,
-        np.asarray(_start_vector(box, names), dtype=np.float64),
-        method="Nelder-Mead",
-        options={"maxfev": int(max_evals)},
-    )
-    logger.info(f"warm start: loss {result.fun:.4f} after {result.nfev} evaluations.")
+    start = _start_vector(box, names)
 
-    return {name: float(v) for name, v in zip(names, result.x)}
+    # Nelder-Mead converges on its own tolerances, and it can stall inside the
+    # failing region long before the budget is spent. Restart the simplex from
+    # the best point, so that the whole budget is used. Each restart builds a
+    # fresh simplex, which leaves a shallow stall.
+    used = 0
+    values = np.asarray(start, dtype=np.float64)
+    result: Any = None
+    while used < max_evals:
+        result = search(
+            objective,
+            values,
+            method="Nelder-Mead",
+            options={"maxfev": int(max_evals - used)},
+        )
+        used += int(result.nfev)
+        values = np.asarray(result.x, dtype=np.float64)
+        if result.fun < PENALTY:
+            # the point is usable; more evaluations only refine a start value
+            break
+
+    logger.info(f"warm start: loss {result.fun:.4f} after {used} evaluations.")
+    if result is None or not np.isfinite(result.fun) or result.fun >= PENALTY:
+        if best["values"] is None:
+            logger.warning(
+                "warm start: every evaluated point failed. The centre of the "
+                "initialization box is used as the start value. Re-centre the "
+                "box, or reduce its radius."
+            )
+            values = np.asarray(start, dtype=np.float64)
+        else:
+            logger.warning(
+                "warm start: the search ended on a point that failed. The best "
+                f"usable point, with loss {best['value']:.4f}, is used instead."
+            )
+            values = best["values"]
+
+    return {name: float(v) for name, v in zip(names, values)}

@@ -567,18 +567,51 @@ def _one_param():
     ]
 
 
+def _one_shape_param():
+    return [
+        el.parameter(
+            name="k",
+            family=tfd.Weibull,
+            hyperparams=dict(
+                concentration=el.hyper("k0", lower=0),
+                scale=el.hyper("lambda0", lower=0),
+            ),
+        )
+    ]
+
+
 def test_from_elicits_box():
-    # quantiles 0, 2, 4, 6, 8 -> median 4, IQR 4, spread 4 / 1.35
+    # quantiles 0, 2, 4, 6, 8 -> median 4, IQR 4, spread 4 / 1.35, q95 7.6
     expert = {"quantiles_y": tf.constant([[0.0, 2.0, 4.0, 6.0, 8.0]])}
     box = el.initialization._from_elicits_box(expert, _one_param(), factor=2.0)
     spread = 4.0 / 1.35
 
     assert box["hyper"] == ["mu0", "sigma0"]
+    # a location follows the pooled median
     npt.assert_allclose(box["mean"][0], 4.0, rtol=1e-6)
     npt.assert_allclose(box["radius"][0], 2.0 * spread, rtol=1e-6)
-    unconstrained = float(el.utils.LowerBound(0.0).forward(spread))
-    npt.assert_allclose(box["mean"][1], unconstrained / 2.0, rtol=1e-5)
-    npt.assert_allclose(box["radius"][1], unconstrained / 2.0 + 2.0, rtol=1e-5)
+    # a magnitude spans from spread / 100 up to the pooled 95% quantile
+    forward = el.utils.LowerBound(0.0).forward
+    low = float(forward(spread / 100.0))
+    high = float(forward(7.6))
+    npt.assert_allclose(box["mean"][1], (low + high) / 2.0, rtol=1e-5)
+    npt.assert_allclose(box["radius"][1], (high - low) / 2.0, rtol=1e-5)
+
+
+def test_from_elicits_box_ignores_the_data_scale_for_a_shape():
+    # a shape does not live on the scale of the data, so the box covers the
+    # natural range 1 to 5, whatever the elicited values are
+    expert = {"quantiles_y": tf.constant([[100.0, 200.0, 400.0, 600.0, 800.0]])}
+    box = el.initialization._from_elicits_box(expert, _one_shape_param())
+
+    assert box["hyper"] == ["k0", "lambda0"]
+    forward = el.utils.LowerBound(0.0).forward
+    low = float(forward(el.initialization.SHAPE_LOW))
+    high = float(forward(el.initialization.SHAPE_HIGH))
+    npt.assert_allclose(box["mean"][0], (low + high) / 2.0, rtol=1e-5)
+    npt.assert_allclose(box["radius"][0], (high - low) / 2.0, rtol=1e-5)
+    # the scale of the same family stays a magnitude, and follows the data
+    assert box["mean"][1] > box["mean"][0]
 
 
 def test_from_elicits_uses_spread_floor():
@@ -616,6 +649,137 @@ def test_start_vector_reads_the_box():
         radius=[1.0, 1.0], mean=[3.0, 4.0], hyper=["sigma0", "mu0"]
     )
     assert el.warmstart._start_vector(listed_box, names) == [4.0, 3.0]
+
+
+def test_all_finite_and_nonfinite_fraction():
+    """the share of overflowing values is reported, not only that one exists"""
+    good = {"y": tf.constant([[1.0, 2.0], [3.0, 4.0]])}
+    bad = {"y": tf.constant([[1.0, np.inf], [3.0, 4.0]])}
+
+    assert el.utils.all_finite(good) is True
+    assert el.utils.all_finite(bad) is False
+    npt.assert_allclose(el.utils.nonfinite_fraction(good), 0.0)
+    npt.assert_allclose(el.utils.nonfinite_fraction(bad), 0.25)
+
+
+def _overflow_eliobj(overflow):
+    """an eliobj whose draws overflow, while its quantiles stay finite"""
+
+    class GenerativeModel:
+        def __call__(self, prior_samples, N):
+            mu = prior_samples[:, :, 0]
+            sigma = tf.exp(prior_samples[:, :, 1])
+            y_pred = tfd.Normal(loc=mu, scale=sigma).sample(N)
+            y_obs = tf.transpose(y_pred, perm=[1, 2, 0])
+            if overflow:
+                # one draw of many; every elicited quantile stays finite
+                flat = tf.reshape(y_obs, [-1])
+                flat = tf.tensor_scatter_nd_update(flat, [[0]], [np.inf])
+                y_obs = tf.reshape(flat, tf.shape(y_obs))
+            return dict(y_obs=y_obs)
+
+    return el.Elicit(
+        model=el.model(obj=GenerativeModel, N=30),
+        parameters=[
+            el.parameter(
+                name="mu",
+                family=tfd.Normal,
+                hyperparams=dict(
+                    loc=el.hyper("mu_loc"), scale=el.hyper("mu_scale", lower=0)
+                ),
+            ),
+            el.parameter(
+                name="log_sigma",
+                family=tfd.Normal,
+                hyperparams=dict(
+                    loc=el.hyper("s_loc"), scale=el.hyper("s_scale", lower=0)
+                ),
+            ),
+        ],
+        targets=[
+            el.target(
+                name="y_obs",
+                query=el.queries.quantiles((0.25, 0.5, 0.75)),
+                loss=el.losses.L2,
+                weight=1.0,
+            )
+        ],
+        expert=el.expert.data({"quantiles_y_obs": [-0.7, 0.1, 0.8]}),
+        optimizer=el.optimizer(
+            optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
+        ),
+        trainer=el.trainer(
+            method="parametric_prior", seed=0, epochs=1, progress=0, num_samples=50
+        ),
+        initializer=el.initializer(
+            method="sobol",
+            iterations=4,
+            distribution=el.initialization.uniform(radius=1, mean=0),
+        ),
+    )
+
+
+def test_init_runs_rejects_a_candidate_whose_draws_overflow(monkeypatch):
+    """a quantile query hides an overflow, so the draws decide, not the loss"""
+    # without the overflow the same model initializes and trains
+    _overflow_eliobj(overflow=False).fit()
+
+    # the loss alone accepts the candidate: with the check disabled, the model
+    # with the overflow initializes as well
+    monkeypatch.setattr(el.utils, "all_finite", lambda quantities: True)
+    _overflow_eliobj(overflow=True).fit()
+    monkeypatch.undo()
+
+    with pytest.raises(ValueError, match="non-finite loss"):
+        _overflow_eliobj(overflow=True).fit()
+
+
+def test_warm_start_spends_the_budget(monkeypatch):
+    """Nelder-Mead converges early, so the search restarts until the budget ends"""
+    calls = {"n": 0}
+
+    def failing_score(**kwargs):
+        calls["n"] += 1
+        return el.warmstart.PENALTY * 1.5
+
+    monkeypatch.setattr(el.warmstart, "score", failing_score)
+
+    el.warmstart.warm_start(
+        expert_elicited_statistics={},
+        parameters=base_eliobj.parameters,
+        trainer=base_eliobj.trainer,
+        model=base_eliobj.model,
+        targets=base_eliobj.targets,
+        expert=base_eliobj.expert,
+        distribution=el.initialization.uniform(radius=1, mean=2.0),
+        max_evals=120,
+        seed=0,
+    )
+
+    assert calls["n"] >= 120
+
+
+def test_warm_start_falls_back_when_every_point_fails(monkeypatch, caplog):
+    """a point that failed is never returned as a start value"""
+    monkeypatch.setattr(
+        el.warmstart, "score", lambda **kwargs: el.warmstart.PENALTY * 1.5
+    )
+
+    with caplog.at_level("WARNING"):
+        hyperparams = el.warmstart.warm_start(
+            expert_elicited_statistics={},
+            parameters=base_eliobj.parameters,
+            trainer=base_eliobj.trainer,
+            model=base_eliobj.model,
+            targets=base_eliobj.targets,
+            expert=base_eliobj.expert,
+            distribution=el.initialization.uniform(radius=1, mean=2.0),
+            max_evals=30,
+            seed=0,
+        )
+
+    assert set(hyperparams.values()) == {2.0}
+    assert "every evaluated point failed" in caplog.text
 
 
 def test_warm_start_returns_one_value_per_hyperparameter():
