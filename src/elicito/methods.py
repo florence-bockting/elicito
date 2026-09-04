@@ -9,6 +9,18 @@ import tensorflow as tf
 from elicito.types import NFDict, Parameter, PriorMethods
 
 
+def _constraints(parameters: list[Parameter]) -> dict[str, Any]:
+    """Map each hyperparameter name to its constraint function."""
+    constraints: dict[str, Any] = {}
+    for param in parameters:
+        hyperparams = param["hyperparams"]
+        if hyperparams is None:
+            continue
+        for hyp in hyperparams:
+            constraints[hyperparams[hyp]["name"]] = hyperparams[hyp]["constraint"]
+    return constraints
+
+
 class PriorMethod(Protocol):
     """Behaviour that differs between the prior-learning methods."""
 
@@ -37,6 +49,32 @@ class PriorMethod(Protocol):
 
     def trainable_variables(self, prior_model: Any) -> Any:
         """Return the variables the optimizer updates."""
+        ...
+
+    def new_history(
+        self, prior_model: Any, parameters: list[Parameter]
+    ) -> dict[str, Any]:
+        """Create the per-epoch record, seeded with the initial values."""
+        ...
+
+    def record_epoch(
+        self,
+        history: dict[str, Any],
+        prior_sim: Any,
+        trainable_vars: Any,
+        parameters: list[Parameter],
+    ) -> None:
+        """Append this epoch's values to the record."""
+        ...
+
+    def finalize(
+        self,
+        res_ep: dict[str, Any],
+        output_res: dict[str, Any],
+        gradients_ep: Any,
+        trainable_vars: Any,
+    ) -> None:
+        """Add the method-specific entries to the results."""
         ...
 
 
@@ -100,7 +138,7 @@ class ParametricPrior:
                     checked_params.append(hp_n)
         return init_prior
 
-    def sample(
+    def sample(  # noqa: D102
         self,
         initialized_priors: Any,
         parameters: list[Parameter],
@@ -135,6 +173,42 @@ class ParametricPrior:
         """Return the variables the optimizer updates."""
         return prior_model.trainable_variables
 
+    def new_history(
+        self, prior_model: Any, parameters: list[Parameter]
+    ) -> dict[str, Any]:
+        """Create the per-epoch record, seeded with the initial values."""
+        constraints = _constraints(parameters)
+        history: dict[str, Any] = {}
+        for var in prior_model.trainable_variables:
+            name = var.name[:-2].split(".")[1]
+            history.setdefault(name, []).append(
+                float(constraints[name](var.numpy().copy()))
+            )
+        return history
+
+    def record_epoch(
+        self,
+        history: dict[str, Any],
+        prior_sim: Any,
+        trainable_vars: Any,
+        parameters: list[Parameter],
+    ) -> None:
+        """Create the per-epoch record, seeded with the initial values."""
+        constraints = _constraints(parameters)
+        for var in trainable_vars:
+            name = var.name[:-2].split(".")[1]
+            history[name].append(float(constraints[name](var.numpy().copy())))
+
+    def finalize(
+        self,
+        res_ep: dict[str, Any],
+        output_res: dict[str, Any],
+        gradients_ep: Any,
+        trainable_vars: Any,
+    ) -> None:
+        """Add the method-specific entries to the results."""
+        res_ep["hyperparameter_gradient"] = gradients_ep
+
 
 class DeepPrior:
     """Joint non-parametric prior via a normalizing flow."""
@@ -167,7 +241,7 @@ class DeepPrior:
             init_prior(u, None)
         return init_prior
 
-    def sample(
+    def sample(  # noqa: D102
         self,
         initialized_priors: Any,
         parameters: list[Parameter],
@@ -192,6 +266,33 @@ class DeepPrior:
     def trainable_variables(self, prior_model: Any) -> Any:
         """Return the variables the optimizer updates."""
         return prior_model.init_priors.trainable_variables
+
+    def new_history(
+        self, prior_model: Any, parameters: list[Parameter]
+    ) -> dict[str, Any]:
+        """Create the per-epoch record, seeded with the initial values."""
+        return {"means": [], "stds": []}
+
+    def record_epoch(
+        self,
+        history: dict[str, Any],
+        prior_sim: Any,
+        trainable_vars: Any,
+        parameters: list[Parameter],
+    ) -> None:
+        """Create the per-epoch record, seeded with the initial values."""
+        history["means"].append(tf.reduce_mean(prior_sim, (0, 1)))
+        history["stds"].append(tf.reduce_mean(tf.math.reduce_std(prior_sim, 1), 0))
+
+    def finalize(
+        self,
+        res_ep: dict[str, Any],
+        output_res: dict[str, Any],
+        gradients_ep: Any,
+        trainable_vars: Any,
+    ) -> None:
+        """Add the method-specific entries to the results."""
+        output_res["num_NN_weights"] = [v.shape for v in trainable_vars]
 
 
 _METHODS: dict[str, PriorMethod] = {

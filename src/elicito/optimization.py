@@ -10,16 +10,15 @@ import tensorflow_probability as tfp  # type: ignore
 from tqdm import tqdm
 
 from elicito.losses import total_loss
+from elicito.methods import get_method
 from elicito.simulations import Priors
 from elicito.types import Parameter, Target, Trainer
 from elicito.utils import one_forward_simulation
-from elicito.methods import get_method
-
 
 tfd = tfp.distributions
 
 
-def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
+def sgd_training(  # noqa: PLR0913
     expert_elicited_statistics: dict[str, tf.Tensor],
     prior_model_init: Priors,
     trainer: Trainer,
@@ -86,16 +85,8 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
     gradients_ep = []
     time_per_epoch = []
 
-    if trainer["method"] == "parametric_prior":
-        # save initialized trainable variables of epoch=0 (before first update)
-        init_vars_values = [
-            prior_model.trainable_variables[i].numpy().copy()
-            for i in range(len(prior_model.trainable_variables))
-        ]
-        init_vars_names = [
-            prior_model.trainable_variables[i].name[:-2].split(".")[1]
-            for i in range(len(prior_model.trainable_variables))
-        ]
+    method = get_method(trainer["method"])
+    res_dict = method.new_history(prior_model, parameters)
 
     # initialize the adam optimizer
     optimizer_copy = optimizer.copy()
@@ -129,9 +120,7 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
                     targets=targets,
                 )
             )
-            trainable_vars = get_method(
-                trainer["method"]
-            ).trainable_variables(prior_model)
+            trainable_vars = method.trainable_variables(prior_model)
 
             # compute gradient of loss wrt trainable_variables
             gradients = tape.gradient(loss, trainable_vars)
@@ -149,55 +138,8 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
             print("Loss is NAN and therefore training stops.")
             break
 
-        # Saving of results
-        if trainer["method"] == "parametric_prior":
-            # create a list with constraints for re-transforming hyperparameter
-            # before saving them
-            constraint_dict = dict()
-
-            for i in range(len(parameters)):
-                hyp_dict = parameters[i]["hyperparams"]
-                for hyp in hyp_dict:
-                    constraint_dict[hyp_dict[hyp]["name"]] = hyp_dict[hyp]["constraint"]
-
-            # save gradients per epoch
-            gradients_ep.append(gradients)
-
-            # save learned hyperparameter values for each prior and epoch
-            # extract learned hyperparameter values
-            hyperparams = trainable_vars
-            if epoch == 0:
-                # prepare list for saving hyperparameter values
-                hyp_list = []
-                for i in range(len(hyperparams)):
-                    hyp_list.append(hyperparams[i].name[:-2].split(".")[1])
-                # create a dict with empty list for each hyperparameter
-                res_dict: dict[str, Any] = {f"{k}": [] for k in hyp_list}
-                # create final dict with initial train. variables
-                for val, name in zip(init_vars_values, init_vars_names):
-                    res_dict[name].append(float(constraint_dict[name](val)))
-            # save names and values of hyperparameters
-            vars_values = [
-                hyperparams[i].numpy().copy() for i in range(len(hyperparams))
-            ]
-            vars_names = [
-                hyperparams[i].name[:-2].split(".")[1] for i in range(len(hyperparams))
-            ]
-            # create a final dict of hyperparameter values
-            for val, name in zip(vars_values, vars_names):
-                res_dict[name].append(float(constraint_dict[name](val)))
-
-        if trainer["method"] == "deep_prior":
-            # save mean and std for each sampled marginal prior for each epoch
-
-            if epoch == 0:
-                res_dict = {"means": [], "stds": []}
-
-            means = tf.reduce_mean(prior_sim, (0, 1))
-            sds = tf.reduce_mean(tf.math.reduce_std(prior_sim, 1), 0)
-
-            for val, name in zip([means, sds], ["means", "stds"]):  # type: ignore
-                res_dict[name].append(val)
+        gradients_ep.append(gradients)
+        method.record_epoch(res_dict, prior_sim, trainable_vars, parameters)
 
         # savings per epoch (independent from chosen method)
         time_per_epoch.append(epoch_time)
@@ -220,10 +162,6 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
         "loss_tensor_model": loss_components_training,
     }
 
-    if trainer["method"] == "parametric_prior":
-        res_ep["hyperparameter_gradient"] = gradients_ep
-
-    if trainer["method"] == "deep_prior":
-        output_res["num_NN_weights"] = [v.shape for v in trainable_vars]
+    method.finalize(res_ep, output_res, gradients_ep, trainable_vars)
 
     return res_ep, output_res

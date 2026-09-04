@@ -3,8 +3,8 @@ specification of custom types
 """
 
 from collections.abc import Callable
-from typing import Any, TypedDict
 from enum import Enum
+from typing import Any, TypedDict
 
 import tensorflow as tf
 
