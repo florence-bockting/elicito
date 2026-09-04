@@ -24,6 +24,17 @@ class PriorMethod(Protocol):
         """Create the trainable prior object."""
         ...
 
+    def sample(
+        self,
+        initialized_priors: Any,
+        parameters: list[Parameter],
+        network: NFDict | None,
+        B: int,
+        num_samples: int,
+    ) -> tf.Tensor:
+        """Draw prior samples of shape (B, num_samples, num_params)."""
+        ...
+
 
 class ParametricPrior:
     """Independent parametric priors."""
@@ -85,6 +96,36 @@ class ParametricPrior:
                     checked_params.append(hp_n)
         return init_prior
 
+    def sample(
+        self,
+        initialized_priors: Any,
+        parameters: list[Parameter],
+        network: NFDict | None,
+        B: int,
+        num_samples: int,
+    ) -> Any:
+        priors = []
+        for i in range(len(parameters)):
+            # get the prior distribution family as specified by the user
+            prior_family = parameters[i]["family"]
+
+            hp_k = list(parameters[i]["hyperparams"].keys())
+            init_dict = {}
+            for k in hp_k:
+                hp_n = parameters[i]["hyperparams"][k]["name"]
+                hp_constraint = parameters[i]["hyperparams"][k]["constraint"]
+                init_key = f"{k}_{hp_n}"
+                # init_dict[f"{k}"]=initialized_priors[init_key]
+                init_dict[f"{k}"] = hp_constraint(initialized_priors[init_key])
+            # sample from the prior distribution
+            priors.append(prior_family(**init_dict).sample((B, num_samples)))
+        # stack all prior distributions into one tf.Tensor of
+        # shape (B, S, num_parameters)
+        if len(priors[0].shape) < 3:  # noqa: PLR2004
+            prior_samples = tf.stack(priors, axis=-1)
+        else:
+            prior_samples = tf.concat(priors, axis=-1)
+        return prior_samples
 
 class DeepPrior:
     """Joint non-parametric prior via a normalizing flow."""
@@ -116,6 +157,28 @@ class DeepPrior:
             u = base_dist.sample((128, 200))
             init_prior(u, None)
         return init_prior
+
+    def sample(
+        self,
+        initialized_priors: Any,
+        parameters: list[Parameter],
+        network: NFDict | None,
+        B: int,
+        num_samples: int,
+    ) -> Any:
+        # initialize base distribution
+        base_dist = network["base_distribution"](num_params=len(parameters))  # type: ignore
+        # sample from base distribution
+        u = base_dist.sample((B, num_samples))
+        # apply transformation function to samples from base distr.
+        (unconstr_priors, _) = initialized_priors(u, condition=None, inverse=False)
+        # apply parameter constraints if specified
+        constr_priors = []
+        for j in range(len(parameters)):
+            constr = parameters[j]["constraint"]
+            constr_priors.append(constr(unconstr_priors[:, :, j]))
+        prior_samples = tf.stack(constr_priors, axis=-1)
+        return prior_samples
 
 
 _METHODS: dict[str, PriorMethod] = {

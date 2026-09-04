@@ -146,7 +146,7 @@ def intialize_priors(
     return get_method(method).build(parameters, network, init_matrix_slice, seed)
 
 
-def sample_from_priors(  # noqa: PLR0913, PLR0912
+def sample_from_priors(  # noqa: PLR0913
     initialized_priors: Union[None, dict[str, tf.Tensor], Callable[[Any], Any]],
     ground_truth: bool,
     num_samples: int,
@@ -224,49 +224,11 @@ def sample_from_priors(  # noqa: PLR0913, PLR0912
         if type(priors[0]) is list:
             priors = priors[0]
         prior_samples = tf.concat(priors, axis=-1)
+        return prior_samples
 
-    if (method == "parametric_prior") and (not ground_truth):
-        priors = []
-
-        for i in range(len(parameters)):
-            # get the prior distribution family as specified by the user
-            prior_family = parameters[i]["family"]
-
-            hp_k = list(parameters[i]["hyperparams"].keys())
-            init_dict = {}
-            for k in hp_k:
-                hp_n = parameters[i]["hyperparams"][k]["name"]
-                hp_constraint = parameters[i]["hyperparams"][k]["constraint"]
-                init_key = f"{k}_{hp_n}"
-                # init_dict[f"{k}"]=initialized_priors[init_key]
-                init_dict[f"{k}"] = hp_constraint(initialized_priors[init_key])  # type: ignore
-            # sample from the prior distribution
-            priors.append(prior_family(**init_dict).sample((B, num_samples)))
-        # stack all prior distributions into one tf.Tensor of
-        # shape (B, S, num_parameters)
-        if len(priors[0].shape) < 3:  # noqa: PLR2004
-            prior_samples = tf.stack(priors, axis=-1)
-        else:
-            prior_samples = tf.concat(priors, axis=-1)
-
-    if (
-        (method == "deep_prior")
-        and (not ground_truth)
-        and initialized_priors is not None
-    ):
-        # initialize base distribution
-        base_dist = network["base_distribution"](num_params=len(parameters))  # type: ignore
-        # sample from base distribution
-        u = base_dist.sample((B, num_samples))
-        # apply transformation function to samples from base distr.
-        (unconstr_priors, _) = initialized_priors(u, condition=None, inverse=False)  # type: ignore
-        # apply parameter constraints if specified
-        constr_priors = []
-        for j in range(len(parameters)):
-            constr = parameters[j]["constraint"]
-            constr_priors.append(constr(unconstr_priors[:, :, j]))
-        prior_samples = tf.stack(constr_priors, axis=-1)
-    return prior_samples
+    return get_method(method).sample(
+        initialized_priors, parameters, network, B, num_samples
+    )
 
 
 def simulate_from_generator(
