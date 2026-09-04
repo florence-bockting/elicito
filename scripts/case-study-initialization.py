@@ -115,6 +115,7 @@ class Scenario(NamedTuple):
     mean: float
     radius: float
     comment: str
+    derived: bool = False
 
 
 # The regression targets on the unconstrained scale are
@@ -125,6 +126,7 @@ SCENARIOS = [
     Scenario("wide", 0.0, 10.0, "contains all, but is very wide"),
     Scenario("far", -5.0, 2.0, "contains none, and is on the wrong side"),
     Scenario("extreme", -20.0, 2.0, "all scales collapse to zero"),
+    Scenario("from_elicits", 0.0, 0.0, "box derived from the expert data", True),
 ]
 
 
@@ -222,6 +224,7 @@ def build_eliobj(  # noqa: PLR0913
     epochs: int,
     clipnorm: float | None = 1.0,
     seed: int = 2025,
+    derived: bool = False,
 ) -> el.Elicit:
     """
     Build the elicitation object for one initialization box
@@ -249,6 +252,11 @@ def build_eliobj(  # noqa: PLR0913
 
     seed
         seed passed to the trainer
+
+    derived
+        build the box from the expert data with
+        [`from_elicits`][elicito.initialization.from_elicits]. ``mean`` and
+        ``radius`` are then ignored.
 
     Returns
     -------
@@ -321,7 +329,11 @@ def build_eliobj(  # noqa: PLR0913
         initializer=el.initializer(
             method="sobol",
             iterations=32,
-            distribution=el.initialization.uniform(radius=radius, mean=mean),
+            distribution=(
+                el.initialization.from_elicits()
+                if derived
+                else el.initialization.uniform(radius=radius, mean=mean)
+            ),
         ),
     )
 
@@ -453,7 +465,13 @@ def run_scenario(  # noqa: PLR0913
     if sequential:
         for i in range(n_runs):
             eliobj = build_eliobj(
-                family, scenario.mean, scenario.radius, epochs, clipnorm, seed=2025 + i
+                family,
+                scenario.mean,
+                scenario.radius,
+                epochs,
+                clipnorm,
+                seed=2025 + i,
+                derived=scenario.derived,
             )
             try:
                 eliobj.fit()
@@ -463,7 +481,14 @@ def run_scenario(  # noqa: PLR0913
                 continue
             records += chain_records(eliobj, 1, family)
     else:
-        eliobj = build_eliobj(family, scenario.mean, scenario.radius, epochs, clipnorm)
+        eliobj = build_eliobj(
+            family,
+            scenario.mean,
+            scenario.radius,
+            epochs,
+            clipnorm,
+            derived=scenario.derived,
+        )
         try:
             eliobj.fit(parallel=el.utils.parallel(runs=n_runs))
         except Exception:
