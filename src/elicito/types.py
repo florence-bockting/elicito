@@ -3,6 +3,7 @@ specification of custom types
 """
 
 from collections.abc import Callable
+from enum import Enum
 from typing import Any, TypedDict
 
 import tensorflow as tf
@@ -193,3 +194,34 @@ class MetaSettings(TypedDict):
     """
 
     dry_run: bool
+
+
+class PriorMethods(str, Enum):
+    """Method used for learning prior distribution"""
+
+    parametric_prior = "parametric_prior"
+    deep_prior = "deep_prior"
+
+
+class ProgressMethod(int, Enum):
+    """Printing status of optimization"""
+
+    HIDE_PROGRESS = 0
+    SHOW_PROGRESS = 1
+
+
+class SamplingMethod(str, Enum):
+    """Sampling method used for initialization"""
+
+    sobol = "sobol"
+    random = "random"
+    lhs = "lhs"
+
+
+class VariableType(str, Enum):
+    """Type of variable"""
+
+    real = "real"
+    array = "array"
+    cov = "cov"
+    cov2tril = "cov2tril"

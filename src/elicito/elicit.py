@@ -3,7 +3,6 @@ setting-up the elicitation method with Elicit
 """
 
 import inspect
-from enum import Enum
 from typing import Any, Callable, Optional
 
 import tensorflow as tf
@@ -15,10 +14,14 @@ from elicito.types import (
     Initializer,
     MetaSettings,
     Parameter,
+    PriorMethods,
+    ProgressMethod,
     QueriesDict,
+    SamplingMethod,
     Target,
     Trainer,
     Uniform,
+    VariableType,
 )
 from elicito.utils import (
     DoubleBound,
@@ -28,15 +31,6 @@ from elicito.utils import (
 )
 
 tfd = tfp.distributions
-
-
-class VariableType(str, Enum):
-    """Type of variable"""
-
-    real = "real"
-    array = "array"
-    cov = "cov"
-    cov2tril = "cov2tril"
 
 
 class Dtype:
@@ -730,14 +724,6 @@ def optimizer(
     return optimizer_dict
 
 
-class SamplingMethod(str, Enum):
-    """Sampling method used for initialization"""
-
-    sobol = "sobol"
-    random = "random"
-    lhs = "lhs"
-
-
 def initializer(
     method: Optional[SamplingMethod] = None,
     distribution: Optional[Uniform] = None,
@@ -878,20 +864,6 @@ def initializer(
     )
 
     return init_dict
-
-
-class PriorMethods(str, Enum):
-    """Method used for learning prior distribution"""
-
-    parametric_prior = "parametric_prior"
-    deep_prior = "deep_prior"
-
-
-class ProgressMethod(int, Enum):
-    """Printing status of optimization"""
-
-    HIDE_PROGRESS = 0
-    SHOW_PROGRESS = 1
 
 
 def trainer(  # noqa: PLR0913
