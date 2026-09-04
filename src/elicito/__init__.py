@@ -13,6 +13,7 @@ import tensorflow_probability as tfp  # type: ignore
 from elicito import (
     _checks,
     _outputs,
+    elicit,
     initialization,
     losses,
     networks,
@@ -59,6 +60,7 @@ __all__ = [
     "initialization",
     "initializer",
     "losses",
+    "meta_settings",
     "model",
     "networks",
     "optimization",
@@ -94,7 +96,7 @@ class Elicit:
         optimizer: dict[str, Any],
         network: NFDict | None = None,
         initializer: Initializer | None = None,
-        meta_settings: MetaSettings = meta_settings(),
+        meta_settings: MetaSettings | None = None,
     ):
         """
         Specify the elicitation method
@@ -177,6 +179,9 @@ class Elicit:
             [GitHub issue #35](https://github.com/florence-bockting/prior_elicitation/issues/35).
 
         """  # noqa: E501
+        if meta_settings is None:
+            meta_settings = elicit.meta_settings()
+
         _checks.check_elicit(
             model,
             parameters,

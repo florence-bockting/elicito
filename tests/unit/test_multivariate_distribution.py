@@ -142,6 +142,7 @@ def test_trainable_variables_multivariate_normal(param):
         init_priors.trainable_variables[1], init_matrix["hyperparams"]["cov_matrix"]
     )
 
+
 def test_pearson_correlation_keeps_exact_zeros():
     # three orthogonal columns: every pairwise correlation is exactly 0.0
     samples = tf.constant(

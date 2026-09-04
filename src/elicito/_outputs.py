@@ -364,7 +364,7 @@ def create_result_group(
     group: str,
     description: str,
     dim_name: Optional[str] = None,
-    base_dims: list[str] = ["replication", "batch", "draw"],
+    base_dims: Optional[list[str]] = None,
 ) -> xr.Dataset:
     """
     Build an xarray.Dataset from eliobj results for a given group.
@@ -391,6 +391,9 @@ def create_result_group(
     :
         Dataset containing one DataArray per variable in the group.
     """
+    if base_dims is None:
+        base_dims = ["replication", "batch", "draw"]
+
     ds_group = xr.Dataset(attrs=dict(description=description))
 
     n_replications = len(results)
