@@ -234,35 +234,7 @@ class Elicit:
     def __str__(self) -> str:  # noqa: PLR0912
         """Return a readable summary of the object."""
         # fitted eliobj with shape information
-        try:
-            self.results
-        except AttributeError:
-            if len(self.temp_results) != 0:
-                targets_str = "\n".join(
-                    f"  - {k1} {tuple(self.temp_results[0]['target_quantities'][k1].shape)} -> "  # noqa: E501
-                    f"{k2} {tuple(self.temp_results[0]['elicited_statistics'][k2].shape)}"  # noqa: E501
-                    for k1, k2 in zip(
-                        self.temp_results[0]["target_quantities"],
-                        self.temp_results[0]["elicited_statistics"],
-                    )
-                )
-            # unfitted eliobj with shape information due to dry run
-            elif self.dry_run:
-                targets_str = "\n".join(
-                    f"  - {k1} {tuple(self.dry_targets[k1].shape)} -> "
-                    f"{k2} {tuple(self.dry_elicits[k2].shape)}"
-                    for k1, k2 in zip(self.dry_targets, self.dry_elicits)
-                )
-            # unfitted eliobj without shape information
-            else:
-                targets_str = "\n".join(
-                    f"  - {self.targets[tar]['name']} -> {eli}"
-                    for tar, eli in zip(
-                        range(len(self.targets)),
-                        utils.get_expert_datformat(self.targets),
-                    )
-                )
-        else:
+        if hasattr(self, "results"):
             target_list = list(self.results.target_quantity.data_vars.keys())
             elicit_list = list(self.results.elicited_summary.data_vars.keys())
 
@@ -271,20 +243,40 @@ class Elicit:
                 f"{k2} {self.results.elicited_summary[k2].shape[1:]}"
                 for k1, k2 in zip(target_list, elicit_list)
             )
+        elif len(self.temp_results) != 0:
+            targets_str = "\n".join(
+                f"  - {k1} {tuple(self.temp_results[0]['target_quantities'][k1].shape)} -> "  # noqa: E501
+                f"{k2} {tuple(self.temp_results[0]['elicited_statistics'][k2].shape)}"
+                for k1, k2 in zip(
+                    self.temp_results[0]["target_quantities"],
+                    self.temp_results[0]["elicited_statistics"],
+                )
+            )
+        # unfitted eliobj with shape information due to dry run
+        elif self.dry_run:
+            targets_str = "\n".join(
+                f"  - {k1} {tuple(self.dry_targets[k1].shape)} -> "
+                f"{k2} {tuple(self.dry_elicits[k2].shape)}"
+                for k1, k2 in zip(self.dry_targets, self.dry_elicits)
+            )
+        # unfitted eliobj without shape information
+        else:
+            targets_str = "\n".join(
+                f"  - {self.targets[tar]['name']} -> {eli}"
+                for tar, eli in zip(
+                    range(len(self.targets)),
+                    utils.get_expert_datformat(self.targets),
+                )
+            )
 
         opt_name = self.optimizer["optimizer"].__name__
         opt_lr = self.optimizer["learning_rate"]
 
         get_num_hyperpar: int | str
-        try:
-            self.results
-        except AttributeError:
-            pass
-        else:
-            if self.trainer["method"] == "deep_prior":
-                get_num_hyperpar = utils.compute_num_weights(
-                    self.results[0]["num_NN_weights"]  # type: ignore
-                )
+        if hasattr(self, "results") and self.trainer["method"] == "deep_prior":
+            get_num_hyperpar = utils.compute_num_weights(
+                self.results[0]["num_NN_weights"]  # type: ignore
+            )
 
         if (self.trainer["method"] == "deep_prior") and (self.dry_run):
             trainable_vars = self.dry_prior_model.init_priors.trainable_variables
@@ -545,11 +537,7 @@ class Elicit:
         for i, key in enumerate(kwargs):
             setattr(self, key, kwargs[key])
             # reset results
-            try:
-                self.results
-            except AttributeError:
-                pass
-            else:
+            if hasattr(self, "results"):
                 delattr(self, "results")
             self.temp_results = list()
             self.temp_history = list()
