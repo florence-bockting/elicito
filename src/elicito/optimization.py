@@ -13,6 +13,8 @@ from elicito.losses import total_loss
 from elicito.simulations import Priors
 from elicito.types import Parameter, Target, Trainer
 from elicito.utils import one_forward_simulation
+from elicito.methods import get_method
+
 
 tfd = tfp.distributions
 
@@ -127,15 +129,9 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
                     targets=targets,
                 )
             )
-            # very suboptimal implementation but currently it works
-            if trainer["method"] == "deep_prior":
-                trainable_vars = prior_model.init_priors.trainable_variables  # type: ignore
-                num_NN_weights = [
-                    trainable_vars[i].shape for i in range(len(trainable_vars))
-                ]
-
-            if trainer["method"] == "parametric_prior":
-                trainable_vars = prior_model.trainable_variables
+            trainable_vars = get_method(
+                trainer["method"]
+            ).trainable_variables(prior_model)
 
             # compute gradient of loss wrt trainable_variables
             gradients = tape.gradient(loss, trainable_vars)
@@ -228,6 +224,6 @@ def sgd_training(  # noqa: PLR0912, PLR0913, PLR0915
         res_ep["hyperparameter_gradient"] = gradients_ep
 
     if trainer["method"] == "deep_prior":
-        output_res["num_NN_weights"] = num_NN_weights
+        output_res["num_NN_weights"] = [v.shape for v in trainable_vars]
 
     return res_ep, output_res

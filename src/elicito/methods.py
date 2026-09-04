@@ -31,8 +31,12 @@ class PriorMethod(Protocol):
         network: NFDict | None,
         B: int,
         num_samples: int,
-    ) -> tf.Tensor:
+    ) -> Any:
         """Draw prior samples of shape (B, num_samples, num_params)."""
+        ...
+
+    def trainable_variables(self, prior_model: Any) -> Any:
+        """Return the variables the optimizer updates."""
         ...
 
 
@@ -127,6 +131,11 @@ class ParametricPrior:
             prior_samples = tf.concat(priors, axis=-1)
         return prior_samples
 
+    def trainable_variables(self, prior_model: Any) -> Any:
+        """Return the variables the optimizer updates."""
+        return prior_model.trainable_variables
+
+
 class DeepPrior:
     """Joint non-parametric prior via a normalizing flow."""
 
@@ -179,6 +188,10 @@ class DeepPrior:
             constr_priors.append(constr(unconstr_priors[:, :, j]))
         prior_samples = tf.stack(constr_priors, axis=-1)
         return prior_samples
+
+    def trainable_variables(self, prior_model: Any) -> Any:
+        """Return the variables the optimizer updates."""
+        return prior_model.init_priors.trainable_variables
 
 
 _METHODS: dict[str, PriorMethod] = {
