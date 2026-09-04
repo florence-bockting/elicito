@@ -5,9 +5,19 @@ Strategy objects for the prior-learning methods
 from typing import Any, Protocol
 
 import tensorflow as tf
+import tensorflow_probability as tfp  # type: ignore
 
+import elicito as el
 from elicito import networks
-from elicito.types import Initializer, NFDict, Parameter, PriorMethods
+from elicito.types import (
+    ExpertDict,
+    Initializer,
+    NFDict,
+    Parameter,
+    PriorMethods,
+    Target,
+    Trainer,
+)
 
 
 def _constraints(parameters: list[Parameter]) -> dict[str, Any]:
@@ -85,6 +95,22 @@ class PriorMethod(Protocol):
         initializer: Initializer | None,
     ) -> None:
         """Raise if the sections are not valid for this method."""
+        ...
+
+    def initialize(  # noqa: PLR0913
+        self,
+        expert_elicited_statistics: dict[str, tf.Tensor],
+        initializer: Initializer | None,
+        parameters: list[Parameter],
+        trainer: Trainer,
+        model: dict[str, Any],
+        targets: list[Target],
+        network: NFDict | None,
+        expert: ExpertDict,
+        seed: int,
+        progress: int,
+    ) -> tuple[Any, Any, Any, Any]:
+        """Build the prior model used to start the training."""
         ...
 
 
@@ -298,6 +324,63 @@ class ParametricPrior:
             )
             raise ValueError(msg)
 
+    def initialize(  # noqa: PLR0913
+        self,
+        expert_elicited_statistics: dict[str, tf.Tensor],
+        initializer: Initializer | None,
+        parameters: list[Parameter],
+        trainer: Trainer,
+        model: dict[str, Any],
+        targets: list[Target],
+        network: NFDict | None,
+        expert: ExpertDict,
+        seed: int,
+        progress: int,
+    ) -> tuple[Any, Any, Any, Any]:
+        """Build the prior model used to start the training."""
+        if initializer is None:
+            # check() rejects this earlier; the guard narrows the type
+            msg = "If method is 'parametric_prior', 'initializer' can't be None."
+            raise ValueError(msg)
+
+        if initializer["hyperparams"] is not None:
+            # prepare generative model
+            init_prior_model = el.simulations.Priors(
+                ground_truth=False,
+                init_matrix_slice=initializer["hyperparams"],
+                trainer=trainer,
+                parameters=parameters,
+                network=None,
+                expert=expert,
+                seed=seed,
+            )
+            return init_prior_model, None, None, None
+
+        loss_list, init_prior, init_matrix = el.initialization.init_runs(
+            expert_elicited_statistics=expert_elicited_statistics,
+            initializer=initializer,
+            parameters=parameters,
+            trainer=trainer,
+            model=model,
+            targets=targets,
+            network=None,
+            expert=expert,
+            seed=seed,
+            progress=progress,
+        )
+
+        # extract pre-specified quantile loss out of all runs
+        # get corresponding set of initial values
+        loss_quantile = initializer["loss_quantile"]
+
+        boolean_mask = tf.math.equal(
+            loss_list, tfp.stats.percentile(loss_list, loss_quantile)
+        )
+        idx = tf.where(tf.squeeze(boolean_mask, 1))
+
+        init_prior_model = init_prior[int(tf.squeeze(idx))]
+        return init_prior_model, loss_list, init_prior, init_matrix
+
 
 class DeepPrior:
     """Joint non-parametric prior via a normalizing flow."""
@@ -418,6 +501,33 @@ class DeepPrior:
                 "See GitHub issue #35."
             )
             raise NotImplementedError(msg)
+
+    def initialize(  # noqa: PLR0913
+        self,
+        expert_elicited_statistics: dict[str, tf.Tensor],
+        initializer: Initializer | None,
+        parameters: list[Parameter],
+        trainer: Trainer,
+        model: dict[str, Any],
+        targets: list[Target],
+        network: NFDict | None,
+        expert: ExpertDict,
+        seed: int,
+        progress: int,
+    ) -> tuple[Any, Any, Any, Any]:
+        """Build the prior model used to start the training."""
+        # prepare generative model
+        init_prior_model = el.simulations.Priors(
+            ground_truth=False,
+            init_matrix_slice=None,
+            trainer=trainer,
+            parameters=parameters,
+            network=network,
+            expert=expert,
+            seed=seed,
+        )
+        # loss_list, init_prior and init_matrix stay empty for this method
+        return init_prior_model, None, None, None
 
 
 _METHODS: dict[str, PriorMethod] = {

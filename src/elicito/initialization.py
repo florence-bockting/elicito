@@ -336,7 +336,7 @@ def init_prior(  # noqa: PLR0913
     expert: ExpertDict,
     seed: int,
     progress: int,
-) -> tuple[Any, list[Any], list[Any], dict[str, Any]]:
+) -> tuple[Any, Any, Any, Any]:
     """
     Extract target loss and initialize prior model
 
@@ -388,62 +388,18 @@ def init_prior(  # noqa: PLR0913
         being the drawn initial values per run.
 
     """
-    if trainer["method"] == "parametric_prior" and initializer is not None:
-        if initializer["hyperparams"] is None:
-            loss_list, init_prior, init_matrix = init_runs(
-                expert_elicited_statistics=expert_elicited_statistics,
-                initializer=initializer,
-                parameters=parameters,
-                trainer=trainer,
-                model=model,
-                targets=targets,
-                network=None,
-                expert=expert,
-                seed=seed,
-                progress=progress,
-            )
-
-            # extract pre-specified quantile loss out of all runs
-            # get corresponding set of initial values
-            loss_quantile = initializer["loss_quantile"]
-
-            boolean_mask = tf.math.equal(
-                loss_list, tfp.stats.percentile(loss_list, loss_quantile)
-            )
-            idx = tf.where(tf.squeeze(boolean_mask, 1))
-
-            # init_prior_model = [ini_pr for ini_pr, i in init_prior if i == idx][0]
-            init_prior_model = init_prior[int(tf.squeeze(idx))]
-        else:
-            # prepare generative model
-            init_prior_model = el.simulations.Priors(
-                ground_truth=False,
-                init_matrix_slice=initializer["hyperparams"],
-                trainer=trainer,
-                parameters=parameters,
-                network=None,
-                expert=expert,
-                seed=seed,
-            )
-            # initialize empty variables for avoiding return conflicts
-            loss_list, init_prior, init_matrix = (None, None, None)
-
-    if trainer["method"] == "deep_prior" and network is not None:
-        # prepare generative model
-        init_prior_model = el.simulations.Priors(
-            ground_truth=False,
-            init_matrix_slice=None,
-            trainer=trainer,
-            parameters=parameters,
-            network=network,
-            expert=expert,
-            seed=seed,
-        )
-
-        # initialize empty variables for avoiding return conflicts
-        loss_list, init_prior, init_matrix = (None, None, None)
-
-    return tuple((init_prior_model, loss_list, init_prior, init_matrix))
+    return el.methods.get_method(trainer["method"]).initialize(
+        expert_elicited_statistics=expert_elicited_statistics,
+        initializer=initializer,
+        parameters=parameters,
+        trainer=trainer,
+        model=model,
+        targets=targets,
+        network=network,
+        expert=expert,
+        seed=seed,
+        progress=progress,
+    )
 
 
 def uniform(
