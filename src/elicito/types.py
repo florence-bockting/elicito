@@ -4,7 +4,7 @@ specification of custom types
 
 from collections.abc import Callable
 from enum import Enum
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 import tensorflow as tf
 
@@ -133,6 +133,9 @@ class Uniform(TypedDict):
     radius: float | list[float | int]
     mean: float | list[float | int]
     hyper: list[str] | None
+    # set by `from_elicits`; the box is built during `fit`, from the expert data
+    from_elicits: NotRequired[bool]
+    factor: NotRequired[float]
 
 
 class Initializer(TypedDict):

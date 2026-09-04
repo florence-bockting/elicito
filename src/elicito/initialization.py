@@ -277,14 +277,19 @@ def init_runs(  # noqa: PLR0913
     save_prior = []
 
     # sample initial values
-    if initializer["distribution"] is not None:
+    distribution: Any = initializer["distribution"]
+    if distribution is not None:
+        if distribution.get("from_elicits", False):
+            distribution = _from_elicits_box(
+                expert_elicited_statistics, parameters, distribution["factor"]
+            )
         init_matrix = uniform_samples(
             seed=seed,
-            hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
+            hyppar=distribution["hyper"],
             n_samples=initializer["iterations"],  # type: ignore [arg-type]
             method=initializer["method"],  # type: ignore [arg-type]
-            mean=initializer["distribution"]["mean"],
-            radius=initializer["distribution"]["radius"],
+            mean=distribution["mean"],
+            radius=distribution["radius"],
             parameters=parameters,
         )
 
@@ -519,3 +524,96 @@ def uniform(
     init_dict = dict(radius=radius, mean=mean, hyper=hyper)
 
     return init_dict
+
+
+def _from_elicits_box(
+    expert_elicited_statistics: dict[str, Any],
+    parameters: list[Parameter],
+    factor: float = 2.0,
+) -> dict[Any, Any]:
+    """
+    Derive a uniform initialization box from the expert data
+
+    Pools all elicited statistics into one location and one spread.
+    An unbounded hyperparameter is centred at the pooled median with
+    radius ``factor * spread``. A lower-bounded hyperparameter gets a box
+    that spans from near zero up to ``spread``, because the pooled spread
+    over-estimates the scale.
+
+    Pooling all targets is crude. The box is correct in order of
+    magnitude only. That is enough to avoid a start value that is wrong
+    by a factor of ten.
+
+    Parameters
+    ----------
+    expert_elicited_statistics
+        Elicited statistics of the expert, as passed to
+        [`init_prior`][elicito.initialization.init_prior].
+
+    parameters
+        List including dictionary with all information about the
+        (hyper-)parameters.
+
+    factor
+        Multiplier of the pooled spread. The default is ``2.``.
+
+    Returns
+    -------
+    init_dict :
+        Dictionary with all settings of the uniform distribution, as
+        returned by [`uniform`][elicito.initialization.uniform].
+
+    """
+    pooled = np.concatenate(
+        [
+            np.reshape(np.asarray(v, dtype=np.float32), -1)
+            for v in expert_elicited_statistics.values()
+        ]
+    )
+    q25, median, q75 = np.percentile(pooled, [25.0, 50.0, 75.0])
+    spread = float(max((q75 - q25) / 1.35, 1e-3))
+
+    hyper: list[str] = []
+    mean: list[float] = []
+    radius: list[float] = []
+    for param in parameters:
+        hyperparams = param["hyperparams"]
+        if hyperparams is None:
+            continue
+        for hyp in hyperparams:
+            hyper.append(hyperparams[hyp]["name"])
+            if hyperparams[hyp]["constraint_name"] == "softplusL":
+                # the pooled spread mixes the prior scale with the noise, so
+                # it over-estimates the scale. Centre lower, and span from
+                # near zero up to the spread.
+                unconstrained = float(el.utils.LowerBound(lower=0.0).forward(spread))
+                mean.append(unconstrained / 2.0)
+                radius.append(unconstrained / 2.0 + factor)
+            else:
+                mean.append(float(median))
+                radius.append(factor * spread)
+
+    return uniform(radius=radius, mean=mean, hyper=hyper)
+
+
+def from_elicits(factor: float = 2.0) -> dict[Any, Any]:
+    """
+    Derive the initialization box from the expert data
+
+    The box cannot be built before ``fit``, because the expert statistics
+    of [`expert.simulator`][elicito.elicit.expert] do not exist yet. This
+    function only records the request. [`init_prior`]
+    [elicito.initialization.init_prior] builds the box.
+
+    Parameters
+    ----------
+    factor
+        Multiplier of the pooled spread. The default is ``2.``.
+
+    Returns
+    -------
+    init_dict :
+        Dictionary marking the initialization box as deferred.
+
+    """
+    return dict(radius=0.0, mean=0.0, hyper=None, from_elicits=True, factor=factor)

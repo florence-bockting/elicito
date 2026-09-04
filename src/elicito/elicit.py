@@ -752,7 +752,14 @@ def initializer(
 
     distribution
         Specification of initialization distribution.
-        Currently implemented methods: [`uniform`][elicito.initialization.uniform]
+        Currently implemented:
+        [`uniform`][elicito.initialization.uniform] and
+        [`from_elicits`][elicito.initialization.from_elicits].
+        Prefer ``from_elicits``. It derives the box from the expert data
+        during ``fit``, so the user supplies no number. ``uniform`` needs a
+        ``mean`` and a ``radius`` that match the scale of the
+        hyperparameters. A box that is wrong by a factor of ten gives a bad
+        start value, and for some prior families a non-finite loss.
 
     iterations
         Number of samples drawn from the initialization distribution.

@@ -555,3 +555,43 @@ def test_warmup_epochs_changes_candidate_loss():
 
     # the warm-up must not change the epochs of the caller's trainer
     assert warm.trainer["epochs"] == 1
+
+
+def _one_param():
+    return [
+        el.parameter(
+            name="b0",
+            family=tfd.Normal,
+            hyperparams=dict(loc=el.hyper("mu0"), scale=el.hyper("sigma0", lower=0)),
+        )
+    ]
+
+
+def test_from_elicits_box():
+    # quantiles 0, 2, 4, 6, 8 -> median 4, IQR 4, spread 4 / 1.35
+    expert = {"quantiles_y": tf.constant([[0.0, 2.0, 4.0, 6.0, 8.0]])}
+    box = el.initialization._from_elicits_box(expert, _one_param(), factor=2.0)
+    spread = 4.0 / 1.35
+
+    assert box["hyper"] == ["mu0", "sigma0"]
+    npt.assert_allclose(box["mean"][0], 4.0, rtol=1e-6)
+    npt.assert_allclose(box["radius"][0], 2.0 * spread, rtol=1e-6)
+    unconstrained = float(el.utils.LowerBound(0.0).forward(spread))
+    npt.assert_allclose(box["mean"][1], unconstrained / 2.0, rtol=1e-5)
+    npt.assert_allclose(box["radius"][1], unconstrained / 2.0 + 2.0, rtol=1e-5)
+
+
+def test_from_elicits_uses_spread_floor():
+    expert = {"quantiles_y": tf.constant([[3.0, 3.0, 3.0]])}
+    box = el.initialization._from_elicits_box(expert, _one_param())
+
+    npt.assert_allclose(box["radius"][0], 2.0e-3, rtol=1e-6)
+    npt.assert_allclose(box["mean"][0], 3.0, rtol=1e-6)
+
+
+def test_from_elicits_marks_the_box_as_deferred():
+    box = el.initialization.from_elicits(factor=3.0)
+
+    assert box["from_elicits"] is True
+    assert box["factor"] == 3.0
+    assert box["hyper"] is None
