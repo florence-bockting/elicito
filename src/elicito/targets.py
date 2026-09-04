@@ -55,7 +55,11 @@ def use_custom_functions(simulations: dict[str, Any], custom_func: Any) -> Any:
     custom_function :
         Custom function with keyword arguments
     """
-    vars_from_func = custom_func.__code__.co_varnames
+    # co_varnames holds arguments and local variables;
+    # only the first co_argcount entries are arguments
+    vars_from_func = custom_func.__code__.co_varnames[
+        : custom_func.__code__.co_argcount
+    ]
     res = {f"{var}": simulations[var] for var in vars_from_func if var in simulations}
     return custom_func(**res)
 
