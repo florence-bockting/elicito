@@ -437,6 +437,9 @@ class DeepPrior:
             # build network
             # initialize base distribution
             base_dist = network["base_distribution"](num_params=len(parameters))  # type: ignore
+            # the base distribution never changes during training;
+            # keep it on the prior object instead of rebuilding it per epoch
+            init_prior.base_distribution = base_dist
             # sample from base distribution
             u = base_dist.sample((128, 200))
             init_prior(u, None)
@@ -450,10 +453,8 @@ class DeepPrior:
         B: int,
         num_samples: int,
     ) -> Any:
-        # initialize base distribution
-        base_dist = network["base_distribution"](num_params=len(parameters))  # type: ignore
-        # sample from base distribution
-        u = base_dist.sample((B, num_samples))
+        # reuse the base distribution built in `build`
+        u = initialized_priors.base_distribution.sample((B, num_samples))
         # apply transformation function to samples from base distr.
         (unconstr_priors, _) = initialized_priors(u, condition=None, inverse=False)
         # apply parameter constraints if specified
