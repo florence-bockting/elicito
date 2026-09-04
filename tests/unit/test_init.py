@@ -5,6 +5,7 @@ Unittest for init.py module
 import re
 from copy import deepcopy
 
+import numpy as np
 import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -469,3 +470,88 @@ def test_eliobj_fit():
 
     with npt.assert_raises(AssertionError):
         assert hasattr(eliobj2, "results")
+
+
+def test_warmup_epochs_default():
+    """a candidate is scored at epoch 0 unless warmup_epochs is set"""
+    init = el.initializer(
+        method="sobol",
+        iterations=2,
+        distribution=el.initialization.uniform(radius=1, mean=0),
+    )
+    assert init["warmup_epochs"] == 0
+
+    init = el.initializer(
+        method="sobol",
+        iterations=2,
+        warmup_epochs=3,
+        distribution=el.initialization.uniform(radius=1, mean=0),
+    )
+    assert init["warmup_epochs"] == 3
+
+
+def test_warmup_epochs_changes_candidate_loss():
+    """warmup_epochs>0 scores a candidate after training, not at epoch 0"""
+    summary_data = {"quantiles_y_obs": [-1.5, -0.4, 0.1, 0.7, 1.9]}
+
+    class GenerativeModel:
+        def __call__(self, prior_samples, N):
+            mu = prior_samples[:, :, 0]
+            sigma = tf.exp(prior_samples[:, :, 1])
+            y_pred = tfd.Normal(loc=mu, scale=sigma).sample(N)
+            return dict(y_obs=tf.transpose(y_pred, perm=[1, 2, 0]))
+
+    def build(warmup_epochs):
+        return el.Elicit(
+            model=el.model(obj=GenerativeModel, N=10),
+            parameters=[
+                el.parameter(
+                    name="mu",
+                    family=tfd.Normal,
+                    hyperparams=dict(
+                        loc=el.hyper("mu_loc"), scale=el.hyper("mu_scale", lower=0)
+                    ),
+                ),
+                el.parameter(
+                    name="log_sigma",
+                    family=tfd.Normal,
+                    hyperparams=dict(
+                        loc=el.hyper("s_loc"), scale=el.hyper("s_scale", lower=0)
+                    ),
+                ),
+            ],
+            targets=[
+                el.target(
+                    name="y_obs",
+                    query=el.queries.quantiles([0.05, 0.25, 0.5, 0.75, 0.95]),
+                    loss=el.losses.MMD2(kernel="energy"),
+                ),
+            ],
+            expert=el.expert.data(summary_data),
+            optimizer=el.optimizer(
+                optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
+            ),
+            trainer=el.trainer(method="parametric_prior", seed=7, epochs=1, progress=0),
+            initializer=el.initializer(
+                method="sobol",
+                iterations=2,
+                warmup_epochs=warmup_epochs,
+                distribution=el.initialization.uniform(radius=1, mean=0),
+            ),
+        )
+
+    cold = build(0)
+    cold.fit()
+    warm = build(2)
+    warm.fit()
+
+    cold_loss = cold.results["initialization"]["loss"].values
+    warm_loss = warm.results["initialization"]["loss"].values
+
+    # the warm-up scores the same two candidates, but after two epochs
+    assert cold_loss.shape == warm_loss.shape
+    assert bool(np.isfinite(warm_loss).all())
+    assert (cold_loss != warm_loss).any()
+
+    # the warm-up must not change the epochs of the caller's trainer
+    assert warm.trainer["epochs"] == 1
