@@ -620,7 +620,7 @@ def load(file: str) -> Any:
 
     # add results if already fitted
     if "results" in obj:
-        eliobj.results = obj["results"]  # type: ignore
+        eliobj.results = obj["results"]
     else:
         eliobj.temp_history = obj["temp_history"]
         eliobj.temp_results = obj["temp_results"]
