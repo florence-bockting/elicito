@@ -141,3 +141,14 @@ def test_trainable_variables_multivariate_normal(param):
     np.testing.assert_array_almost_equal(
         init_priors.trainable_variables[1], init_matrix["hyperparams"]["cov_matrix"]
     )
+
+def test_pearson_correlation_keeps_exact_zeros():
+    # three orthogonal columns: every pairwise correlation is exactly 0.0
+    samples = tf.constant(
+        [[[1.0, 1.0, 1.0], [-1.0, 1.0, -1.0], [1.0, -1.0, -1.0], [-1.0, -1.0, 1.0]]]
+    )
+
+    cor = el.targets.pearson_correlation(samples)
+
+    np.testing.assert_array_equal(cor.shape, (1, 3))
+    np.testing.assert_allclose(cor, np.zeros((1, 3)), atol=1e-6)

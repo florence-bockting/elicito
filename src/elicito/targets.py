@@ -30,7 +30,9 @@ def pearson_correlation(prior_samples: tf.Tensor) -> tf.Tensor:
     """
     corM = tfp.stats.correlation(prior_samples, sample_axis=1, event_axis=-1)
     tensor = tf.experimental.numpy.triu(corM, 1)
-    tensor_mask = tf.experimental.numpy.triu(corM, 1) != 0.0
+    # mask the upper triangle by position, not by value; a correlation
+    # of exactly 0.0 must stay in the result
+    tensor_mask = tf.experimental.numpy.triu(tf.ones_like(corM), 1) != 0.0
 
     cor = tf.boolean_mask(tensor, tensor_mask, axis=0)
     diag_elements = int((tensor.shape[-1] * (tensor.shape[-1] - 1)) / 2)
