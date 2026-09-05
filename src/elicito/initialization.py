@@ -104,9 +104,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
         try:
             from scipy.stats import qmc
         except ImportError as exc:
-            raise MissingOptionalDependencyError(
-                "scipy", requirement="scipy"
-            ) from exc
+            raise MissingOptionalDependencyError("scipy", requirement="scipy") from exc
 
     # counter number of hyperparameters
     n_hypparam = 0
