@@ -784,9 +784,6 @@ def init_prior(  # noqa: PLR0913
     loss_list :
         list with all losses computed for each initialization run.
 
-    init_prior :
-        list with initializer prior model for each run.
-
     init_matrix :
         dictionary with *keys* being the hyperparameter names and *values*
         being the drawn initial values per run.
