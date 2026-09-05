@@ -651,6 +651,39 @@ def test_start_vector_reads_the_box():
     assert el.warmstart._start_vector(listed_box, names) == [4.0, 3.0]
 
 
+def test_uniform_samples_fills_the_box_in_every_dimension():
+    """one design over all hyperparameters, not one sequence per hyperparameter"""
+    parameters = [
+        el.parameter(
+            name=f"b{i}",
+            family=tfd.Normal,
+            hyperparams=dict(
+                loc=el.hyper(f"mu{i}"), scale=el.hyper(f"sigma{i}", lower=0)
+            ),
+        )
+        for i in range(3)
+    ]
+    names = el.initialization.hyper_names(parameters)
+
+    samples = el.initialization.uniform_samples(
+        seed=0,
+        hyppar=names,
+        n_samples=256,
+        method="sobol",
+        mean=[0.0] * len(names),
+        radius=[1.0] * len(names),
+        parameters=parameters,
+    )
+
+    drawn = np.stack([samples[name].numpy() for name in names], axis=-1)
+    assert drawn.shape == (256, len(names))
+    # a separate one-dimensional sequence per hyperparameter left every column
+    # correlated above 0.97, so the candidates sat on a diagonal of the box
+    correlation = np.corrcoef(drawn.T)
+    off_diagonal = correlation[~np.eye(len(names), dtype=bool)]
+    assert np.abs(off_diagonal).max() < 0.1
+
+
 def test_all_finite_and_nonfinite_fraction():
     """the share of overflowing values is reported, not only that one exists"""
     good = {"y": tf.constant([[1.0, 2.0], [3.0, 4.0]])}

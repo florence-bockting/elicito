@@ -187,13 +187,18 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
             )
             raise ValueError(msg)
 
-        # initialize sampler
+        # One design over all hyperparameters, as in the branch above. A
+        # separate one-dimensional sequence per hyperparameter runs in nearly
+        # the same order for each of them, which correlates the columns and
+        # leaves the candidates on a diagonal of the box.
         if method == "sobol":
-            sampler = qmc.Sobol(d=1, seed=seed)
+            sampler = qmc.Sobol(d=len(hyppar), seed=seed)
+            sample_data = sampler.random(n=n_samples)
         elif method == "lhs":
-            sampler = qmc.LatinHypercube(d=1, seed=seed)
+            sampler = qmc.LatinHypercube(d=len(hyppar), seed=seed)
+            sample_data = sampler.random(n=n_samples)
 
-        for i, j, n in zip(mean, radius, hyppar):
+        for column, (i, j, n) in enumerate(zip(mean, radius, hyppar)):
             i_casted = tf.cast(i, tf.float32)
             j_casted = tf.cast(j, tf.float32)
 
@@ -201,10 +206,9 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
                 uniform_samples = tfd.Uniform(
                     tf.subtract(i_casted, j_casted),
                     tf.add(i_casted, j_casted),
-                ).sample((n_samples, 1))
+                ).sample((n_samples,))
             else:
-                sample_data = sampler.random(n=n_samples)
-                tensor_data = tf.convert_to_tensor(sample_data)
+                tensor_data = tf.convert_to_tensor(sample_data[:, column])
                 # Inverse transform
                 sample_dat = tf.cast(tensor_data, tf.float32)
                 uniform_samples = tfd.Uniform(
@@ -212,7 +216,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
                     tf.add(i_casted, j_casted),
                 ).quantile(sample_dat)
 
-            res_dict[n] = tf.squeeze(uniform_samples, axis=-1)
+            res_dict[n] = uniform_samples
     return res_dict
 
 
