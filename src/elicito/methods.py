@@ -311,7 +311,8 @@ class ParametricPrior:
         hyp_shared_flat = sum(hyp_shared, [])  # noqa: RUF017
 
         hyperparams = initializer["hyperparams"]
-        if initializer["method"] is None and hyperparams is not None:
+        # exact values win over a method string, as resolve_init_method does
+        if hyperparams is not None:
             for k in hyperparams:
                 if k not in hyp_names_flat:
                     msg = (

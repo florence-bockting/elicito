@@ -21,6 +21,7 @@ from elicito.types import (
     Parameter,
     Target,
     Trainer,
+    Uniform,
 )
 
 tfd = tfp.distributions
@@ -60,6 +61,7 @@ class InitMethod(Protocol):
     """Behaviour that differs between the initialization methods."""
 
     name: str
+    default_iterations: int
 
     def check(self, initializer: Initializer) -> None:
         """Reject an input this method cannot use."""
@@ -131,6 +133,7 @@ class ExactValues:
     """Start from hyperparameter values the user supplied."""
 
     name = "exact"
+    default_iterations = 0  # nothing is drawn
 
     def check(self, initializer: Initializer) -> None:
         """Reject an input this method cannot use."""
@@ -218,6 +221,7 @@ class BoxSample:
     """Draw candidates from a box and keep one, by its loss quantile."""
 
     name = "box"
+    default_iterations = 32
 
     def check(self, initializer: Initializer) -> None:
         """Reject an input this method cannot use."""
@@ -285,6 +289,7 @@ class WarmStart:
     """Search for a start point with Nelder-Mead, from the box centre."""
 
     name = "warmstart"
+    default_iterations = 100  # objective evaluations, not candidates
 
     def check(self, initializer: Initializer) -> None:
         """Reject an input this method cannot use."""
@@ -1010,7 +1015,7 @@ def _from_elicits_box(
     return uniform(radius=radius, mean=mean, hyper=hyper)
 
 
-def from_elicits(factor: float = 2.0) -> dict[Any, Any]:
+def from_elicits(factor: float = 2.0) -> Uniform:
     """
     Derive the initialization box from the expert data
 

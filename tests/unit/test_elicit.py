@@ -143,6 +143,14 @@ def test_model():
         el.model(TestModel2)
 
 
+def test_initializer_defaults():
+    """no argument gives a Nelder-Mead search on a box from the expert data"""
+    init = el.initializer()
+    assert init["method"] == "warmstart"
+    assert init["iterations"] == 100
+    assert init["distribution"]["from_elicits"]
+
+
 def test_initializer():
     msg = "If method is None, 'distribution' must also be None."
     with pytest.raises(ValueError, match=msg):
@@ -162,10 +170,6 @@ def test_initializer():
     )
     with pytest.raises(ValueError, match=msg):
         el.initializer(method=None, hyperparams=None)
-
-    msg = "If 'distribution' is None, then 'method' must also be None."
-    with pytest.raises(ValueError, match=msg):
-        el.initializer(method="random", distribution=None, iterations=32)
 
     # the list of valid names comes from the initialization registry
     msg = (

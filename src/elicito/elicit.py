@@ -726,7 +726,7 @@ def optimizer(
 
 
 def initializer(
-    method: Optional[SamplingMethod] = None,
+    method: Optional[SamplingMethod] = SamplingMethod.warmstart,
     distribution: Optional[Uniform] = None,
     iterations: Optional[int] = None,
     warmup_epochs: int = 0,
@@ -748,30 +748,30 @@ def initializer(
     Parameters
     ----------
     method
-        Name of initialization method.
+        Name of initialization method. The default is "warmstart".
         Currently supported are "random", "lhs", "sobol" and "warmstart".
         The first three draw candidates from **distribution**. "warmstart"
         instead runs a Nelder-Mead search from the centre of **distribution**,
         before the first gradient step.
-        Use "warmstart" for a box you do not trust. It rescues a badly placed
-        box, but it does not beat sampling from a well-placed one: the loss at
-        the start does not predict the loss after training.
+        "warmstart" rescues a badly placed box. It does not beat sampling from
+        a well-placed one: the loss at the start does not predict the loss
+        after training.
 
     distribution
         Specification of initialization distribution.
-        Currently implemented:
-        [`uniform`][elicito.initialization.uniform] and
-        [`from_elicits`][elicito.initialization.from_elicits].
-        Prefer ``from_elicits``. It derives the box from the expert data
-        during ``fit``, so the user supplies no number. ``uniform`` needs a
-        ``mean`` and a ``radius`` that match the scale of the
-        hyperparameters. A box that is wrong by a factor of ten gives a bad
-        start value, and for some prior families a non-finite loss.
+        The default is [`from_elicits`][elicito.initialization.from_elicits],
+        which derives the box from the expert data during ``fit``, so the user
+        supplies no number.
+        [`uniform`][elicito.initialization.uniform] needs a ``mean`` and a
+        ``radius`` that match the scale of the hyperparameters. A box that is
+        wrong by a factor of ten gives a bad start value, and for some prior
+        families a non-finite loss.
 
     iterations
         Number of samples drawn from the initialization distribution.
         For method "warmstart" it is the number of objective evaluations of
-        the search, not a number of candidates.
+        the search, not a number of candidates. The default comes from the
+        method: 100 for "warmstart", 32 for the three samplers.
 
     warmup_epochs
         Number of training epochs to run for each candidate before it is
@@ -853,6 +853,13 @@ def initializer(
         quantile_perc = loss_quantile
 
     else:
+        # the default method needs no user-supplied number: the box comes from
+        # the expert data, the budget from the method itself
+        if distribution is None:
+            distribution = el.initialization.from_elicits()
+        if iterations is None:
+            iterations = el.initialization.get_init_method(method).default_iterations
+
         # hardcode loss_quantile as it was rather meant for experimental purposes
         # however results suggest that loss_quantile different from zero are not
         # really reasonable
