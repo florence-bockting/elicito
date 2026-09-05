@@ -15,14 +15,37 @@
 # %% [markdown]
 # # Choose an initialization method
 #
-# Training a parametric prior starts from a value for every hyperparameter.
-# This guide shows the four ways to provide that start value, and states when
-# to use each one.
+# ## Motivation
 #
-# Part 1 uses a model with two hyperparameters. Two of them fit in a plane, so
-# every method can be watched on the loss surface itself. Part 2 repeats the
-# comparison on a model where a bad start value does not merely cost epochs,
-# but stops the training before its first step.
+# Training a parametric prior requires an initial value for each hyperparameter.
+# This is where the training algorithm starts, and ideally it does not lie too
+# far from an optimal point in the loss landscape. Consider a simple case with a
+# single global optimum: the further the initial value lies from that optimum,
+# the more steps the algorithm needs before it converges.
+#
+# The difficulty is that we use a method like `elicito` precisely because we do
+# not know the hyperparameter values. Finding them is the goal. This makes a good
+# initial value hard to choose.
+#
+# Moreover, the statistical models we work with rarely give rise to a simple loss
+# landscape with a single global optimum. Their landscapes are usually far more
+# complex, which makes a sensible starting point even harder to identify. In such
+# a case a poor initial value does more than prolong the training: it can cause
+# numerical instability, and NAN values that stop the run altogether.
+#
+# We therefore need a systematic way to choose initial values. This guide
+# presents four such methods, and explains when each one is appropriate.
+#
+# In part 1 we use a simple normal model with known variance, and a prior on the
+# location parameter $\mu$. This leaves two hyperparameters: the prior location
+# $\mu_0$ and the prior scale $\sigma_0$. The example is deliberately chosen so
+# that the loss landscape is simple and has a single global optimum, which makes
+# it easier to build an intuition for how the methods behave.
+#
+# In part 2 we turn to a considerably harder example, with a Weibull likelihood
+# and six hyperparameters to train.
+#
+# We close with general recommendations for choosing an initialization method.
 
 # %% [markdown]
 # ## Imports
@@ -30,6 +53,7 @@
 # %%
 import os
 
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 import time
@@ -47,24 +71,26 @@ tfd = tfp.distributions
 # %% [markdown]
 # ## Part 1: a model with two hyperparameters
 #
+# We start with a highly simplified example. The statistical model consists of a
+# Normal likelihood with known variance, and a Normal prior on the location
+# parameter $\mu$:
 # $$
 # \begin{align*}
+#     \lambda &= (\mu_0, \sigma_0) \\
 #     \mu &\sim \text{Normal}(\mu_0, \sigma_0) \\
 #     y &\sim \text{Normal}(\mu, 1)
 # \end{align*}
 # $$
-#
-# Two hyperparameters are learned here, $\mu_0$ and $\sigma_0$. The oracle is
-# asked for five quantiles of $y$. Two hyperparameters fit in a plane, so the
-# loss of every possible start value can be drawn as a surface. Every method of
-# this guide is then watched on that surface.
-#
+# The goal is to learn the two prior hyperparameters $\lambda$: $\mu_0$ and
+# $\sigma_0$. We simulate the expert information, so we know the ground truth.
 # The true values are $\mu_0 = 1$ and $\sigma_0 = 2$. A scale is learned on the
 # unconstrained scale, so the true value of $\sigma_0$ in every figure below is
 # $\text{softplus}^{-1}(2) = 1.85$.
+#
+# As training data we give the algorithm five quantiles of $y$.
 
 
-# %%
+# %% tags=["remove_input"]
 class NormalModel:
     """Generative model of part 1"""
 
@@ -93,7 +119,7 @@ class NormalModel:
         return dict(ypred=ypred, prior_samples=prior_samples, y=ypred[:, :, 0])
 
 
-# %%
+# %% tags=["remove_input"]
 parameters = [
     el.parameter(
         name="mu",
@@ -118,7 +144,7 @@ forward = el.utils.LowerBound(lower=0.0).forward
 TRUTH = (1.0, float(forward(2.0)))
 
 
-# %%
+# %% tags=["remove_input"]
 def build(
     initializer: Any, epochs: int = 300, B: int = 128, num_samples: int = 200
 ) -> el.Elicit:
@@ -200,6 +226,7 @@ def fit_and_report(
     eliobj.fit()
     seconds = time.time() - start
     loss = float(np.ravel(eliobj.results.history_stats.loss.total_loss.values)[-1])
+    print(f"{label}: final loss {loss:.3f} in {seconds:.1f}s")
     results.append((label, loss, seconds))
     fits[label] = eliobj
     return loss
@@ -211,14 +238,12 @@ fits: dict[str, el.Elicit] = {}
 # %% [markdown]
 # ### The loss surface
 #
-# [`score`][elicito.warmstart.score] computes the loss of one set of
-# hyperparameter values, with no training at all. A grid of these values
-# therefore draws the whole surface. The expert data is needed first, and
-# [`get_expert_data`][elicito.utils.get_expert_data] provides it.
-#
-# The grid below costs 1600 evaluations, which is about 80 seconds.
+# The figure below shows the loss surface of the model, as a function of the two
+# hyperparameters $\mu_0$ and $\sigma_0$. The colors represent the log10 of the
+# loss, and a darker color is a lower loss. We see the global minimum at the true
+# values of the hyperparameters, which are marked with a white star.
 
-# %%
+# %% tags=["remove_input"]
 eliobj = build(el.initializer(hyperparams=dict(mu0=1.0, sigma0=0.0)))
 expert_elicits, _ = el.utils.get_expert_data(
     eliobj.trainer,
@@ -232,34 +257,51 @@ expert_elicits, _ = el.utils.get_expert_data(
 
 mu0_grid = np.linspace(-6.0, 6.0, 40)
 sigma0_grid = np.linspace(-6.0, 4.5, 40)
-surface = np.empty((len(sigma0_grid), len(mu0_grid)))
-for i, sigma0_value in enumerate(sigma0_grid):
-    for j, mu0_value in enumerate(mu0_grid):
-        surface[i, j] = el.warmstart.score(
-            hyperparams=dict(mu0=mu0_value, sigma0=sigma0_value),
-            expert_elicited_statistics=expert_elicits,
-            parameters=eliobj.parameters,
-            trainer=eliobj.trainer,
-            model=eliobj.model,
-            targets=eliobj.targets,
-            expert=eliobj.expert,
-            seed=0,
-        )
 
 
-# %% [markdown]
-# One figure follows every method below. It shows the surface, the candidates
-# the method drew, the start value it picked, and the path the training then
-# took. The code that draws it is not part of the guide, so it is hidden.
+def loss_grid(mu0_values: Any, sigma0_values: Any) -> Any:
+    """
+    Compute the loss on a grid of the two hyperparameters
+
+    Parameters
+    ----------
+    mu0_values
+        grid points of mu0
+
+    sigma0_values
+        grid points of sigma0, on the unconstrained scale
+
+    Returns
+    -------
+    :
+        the loss, shape (sigma0 points, mu0 points)
+    """
+    grid = np.empty((len(sigma0_values), len(mu0_values)))
+    for i, sigma0_value in enumerate(sigma0_values):
+        for j, mu0_value in enumerate(mu0_values):
+            grid[i, j] = el.warmstart.score(
+                hyperparams=dict(mu0=mu0_value, sigma0=sigma0_value),
+                expert_elicited_statistics=expert_elicits,
+                parameters=eliobj.parameters,
+                trainer=eliobj.trainer,
+                model=eliobj.model,
+                targets=eliobj.targets,
+                expert=eliobj.expert,
+                seed=0,
+            )
+    return grid
 
 
-# %% tags=["remove_input"]
-def landscape(
+surface = loss_grid(mu0_grid, sigma0_grid)
+
+
+def landscape(  # noqa: PLR0913
     title: str,
     candidates: Any = None,
     start: Any = None,
     path: Any = None,
     search: Any = None,
+    wide: bool = False,
 ) -> None:
     """
     Draw the loss surface, and what one initialization method did on it
@@ -280,11 +322,15 @@ def landscape(
 
     search
         the points a search evaluated, shape (evaluations, 2)
+
+    wide
+        with ``True`` the figure uses the extended surface, which reaches down
+        to sigma0 of -11. The default is the surface of the section above.
     """
     fig, ax = plt.subplots(figsize=(6.5, 5), layout="tight")
-    drawn = ax.contourf(
-        mu0_grid, sigma0_grid, np.log10(surface), levels=30, cmap="viridis"
-    )
+    y_grid = sigma0_wide if wide else sigma0_grid
+    z_grid = surface_wide if wide else surface
+    drawn = ax.contourf(mu0_grid, y_grid, np.log10(z_grid), levels=30, cmap="viridis")
     if candidates is not None:
         ax.scatter(
             candidates[:, 0],
@@ -323,7 +369,7 @@ def landscape(
         label="true",
     )
     ax.set_xlim(mu0_grid[0], mu0_grid[-1])
-    ax.set_ylim(sigma0_grid[0], sigma0_grid[-1])
+    ax.set_ylim(y_grid[0], y_grid[-1])
     ax.set_xlabel("mu0")
     ax.set_ylabel("sigma0 (unconstrained)")
     ax.set_title(title)
@@ -378,30 +424,109 @@ def training_path(label: str) -> Any:
     )
 
 
-# %% [markdown]
-# The surface has one minimum, and it sits at the true values. Two features of
-# it explain everything below.
-#
-# + The valley in $\mu_0$ is narrow. A start value that is wrong in $\mu_0$
-#   still has a gradient that points to the valley.
-# + Below $\sigma_0 \approx 0$ the surface is flat. There
-#   $\text{softplus}(\sigma_0)$ is almost zero, so the prior of $\mu$ is almost
-#   a point, and the noise of 1 hides the difference. A start value in that
-#   region still has a gradient in $\sigma_0$, but a small one. The next
-#   sections measure it against the error of the loss estimate.
-
-# %% tags=["remove_input"]
 landscape("the loss surface")
 
 # %% [markdown]
-# ### Why the start value matters
+# In the following sections we present the initialization methods that `elicito`
+# implements. For each one we discuss the intuition, show how you call it, and
+# watch it on the loss surface above.
+
+# %% [markdown]
+# ### Option 1: Provide exact values
+# #### Intuition
+# The easiest approach is to provide the exact hyperparameter values from which
+# the learning algorithm starts. Note that you provide these values on the
+# unconstrained scale. A hyperparameter that is already unconstrained, like
+# $\mu_0$, you give directly. A constrained hyperparameter, like $\sigma_0$ in
+# this example, you first transform with the inverse of the constraint function,
+# for example `softplus`.
 #
-# A box centred at $-4$ starts the training on the flat floor. The training
-# then repairs $\mu_0$, which has a gradient, and leaves $\sigma_0$ where it
-# was. This box gets 600 epochs, twice the number every method below gets, and
-# the loss is still 0.467, against 0.079 for the others.
+# #### Implementation
+# In `elicito` you provide exact values as a dictionary, through the
+# `hyperparams` argument of `el.initializer()`. For the transformation to the
+# unconstrained scale, `elicito` gives you these utilities:
 #
-# The model has no local minimum, so this is not a trap in the usual sense.
+#   + a lower-bounded hyperparameter:
+#     `el.utils.LowerBound(lower=0.0).forward(value)`
+#   + an upper-bounded hyperparameter:
+#     `el.utils.UpperBound(upper=1.0).forward(value)`
+#   + a double-bounded hyperparameter:
+#     `el.utils.DoubleBound(lower=0.0, upper=1.0).forward(value)`
+#
+# #### Visualization (Example)
+# The plot below shows the initialization and the training for this approach. The
+# black dot is the initial value, here $\mu_0 = 1.5$ and
+# $\sigma_0 = \text{softplus}^{-1}(2.5)$. The red line is the learning trajectory
+# over the epochs. We see that it follows the gradient towards the global
+# minimum, which is marked with a star.
+
+# %%
+loss = fit_and_report(
+    "exact values",
+    el.initializer(
+        hyperparams=dict(mu0=1.5, sigma0=el.utils.LowerBound(lower=0.0).forward(2.5))
+    ),
+)
+
+# %% tags=["remove_input"]
+landscape(
+    f"exact values: final loss {loss:.3f}",
+    start=(1.5, forward(2.5)),
+    path=training_path("exact values"),
+)
+
+# %% [markdown]
+# ### Option 2: Provide a region of possible values
+# #### Intuition
+# Exact values are usually hard to specify, but you might be able to give a
+# region of possible values from which the algorithm samples. Earlier
+# experiments, for example, can tell you the approximate range.
+#
+# You then provide the center of this plausible region, and a radius that sets
+# its size. The method samples candidates from the region and evaluates the loss
+# of each one. The candidate with the lowest loss becomes the starting point of
+# the training.
+#
+# #### Implementation
+# In `elicito` you specify the region with `el.initialization.uniform()`, which
+# you pass to the `distribution` argument. It spans a uniform box around a center
+# point, with a given radius. The `method` argument sets how the candidates are
+# drawn from the box: `"sobol"`, `"lhs"` (Latin Hypercube Sampling), or
+# `"random"`. The `iterations` argument sets how many candidates are drawn.
+#
+# #### Visualization (Example)
+# For the example below we specify a uniform box with a radius of 1 around the
+# center point (0, 0). The white points in the figure are the candidates, spread
+# evenly over the plausible region. Among them, the point with the lowest loss
+# becomes the starting point of the training (black dot). From there the
+# trajectory (red line) moves towards the global minimum (star).
+
+# %%
+loss = fit_and_report(
+    "uniform box",
+    el.initializer(
+        method="sobol",
+        iterations=32,
+        distribution=el.initialization.uniform(radius=1, mean=0),
+    ),
+)
+
+# %% tags=["remove_input"]
+drawn, start = candidates_of("uniform box")
+landscape(
+    f"uniform box: final loss {loss:.3f}",
+    candidates=drawn,
+    start=start,
+    path=training_path("uniform box"),
+)
+
+# %% [markdown]
+# ### Option 2: Provide a region of possible values (that is far away)
+# In the example above the region lies close to the global minimum, and the
+# method works well. But what happens when the region lies far away from it? We
+# investigate this case in more detail below. We start with a uniform box that is
+# centered at (-4, -4), with a radius of 1, so it lies far from the global
+# minimum. The figure below shows the result.
 
 # %%
 loss = fit_and_report(
@@ -411,7 +536,7 @@ loss = fit_and_report(
         iterations=32,
         distribution=el.initialization.uniform(radius=1, mean=-4),
     ),
-    epochs=600,
+    epochs=300,
 )
 
 # %% tags=["remove_input"]
@@ -424,11 +549,39 @@ landscape(
 )
 
 # %% [markdown]
-# ### The gradient is not absent, it is outvoted
+# The training starts on a flat floor. It first learns $\mu_0$, which has a
+# gradient, and it leaves $\sigma_0$ where it was. We might think that this case
+# simply needs more epochs. So let us train the model for 600 epochs, instead of
+# 300.
+
+# %%
+loss = fit_and_report(
+    "far box, 600 epochs",
+    el.initializer(
+        method="sobol",
+        iterations=32,
+        distribution=el.initialization.uniform(radius=1, mean=-4),
+    ),
+    epochs=600,
+)
+
+# %% tags=["remove_input"]
+drawn, start = candidates_of("far box, 600 epochs")
+landscape(
+    f"far box, 600 epochs: final loss {loss:.3f}",
+    candidates=drawn,
+    start=start,
+    path=training_path("far box, 600 epochs"),
+)
+
+# %% [markdown]
+# The result looks exactly the same as with 300 epochs. This is not a bug in the
+# figure. Both hyperparameters move less than one pixel over the extra 300
+# epochs: $\mu_0$ moves 0.0003 and $\sigma_0$ moves 0.0135, while one pixel is
+# about 0.02.
 #
-# The floor is often called a region without a gradient. That is not what
-# happens here. The gradient in $\sigma_0$ exists, and it is smaller than the
-# error of the loss estimate.
+# But why does the algorithm fail to move $\sigma_0$? The gradient in $\sigma_0$
+# exists, but it is smaller than the error of the loss estimate:
 #
 # + Move $\sigma_0$ a full unit on the floor, from $-4.5$ to $-3.5$. The loss
 #   changes by about $4 \cdot 10^{-4}$.
@@ -438,17 +591,12 @@ landscape(
 # The error is six times the signal, so the estimate says almost nothing about
 # where $\sigma_0$ should go. Two effects make the signal small. The predictive
 # standard deviation is $\sqrt{\text{scale}^2 + 1}$, so a scale of $0.011$
-# disappears behind the noise of 1. And softplus saturates, so
+# disappears behind the noise of 1. And the softplus saturates, so
 # $d\,\text{scale} / d\sigma_0 = \text{sigmoid}(-4.5) = 0.011$ as well.
 #
-# The error does not average out over the epochs. Every epoch draws with the
-# same seed, so the sample is fixed. It defines one slightly wrong surface, and
-# the training descends that surface faithfully. Only a new seed, or more
-# draws, changes it.
-#
-# `B` and `num_samples` set the size of that sample, and the error falls as
-# $1 / \sqrt{B \cdot \text{num\_samples}}$. Four times the batch and four
-# times the draws halve the error. Here that is enough.
+# We can raise the sample size to lower the error of the loss estimate. The error
+# falls as $1 / \sqrt{B \cdot \text{num\_samples}}$. Let us raise `B` from 128 to
+# 512, and `num_samples` from 200 to 800, and keep the 600 epochs.
 
 # %%
 loss = fit_and_report(
@@ -473,139 +621,73 @@ landscape(
 )
 
 # %% [markdown]
-# The same box, the same 600 epochs, and the training now leaves the floor and
-# reaches the true $\sigma_0$.
+# The larger sample lets the training leave the floor and reach the true
+# $\sigma_0$. The cost of this is high. We need an option that does not ask us to
+# place the plausible region close to the global minimum in the first place.
 #
-# Read the two losses with care. The MMD estimate carries a sample-size bias,
-# so a larger sample lowers the loss on its own. Compare each run with a run of
-# the same `B` and `num_samples`, never across the two.
+# ### Option 3: Search for a start value (default)
+# #### Intuition
+# Sometimes you know neither exact values, nor a region that contains them. The
+# algorithm can then search for a start value itself, before the first gradient
+# step. The search is a Nelder-Mead search on the unconstrained hyperparameters.
+# It evaluates the same loss on fewer prior draws, and it needs no gradient, so
+# it cannot diverge through an exploding gradient. A point whose draws overflow
+# is never returned.
 #
-# Note also what this costs. The larger sample needs 226 ms per epoch against
-# 96 ms, and it does not remove the need for a start value: every method below
-# reaches the minimum with the small sample, and in a fifth of the epochs.
-
-# %% [markdown]
-# ### Option 1: exact values
+# #### Implementation
+# In `elicito` you select the search with `method="warmstart"`. The `iterations`
+# argument is now the budget of the search, in objective evaluations, and not a
+# number of candidates. The center of `distribution` is the start point of the
+# search, so pass `el.initialization.uniform()` when you want to set that point
+# yourself.
 #
-# Use this when you know the values. Provide them on the unconstrained scale,
-# with the `forward` method of [`LowerBound`][elicito.utils.LowerBound].
+# If you pass no `distribution`, `elicito` uses
+# [`from_elicits`][elicito.initialization.from_elicits]. This box asks nothing of
+# you. `elicito` derives it from the expert data during `fit`, and the role of a
+# hyperparameter decides its range:
 #
-# The start value is the star, so the training only has to stay there.
-
-# %%
-loss = fit_and_report(
-    "exact values",
-    el.initializer(hyperparams=dict(mu0=1.0, sigma0=forward(2.0))),
-)
+#   + an unbounded hyperparameter is a location. Its box is centered at the
+#     median of the elicited statistics, with a radius of twice their spread.
+#   + a lower-bounded hyperparameter whose name is a shape, such as
+#     `concentration`, gets the natural range 1 to 5. A shape has no relation to
+#     the scale of the data.
+#   + any other lower-bounded hyperparameter is a magnitude. Its box spans from a
+#     hundredth of the spread up to the 95% quantile of the data, because it can
+#     be a small prior scale, or a scale as large as the elicited data.
+#
+# The box is correct in order of magnitude only. That is enough to avoid a start
+# value that is wrong by a factor of ten. This is what `el.initializer()` does
+# with no argument at all: `method="warmstart"`, a `from_elicits` box, and a
+# budget of 100 evaluations.
+#
+# #### Visualization (Example)
+# We give the search the far box of option 2, the box that the sampling methods
+# could not escape. The center of that box is the start point of the search. The
+# budget is 50 evaluations, because we search only two hyperparameters here. The
+# search itself is not stored, so the figure below records it: we wrap
+# [`score`][elicito.warmstart.score], the function that the search calls, for the
+# time of the fit.
+#
+# The white path is the search, the black dot is the start value that it returns,
+# and the red line is the training. The search leaves the box, and it also leaves
+# the frame of the figures above: it reaches $\sigma_0 = -10.2$, while the
+# surface above stops at $-6$. This figure therefore measures the loss down to
+# about $-11$, on the same grid. The floor continues, as we expect.
+#
+# The start value that the search returns is $\mu_0 = 0.88$, close to the true 1,
+# and $\sigma_0 = -8.28$, deep on the flat floor. On that floor the loss hardly
+# responds to $\sigma_0$, so the search has no reason to keep it. The training
+# then leaves the floor: $\sigma_0$ passes zero at about epoch 80, and the run
+# reaches the same 0.079 as every other method of part 1, in 300 epochs. Sampling
+# from the same box did not get there in 600.
 
 # %% tags=["remove_input"]
-landscape(
-    f"exact values: final loss {loss:.3f}",
-    start=TRUTH,
-    path=training_path("exact values"),
-)
-
-# %% [markdown]
-# ### Option 2: sample a box
-#
-# `iterations` candidates are drawn from the box, and the candidate with the
-# lowest loss starts the training. The sampler is `"sobol"`, `"lhs"` or
-# `"random"`.
-#
-# The box must be centred by you. The default centre, `mean=0` with
-# `radius=1`, does not contain the true values. The figure shows what the
-# scoring buys: the picked candidate is the corner of the box that is nearest
-# to the minimum, so the training starts on the slope that leads there.
-
-# %%
-loss = fit_and_report(
-    "uniform box",
-    el.initializer(
-        method="sobol",
-        iterations=32,
-        distribution=el.initialization.uniform(radius=1, mean=0),
-    ),
-)
-
-# %% tags=["remove_input"]
-drawn, start = candidates_of("uniform box")
-landscape(
-    f"uniform box: final loss {loss:.3f}",
-    candidates=drawn,
-    start=start,
-    path=training_path("uniform box"),
-)
-
-# %% [markdown]
-# A candidate is scored at epoch 0 by default, which does not show whether its
-# trajectory is stable. `el.initializer(warmup_epochs=10, ...)` trains every
-# candidate for ten epochs first, and rejects one that diverges early. It costs
-# `iterations * warmup_epochs` extra epochs.
-
-# %% [markdown]
-# ### Option 3: derive the box from the expert data
-#
-# [`from_elicits`][elicito.initialization.from_elicits] needs no `mean` and no
-# `radius`. The box is built during `fit`, from the pooled median, spread and
-# 95% quantile of the elicited statistics. Each hyperparameter then gets the
-# box of its role:
-#
-# + a **location** is centred at the pooled median;
-# + a **shape**, such as a Weibull concentration, covers the natural range
-#   1 to 5. A shape has no relation to the scale of the data;
-# + any other **magnitude** spans from `spread / 100` up to the pooled 95%
-#   quantile. That covers a small prior scale and a large data scale.
-#
-# Here the box is far wider than the one you would centre yourself, and that is
-# the point: it needs no number from you, and it still contains the minimum.
-
-# %%
-loss = fit_and_report(
-    "from_elicits",
-    el.initializer(
-        method="sobol",
-        iterations=32,
-        distribution=el.initialization.from_elicits(),
-    ),
-)
-
-# %% tags=["remove_input"]
-drawn, start = candidates_of("from_elicits")
-landscape(
-    f"from_elicits: final loss {loss:.3f}",
-    candidates=drawn,
-    start=start,
-    path=training_path("from_elicits"),
-)
-
-# %% [markdown]
-# The derived box can be inspected with
-# [`build_box`][elicito.initialization.build_box], which is the function `fit`
-# uses.
-
-# %%
-el.initialization.build_box(
-    el.initialization.from_elicits(), expert_elicits, parameters
-)
-
-# %% [markdown]
-# ### Option 4: search the start value
-#
-# `method="warmstart"` runs a Nelder-Mead search on the unconstrained
-# hyperparameters before the first gradient step. It evaluates the same loss on
-# fewer prior draws, and needs no gradient, so it cannot diverge through an
-# exploding gradient. Here `iterations` is the budget, in objective
-# evaluations. The centre of `distribution` is the start point of the search.
-#
-# Nelder-Mead converges on its own tolerances, so the search restarts from its
-# best point until the budget is spent. A point whose draws overflow is never
-# returned. If every point fails, the search says so, and the centre of the box
-# is used.
-#
-# The search is not stored, so the figure below records it: wrap
-# [`score`][elicito.warmstart.score], the function the search calls, for the
-# time of the fit. The white path is the search, and the training after it is
-# so short that the red path is a dot.
+# the search leaves the frame of the figures above, so extend the surface
+# downwards, with the step of the grid above
+step = float(sigma0_grid[1] - sigma0_grid[0])
+sigma0_low = np.arange(sigma0_grid[0] - step, -11.0 - step, -step)[::-1]
+sigma0_wide = np.concatenate([sigma0_low, sigma0_grid])
+surface_wide = np.vstack([loss_grid(mu0_grid, sigma0_low), surface])
 
 # %% tags=["remove_input"]
 visited: list[Any] = []
@@ -629,7 +711,7 @@ loss = fit_and_report(
     el.initializer(
         method="warmstart",
         iterations=50,
-        distribution=el.initialization.from_elicits(),
+        distribution=el.initialization.uniform(radius=1, mean=-4),
     ),
 )
 
@@ -638,21 +720,25 @@ el.warmstart.score = original_score
 
 path = training_path("warmstart")
 landscape(
-    f"warmstart: final loss {loss:.3f}",
+    f"warmstart on the far box: final loss {loss:.3f}",
     start=path[0],
     path=path,
     search=np.asarray(visited),
+    wide=True,
 )
 
 # %% [markdown]
 # ### What part 1 showed
 #
-# Every method except the far box reaches the same loss. On a surface with one
-# minimum, and with a signal that stands above the sampling error where the box
-# sits, the start value only decides how many epochs the training needs.
+# Every method except the sampled far box reaches the same loss. On a surface
+# with one minimum, and with a signal that stands above the sampling error where
+# the box sits, the start value only decides how many epochs the training needs.
+# The far box is the one case where the start value decides the result, and the
+# search repairs it: the same box that sampling could not escape gives 0.079 when
+# the search picks the start value in it.
 #
-# The two far-box rows are not comparable with the rest, and not with each
-# other: the second one uses a larger sample, which lowers the loss on its own.
+# The two far-box rows are not comparable with the rest, and not with each other:
+# the second one uses a larger sample, which lowers the loss on its own.
 
 # %%
 print(f"{'method':21s} {'final loss':>10s} {'seconds':>9s}")
@@ -662,41 +748,39 @@ for label, final_loss, seconds in results:
 # %% [markdown]
 # ### When a hyperparameter has a small effect
 #
-# The far box is one case of a rule that holds beyond initialization. A
-# hyperparameter is learned only while its effect on the loss is larger than
-# the error of the loss estimate. `B` and `num_samples` shrink that error as
-# $1/\sqrt{B \cdot \text{num\_samples}}$, so an effect half as large costs
-# four times the sample.
+# The far box is one case of a rule that holds beyond initialization. The
+# training learns a hyperparameter only while its effect on the loss is larger
+# than the error of the loss estimate. `B` and `num_samples` shrink that error as
+# $1/\sqrt{B \cdot \text{num\_samples}}$, so an effect half as large costs four
+# times the sample.
 #
 # Before you pay that, ask why the effect is small.
 #
 # + **The parameterization hides it.** At $\sigma_0 = -4.5$ the softplus
 #   contributes a factor $0.011$ for no other reason than saturation. A start
-#   value is far cheaper than a larger sample: the warm start above reaches
-#   0.079 in about 30 seconds.
-# + **The elicited statistics do not respond to it.** Then a larger sample
-#   sharpens a direction the data cannot pin down. Part 2 shows this: $k_2$
-#   ends near 13 against a true 2, and that run still has the lowest loss of
-#   the four. The fix is a query that responds, for example on the parameter
-#   itself.
+#   value is far cheaper than a larger sample: the warm start above reaches 0.079
+#   in about 30 seconds.
+# + **The elicited statistics do not respond to it.** A larger sample then
+#   sharpens a direction that the data cannot pin down. Part 2 shows this: $k_2$
+#   ends near 13 against a true 2, and that run still has the lowest loss of the
+#   four. The fix is a query that responds, for example on the parameter itself.
 #
 # Raise `B` and `num_samples` when the effect is real but buried. Change the
 # start value, or the query, when the effect is not there to begin with.
 
 # %% [markdown]
-# The next part uses a model where that is no longer true. A bad start value
+# In the next part we use a model where this is no longer true. A bad start value
 # there does not merely cost epochs. It produces draws that overflow, and the
 # training cannot start at all.
 
 # %% [markdown]
 # ## Part 2: a model that can overflow
 #
-# The surface of part 1 had a gradient everywhere, so a poor start value
-# only cost epochs. This part uses a model where a start value can be
-# unusable: the draws overflow, the loss is NAN, and there is nothing to
-# descend. Six hyperparameters are learned, so no surface can be drawn. The
-# figures hold four of them at their true values, and draw the loss of the
-# other two.
+# The surface of part 1 had a gradient everywhere, so a poor start value only
+# cost epochs. We now use a model where a start value can be unusable: the draws
+# overflow, the loss is NAN, and there is nothing to descend. We learn six
+# hyperparameters, so we cannot draw a surface. The figures hold four of them at
+# their true values, and draw the loss of the other two.
 #
 # ### The model
 #
@@ -712,15 +796,16 @@ for label, final_loss, seconds in results:
 #
 # The likelihood follows the `brms` defaults for the Weibull family: a log link,
 # and a mean parameterization. The linear predictor is therefore the log of the
-# mean of $y$, not the log of the Weibull scale.
+# mean of $y$, and not the log of the Weibull scale.
 #
-# The prior of the shape $k$ is a Weibull, not a HalfNormal. A HalfNormal puts
-# mass at $k \approx 0$, where $\Gamma(1 + 1/k)$ overflows and the likelihood
-# scale becomes zero. The loss is then NAN even at the true hyperparameters.
+# The prior of the shape $k$ is a Weibull, and not a HalfNormal. A HalfNormal
+# puts mass at $k \approx 0$, where $\Gamma(1 + 1/k)$ overflows and the
+# likelihood scale becomes zero. The loss is then NAN, even at the true
+# hyperparameters.
 #
-# The six hyperparameters $\mu_0, \sigma_0, \mu_1, \sigma_1, k_2, \lambda_2$ are
-# learned. We query an oracle for the quantiles of $y$ at three values of the
-# predictor.
+# We learn the six hyperparameters $\mu_0, \sigma_0, \mu_1, \sigma_1, k_2,
+# \lambda_2$, and we query an oracle for the quantiles of $y$ at three values of
+# the predictor.
 
 
 # %%
@@ -919,10 +1004,10 @@ projections = [("mu0", "sigma0"), ("k2", "lambda2")]
 # The true values on the unconstrained scale are $\mu_0=1, \sigma_0=-0.43,
 # \mu_1=0.3, \sigma_1=-1.51, k_2=1.85, \lambda_2=4.99$.
 #
-# A box centred at $-20$ contains none of them. Every scale collapses to
+# A box centered at $-20$ contains none of them. Every scale collapses to
 # $\text{softplus}(-20) \approx 0$, the shape $k$ goes to zero, and
-# $\Gamma(1 + 1/k)$ overflows. No candidate of the box is usable, so `fit`
-# raises instead of starting.
+# $\Gamma(1 + 1/k)$ overflows. No candidate of the box is usable, so `fit` raises
+# an error instead of starting.
 
 # %%
 try:
@@ -940,7 +1025,7 @@ except ValueError as error:
 # %% [markdown]
 # ### Option 1: exact values
 #
-# Six values now, instead of two.
+# We now give six values, instead of two.
 
 # %%
 results.append(
@@ -962,10 +1047,10 @@ results.append(
 # %% [markdown]
 # ### Option 2: sample a box
 #
-# The default centre, `mean=0` with `radius=1`, already raises here: the
-# Weibull concentration is then $\text{softplus}(k_2) \in [0.31, 1.31]$, many
-# draws of $k$ fall near zero, and $\Gamma(1 + 1/k)$ overflows. The box below
-# is centred at 2, which covers the six true values.
+# `uniform()` on its own, `mean=0` with `radius=1`, already raises an error here.
+# The Weibull concentration is then $\text{softplus}(k_2) \in [0.31, 1.31]$, many
+# draws of $k$ fall near zero, and $\Gamma(1 + 1/k)$ overflows. We therefore
+# center the box below at 2, which covers the six true values.
 
 # %%
 results.append(
@@ -982,9 +1067,9 @@ results.append(
 # %% [markdown]
 # ### Option 3: derive the box from the expert data
 #
-# The roles of part 1 decide the result here. The shape $k_2$ gets the natural
-# range 1 to 5, and the scale $\lambda_2$ gets the range of the data. One box
-# for both would put candidates where the draws overflow.
+# The roles above decide the result here. The shape $k_2$ gets the natural range
+# 1 to 5, and the scale $\lambda_2$ gets the range of the data. One box for both
+# would put candidates where the draws overflow.
 
 # %%
 results.append(
@@ -999,14 +1084,14 @@ results.append(
 )
 
 # %% [markdown]
-# ### Option 4: search the start value
+# ### Option 4: search the start value — the default
 #
-# This is the model the search is for. It needs no gradient, and it never
-# returns a point whose draws overflow. The budget is 100 evaluations here,
-# against 50 in part 1, because six hyperparameters are searched instead of
-# two. A budget that does not grow with the number of hyperparameters leaves
-# the search short: at 50 evaluations it stops at a start value of loss 9.9,
-# and the training then needs 140 epochs to recover.
+# This is the model that the search is made for. It needs no gradient, and it
+# never returns a point whose draws overflow. The budget is 100 evaluations here,
+# against 50 in part 1, because we search six hyperparameters instead of two. A
+# budget that does not grow with the number of hyperparameters leaves the search
+# short: at 50 evaluations it stops at a start value of loss 9.9, and the
+# training then needs 140 epochs to recover.
 #
 # The `score` wrapper of part 1 records the path again.
 
@@ -1035,7 +1120,7 @@ el.warmstart.score = original_score
 #
 # Read this table together with the log above. Two of the four runs stopped
 # early: `exact values` after 5 steps, and `from_elicits` after 8. The loss of
-# those two is the last finite loss, not the loss after 100 epochs. Even the
+# those two is the last finite loss, and not the loss after 100 epochs. Even the
 # true hyperparameters do not give a stable trajectory for this model.
 
 # %%
@@ -1046,15 +1131,15 @@ for label, loss, seconds in results:
 # %% [markdown]
 # ### Watch the search
 #
-# Part 1 drew every method on the loss surface. Six hyperparameters have no
-# surface, so hold four of them at their true values. The loss of the other two
-# is then a plane again, and it is drawn exactly as in part 1. The two slices
-# are $(\mu_0, \sigma_0)$ and $(k_2, \lambda_2)$.
+# In part 1 we drew every method on the loss surface. Six hyperparameters have no
+# surface, so we hold four of them at their true values. The loss of the other
+# two is a plane again, and we draw it exactly as in part 1. The two slices are
+# $(\mu_0, \sigma_0)$ and $(k_2, \lambda_2)$.
 #
-# A slice is a cut through the surface, not the surface itself. A point that
-# lies in a dark region of the cut can still be poor in the four held
-# directions. The cut does show what part 1 had no example of: the grey region,
-# where the draws overflow and there is no loss to descend.
+# A slice is a cut through the surface, and not the surface itself. A point that
+# lies in a dark region of the cut can still be poor in the four held directions.
+# The cut does show what part 1 had no example of: the gray region, where the
+# draws overflow and there is no loss to descend.
 #
 # Each slice costs 900 evaluations, which is about 80 seconds.
 
@@ -1171,10 +1256,10 @@ def draw_slice(ax: Any, pair: tuple[str, str]) -> Any:
     Returns
     -------
     :
-        the filled contours, for the colour bar
+        the filled contours, for the color bar
     """
     x_name, y_name = pair
-    # grey is left where the draws overflow
+    # gray is left where the draws overflow
     ax.set_facecolor("0.85")
     drawn = ax.contourf(
         axes_of[x_name],
@@ -1201,11 +1286,11 @@ def draw_slice(ax: Any, pair: tuple[str, str]) -> Any:
 
 
 # %% [markdown]
-# The candidates of `from_elicits` come first. They are stored in
+# The candidates of `from_elicits` come first. `elicito` stores them in
 # `eliobj.results.initialization`. A candidate whose draws overflow gets no
-# usable loss, and is marked with a cross. A cross can lie in a dark region of
-# the cut: what overflows is then one of the four hyperparameters the cut
-# holds, not the two it draws.
+# usable loss, and we mark it with a cross. A cross can lie in a dark region of
+# the cut: what overflows is then one of the four hyperparameters that the cut
+# holds, and not one of the two that it draws.
 
 # %% tags=["remove_input"]
 best = int(np.nanargmin(losses))
@@ -1234,10 +1319,10 @@ fig.suptitle(f"sobol: 32 candidates, {int(failed.sum())} overflow")
 plt.show()
 
 # %% [markdown]
-# The search recorded above is next. It starts from the centre of the same box,
-# and none of its 200 evaluations overflows: the box of `from_elicits` already
-# keeps it out of the grey region. The penalty is what holds it there, because
-# a point that overflows is never returned.
+# The search that we recorded above comes next. It starts from the center of the
+# same box, and none of its 200 evaluations overflows: the box of `from_elicits`
+# already keeps it out of the gray region. The penalty holds it there, because a
+# point that overflows is never returned.
 
 # %% tags=["remove_input"]
 fig, axs = plt.subplots(1, 2, figsize=(12, 4.8), layout="tight")
@@ -1268,13 +1353,13 @@ plt.show()
 # %% [markdown]
 # ### Did the training work?
 #
-# The criterion is not the distance to a true hyperparameter. A real
-# elicitation has no true value. The criterion is whether the model reproduces
-# the expert data.
+# The criterion is not the distance to a true hyperparameter. A real elicitation
+# has no true value. The criterion is whether the model reproduces the expert
+# data.
 #
 # The loss over the epochs shows what the table hides. A start value that is
-# merely poor gives a higher curve. A start value that cannot train gives a
-# curve that stops, and two of the four curves stop.
+# merely poor gives a higher curve. A start value that cannot train gives a curve
+# that stops, and two of the four curves stop.
 
 # %% tags=["remove_input"]
 fig, ax = plt.subplots(figsize=(7, 4), layout="tight")
@@ -1291,12 +1376,12 @@ ax.set_title("loss per initialization method, 100 epochs")
 plt.show()
 
 # %% [markdown]
-# The runs that stopped cannot be compared any further, so only the warm start
-# is followed from here. One hundred epochs are not enough to converge, so
-# train it for 600, and then ask whether the model reproduces the expert data.
-# [`elicits`][elicito.plots.elicits] draws the expert-elicited value against
-# the model-simulated one, for each of the three targets. A point on the
-# diagonal is a statistic the model reproduces.
+# We cannot compare the runs that stopped any further, so we follow only the warm
+# start from here. One hundred epochs are not enough to converge, so we train it
+# for 600, and then ask whether the model reproduces the expert data.
+# [`elicits`][elicito.plots.elicits] draws the expert-elicited value against the
+# model-simulated one, for each of the three targets. A point on the diagonal is
+# a statistic that the model reproduces.
 
 # %%
 long_run = build(
@@ -1316,8 +1401,8 @@ plt.show()
 # %% [markdown]
 # ### Watch the hyperparameters
 #
-# This model has an oracle, so the true hyperparameters are known here. Compare
-# each one with its true value, and see what the expert data can pin down.
+# This model has an oracle, so we know the true hyperparameters here. We compare
+# each one with its true value, and we see what the expert data can pin down.
 #
 # $\mu_0$, $\mu_1$ and $\sigma_0$ arrive close to their true values. The other
 # three do not: $k_2$ ends near 13 against a true 2, and $\lambda_2$ near 2.5
@@ -1325,10 +1410,10 @@ plt.show()
 #
 # This is not a failure of the initialization, and not a lack of epochs. The
 # fitted point reaches 0.228, below the 0.234 that the run from the true values
-# reached before it stopped. The 15 elicited quantiles, at three values of
-# the predictor, do not identify six hyperparameters: a smaller Weibull scale
-# with a much larger shape produces the same predictive quantiles. Query the
-# parameters themselves if you need every hyperparameter back.
+# reached before it stopped. The 15 elicited quantiles, at three values of the
+# predictor, do not identify six hyperparameters: a smaller Weibull scale with a
+# much larger shape produces the same predictive quantiles. Query the parameters
+# themselves if you need every hyperparameter back.
 
 # %% tags=["remove_input"]
 history = long_run.results.history_stats.hyperparameter.sel(replication=0)
@@ -1365,8 +1450,7 @@ plt.show()
 # | far box      |      0.467 |    57.6 |
 # | exact values |      0.079 |    28.1 |
 # | uniform box  |      0.079 |    30.5 |
-# | from_elicits |      0.079 |    30.8 |
-# | warmstart    |      0.079 |    31.4 |
+# | warmstart    |      0.079 |    26.8 |
 #
 # Part 2, six hyperparameters and a likelihood that overflows, 100 epochs:
 #
@@ -1377,20 +1461,21 @@ plt.show()
 # | from_elicits |      1.637 |     5.5 |
 # | warmstart    |      0.226 |    35.4 |
 #
+# + **`warmstart` on a `from_elicits` box** is the default, and
+#   `el.initializer()` is the whole call. It asks nothing of you, it puts the box
+#   in the right region, and it needs no gradient, so it cannot diverge on a
+#   model that overflows. It is the best of the four in part 2, at 0.226, and the
+#   slowest, because it costs one forward simulation per evaluation.
 # + Use **exact values** when you know them. Nothing is cheaper.
-# + Use **`from_elicits`** when you have no numbers. It asks nothing of you,
-#   and it puts the box in the right region. In part 2 the default box
-#   `mean=0, radius=1` cannot even start, while `from_elicits` reaches 1.64.
-# + Use **`warmstart`** on top of that box when the model can overflow, as the
-#   Weibull likelihood of part 2 does. It is the best of the four there, at
-#   0.226, and the slowest, because it costs one forward simulation per
-#   evaluation.
-# + Use a **`uniform` box** that you centre yourself when you know the order of
+# + Use **`from_elicits` alone**, without the search, when your model cannot
+#   overflow and you want those seconds back.
+# + Use a **`uniform` box** that you center yourself when you know the order of
 #   magnitude of the hyperparameters. Add `warmup_epochs` to reject a candidate
 #   that diverges in the first epochs.
 #
-# Part 1 also shows the limit of all of this. On a surface with one minimum,
-# and a gradient everywhere the box sits, every method reaches the same loss.
-# The start value earns its cost only where the training cannot repair it: in a
-# region without a gradient, as on the flat floor of part 1, or where the draws
-# overflow, as in part 2.
+# Part 1 also shows the limit of all of this. On a surface with one minimum, and
+# with a signal above the sampling error everywhere the box sits, every method
+# reaches the same loss. The start value earns its cost only where the training
+# cannot repair it: where the effect of a hyperparameter falls below the error of
+# the loss estimate, as on the flat floor of part 1, or where the draws overflow,
+# as in part 2.
