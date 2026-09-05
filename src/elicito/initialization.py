@@ -4,7 +4,8 @@ Hyperparameter initialization for parametric prior
 
 import logging
 from collections.abc import Iterable
-from typing import Any, Optional, Union
+from dataclasses import dataclass
+from typing import Any, Optional, Protocol, Union
 
 import numpy as np
 import tensorflow as tf
@@ -44,6 +45,317 @@ SHAPE_ARGS = frozenset(
 # Weibull or a Gamma is so heavy-tailed that single draws overflow.
 SHAPE_LOW = 1.0
 SHAPE_HIGH = 5.0
+
+
+@dataclass
+class InitResult:
+    """What an initialization method returns to ``initialize``."""
+
+    prior_model: Any
+    candidates: Optional[dict[str, Any]] = None
+    losses: Optional[list[Any]] = None
+
+
+class InitMethod(Protocol):
+    """Behaviour that differs between the initialization methods."""
+
+    name: str
+
+    def check(self, initializer: Initializer) -> None:
+        """Reject an input this method cannot use."""
+        ...
+
+    def propose(  # noqa: PLR0913
+        self,
+        expert_elicited_statistics: dict[str, tf.Tensor],
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+        optimizer: dict[str, Any],
+        model: dict[str, Any],
+        targets: list[Target],
+        network: Optional[NFDict],
+        expert: ExpertDict,
+        seed: int,
+        progress: int,
+    ) -> InitResult:
+        """Pick the hyperparameters that start the training."""
+        ...
+
+    def dry_run_slice(
+        self,
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+    ) -> Any:
+        """Return a slice of the right shape for ``Elicit.__init__``."""
+        ...
+
+
+_INIT_METHODS: dict[str, type[InitMethod]] = {}
+
+
+def get_init_method(name: str) -> InitMethod:
+    """Return a new strategy object for an ``initializer["method"]`` string."""
+    try:
+        method_cls = _INIT_METHODS[name]
+    except KeyError:
+        msg = (
+            "Currently implemented initialization methods are "
+            f"{', '.join(repr(key) for key in sorted(_INIT_METHODS))}, but got "
+            f"method={name!r} as input."
+        )
+        raise ValueError(msg) from None
+    return method_cls()
+
+
+def resolve_init_method(initializer: Initializer) -> InitMethod:
+    """Return the initialization method that ``initializer`` asks for."""
+    # exact values are chosen by their presence, not by a method string
+    if initializer["hyperparams"] is not None:
+        return ExactValues()
+
+    name = initializer["method"]
+    if name is None:
+        msg = (
+            "Either 'method' or 'hyperparams' has"
+            "to be specified. Use method for sampling from an"
+            "initialization distribution and 'hyperparams' for"
+            "specifying exact initial values per hyperparameter."
+        )
+        raise ValueError(msg)
+    return get_init_method(name)
+
+
+class ExactValues:
+    """Start from hyperparameter values the user supplied."""
+
+    name = "exact"
+
+    def check(self, initializer: Initializer) -> None:
+        """Reject an input this method cannot use."""
+        if initializer["hyperparams"] is None:
+            msg = "Method 'exact' needs 'hyperparams'."
+            raise ValueError(msg)
+
+    def propose(  # noqa: PLR0913
+        self,
+        expert_elicited_statistics: dict[str, tf.Tensor],
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+        optimizer: dict[str, Any],
+        model: dict[str, Any],
+        targets: list[Target],
+        network: Optional[NFDict],
+        expert: ExpertDict,
+        seed: int,
+        progress: int,
+    ) -> InitResult:
+        """Build the prior model from the given values."""
+        prior_model = el.simulations.Priors(
+            ground_truth=False,
+            init_matrix_slice=initializer["hyperparams"],
+            trainer=trainer,
+            parameters=parameters,
+            network=None,
+            expert=expert,
+            seed=seed,
+        )
+        return InitResult(prior_model=prior_model)
+
+    def dry_run_slice(
+        self,
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+    ) -> Any:
+        """Return a slice of the right shape for ``Elicit.__init__``."""
+        return initializer["hyperparams"]
+
+
+def _select_candidate(losses: list[Any], initializer: Initializer) -> int:
+    """Return the index of the candidate at the requested loss quantile."""
+    # elicit.initializer always sets this; the default keeps the best candidate
+    loss_quantile = initializer["loss_quantile"]
+    if loss_quantile is None:
+        loss_quantile = 0.0
+
+    # A candidate whose loss is not finite must not take part in the
+    # selection. Without this, a single NAN makes the percentile NAN, no
+    # candidate matches, and the index lookup fails with an error that does
+    # not name the cause.
+    values = np.asarray(losses, dtype=np.float64).reshape(-1)
+    finite = np.flatnonzero(np.isfinite(values))
+
+    if finite.size == 0:
+        msg = (
+            f"All {values.size} initialization candidates yield a "
+            "non-finite loss, so no start value can be selected. The "
+            "initialization distribution is centred at "
+            f"{initializer['distribution']['mean']} with radius "  # type: ignore [index]
+            f"{initializer['distribution']['radius']}, on the "  # type: ignore [index]
+            "unconstrained scale. Re-centre it on the expected "
+            "hyperparameter values, or reduce its radius."
+        )
+        raise ValueError(msg)
+
+    # pick the candidate closest to the requested quantile of the finite
+    # losses. argmin also settles a tie, which an equality test could not.
+    target = np.percentile(values[finite], loss_quantile)
+    return int(finite[int(np.argmin(np.abs(values[finite] - target)))])
+
+
+def _check_box(initializer: Initializer) -> None:
+    """Reject a box method that has no box to draw from."""
+    for name in ("distribution", "iterations"):
+        if initializer[name] is None:
+            msg = f"If '{name}' is None, then 'method' must also be None."
+            raise ValueError(msg)
+
+
+class BoxSample:
+    """Draw candidates from a box and keep one, by its loss quantile."""
+
+    name = "box"
+
+    def check(self, initializer: Initializer) -> None:
+        """Reject an input this method cannot use."""
+        _check_box(initializer)
+
+    def propose(  # noqa: PLR0913
+        self,
+        expert_elicited_statistics: dict[str, tf.Tensor],
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+        optimizer: dict[str, Any],
+        model: dict[str, Any],
+        targets: list[Target],
+        network: Optional[NFDict],
+        expert: ExpertDict,
+        seed: int,
+        progress: int,
+    ) -> InitResult:
+        """Score every candidate, then keep one."""
+        loss_list, init_var_list, init_matrix = init_runs(
+            expert_elicited_statistics=expert_elicited_statistics,
+            initializer=initializer,
+            parameters=parameters,
+            trainer=trainer,
+            optimizer=optimizer,
+            model=model,
+            targets=targets,
+            network=network,
+            expert=expert,
+            seed=seed,
+            progress=progress,
+        )
+        idx = _select_candidate(loss_list, initializer)
+        return InitResult(
+            prior_model=init_var_list[idx],
+            candidates=init_matrix,
+            losses=loss_list,
+        )
+
+    def dry_run_slice(
+        self,
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+    ) -> Any:
+        """Return a slice of the right shape for ``Elicit.__init__``."""
+        init_matrix = uniform_samples(
+            seed=trainer["seed"],
+            hyppar=initializer["distribution"]["hyper"],  # type: ignore [index, arg-type]
+            n_samples=initializer["iterations"],  # type: ignore [arg-type]
+            method=initializer["method"],  # type: ignore [arg-type]
+            mean=initializer["distribution"]["mean"],  # type: ignore [index]
+            radius=initializer["distribution"]["radius"],  # type: ignore [index]
+            parameters=parameters,
+        )
+        return {f"{key}": init_matrix[key][0] for key in init_matrix}
+
+
+for _sampler in ("sobol", "lhs", "random"):
+    _INIT_METHODS[_sampler] = BoxSample
+
+
+class WarmStart:
+    """Search for a start point with Nelder-Mead, from the box centre."""
+
+    name = "warmstart"
+
+    def check(self, initializer: Initializer) -> None:
+        """Reject an input this method cannot use."""
+        _check_box(initializer)
+
+    def propose(  # noqa: PLR0913
+        self,
+        expert_elicited_statistics: dict[str, tf.Tensor],
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+        optimizer: dict[str, Any],
+        model: dict[str, Any],
+        targets: list[Target],
+        network: Optional[NFDict],
+        expert: ExpertDict,
+        seed: int,
+        progress: int,
+    ) -> InitResult:
+        """Search for the start values, then build the prior model."""
+        distribution = initializer["distribution"]
+        iterations = initializer["iterations"]
+        if distribution is None or iterations is None:
+            # check() rejects this earlier; the guard narrows the type
+            msg = "Method 'warmstart' needs 'distribution' and 'iterations'."
+            raise ValueError(msg)
+
+        # a derivative-free search needs no gradient, so it cannot diverge.
+        # The copy keeps the user's Elicit object unchanged.
+        initializer = dict(initializer)  # type: ignore [assignment]
+        initializer["hyperparams"] = el.warmstart.warm_start(
+            expert_elicited_statistics=expert_elicited_statistics,
+            parameters=parameters,
+            trainer=trainer,
+            model=model,
+            targets=targets,
+            expert=expert,
+            # dict() satisfies the signature; a TypedDict is invariant
+            distribution=dict(distribution),
+            max_evals=iterations,
+            seed=seed,
+        )
+        return ExactValues().propose(
+            expert_elicited_statistics=expert_elicited_statistics,
+            initializer=initializer,
+            parameters=parameters,
+            trainer=trainer,
+            optimizer=optimizer,
+            model=model,
+            targets=targets,
+            network=network,
+            expert=expert,
+            seed=seed,
+            progress=progress,
+        )
+
+    def dry_run_slice(
+        self,
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+    ) -> Any:
+        """Return a slice of the right shape for ``Elicit.__init__``."""
+        # the dry run only needs a slice of the right shape. The warm start
+        # searches for the real values during `fit`.
+        initializer = dict(initializer)  # type: ignore [assignment]
+        initializer["method"] = "random"
+        return BoxSample().dry_run_slice(initializer, parameters, trainer)
+
+
+_INIT_METHODS[WarmStart.name] = WarmStart
 
 
 def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
@@ -418,7 +730,7 @@ def init_prior(  # noqa: PLR0913
     expert: ExpertDict,
     seed: int,
     progress: int,
-) -> tuple[Any, Any, Any, Any]:
+) -> tuple[Any, Any, Any]:
     """
     Extract target loss and initialize prior model
 

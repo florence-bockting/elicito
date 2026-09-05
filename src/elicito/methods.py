@@ -4,7 +4,6 @@ Strategy objects for the prior-learning methods
 
 from typing import Any, Protocol
 
-import numpy as np
 import tensorflow as tf
 
 import elicito as el
@@ -110,7 +109,7 @@ class PriorMethod(Protocol):
         expert: ExpertDict,
         seed: int,
         progress: int,
-    ) -> tuple[Any, Any, Any, Any]:
+    ) -> tuple[Any, Any, Any]:
         """Build the prior model used to start the training."""
         ...
 
@@ -354,54 +353,14 @@ class ParametricPrior:
         expert: ExpertDict,
         seed: int,
         progress: int,
-    ) -> tuple[Any, Any, Any, Any]:
+    ) -> tuple[Any, Any, Any]:
         """Build the prior model used to start the training."""
         if initializer is None:
             # check() rejects this earlier; the guard narrows the type
             msg = "If method is 'parametric_prior', 'initializer' can't be None."
             raise ValueError(msg)
 
-        if initializer["method"] == "warmstart" and initializer["hyperparams"] is None:
-            # a derivative-free search needs no gradient, so it cannot diverge.
-            # The copy keeps the user's Elicit object unchanged.
-            distribution = initializer["distribution"]
-            iterations = initializer["iterations"]
-            if distribution is None or iterations is None:
-                # el.initializer rejects this earlier; the guard narrows the type
-                msg = (
-                    "If method is 'warmstart', 'distribution' and 'iterations'"
-                    " can't be None."
-                )
-                raise ValueError(msg)
-
-            initializer = dict(initializer)  # type: ignore [assignment]
-            initializer["hyperparams"] = el.warmstart.warm_start(
-                expert_elicited_statistics=expert_elicited_statistics,
-                parameters=parameters,
-                trainer=trainer,
-                model=model,
-                targets=targets,
-                expert=expert,
-                # dict() satisfies the signature; a TypedDict is invariant
-                distribution=dict(distribution),
-                max_evals=iterations,
-                seed=seed,
-            )
-
-        if initializer["hyperparams"] is not None:
-            # prepare generative model
-            init_prior_model = el.simulations.Priors(
-                ground_truth=False,
-                init_matrix_slice=initializer["hyperparams"],
-                trainer=trainer,
-                parameters=parameters,
-                network=None,
-                expert=expert,
-                seed=seed,
-            )
-            return init_prior_model, None, None, None
-
-        loss_list, init_prior, init_matrix = el.initialization.init_runs(
+        result = el.initialization.resolve_init_method(initializer).propose(
             expert_elicited_statistics=expert_elicited_statistics,
             initializer=initializer,
             parameters=parameters,
@@ -414,42 +373,7 @@ class ParametricPrior:
             seed=seed,
             progress=progress,
         )
-
-        # extract pre-specified quantile loss out of all runs
-        # get corresponding set of initial values
-        # elicit.initializer always sets this; the default keeps the best
-        # candidate if it is ever left unset
-        loss_quantile = initializer["loss_quantile"]
-        if loss_quantile is None:
-            loss_quantile = 0.0
-
-        # A candidate whose loss is not finite must not take part in the
-        # selection. Without this, a single NAN makes the percentile NAN, no
-        # candidate matches, and the index lookup below fails with an error
-        # that does not name the cause.
-        losses = np.asarray(loss_list, dtype=np.float64).reshape(-1)
-        finite = np.flatnonzero(np.isfinite(losses))
-
-        if finite.size == 0:
-            msg = (
-                f"All {losses.size} initialization candidates yield a "
-                "non-finite loss, so no start value can be selected. The "
-                "initialization distribution is centred at "
-                f"{initializer['distribution']['mean']} with radius "  # type: ignore [index]
-                f"{initializer['distribution']['radius']}, on the "  # type: ignore [index]
-                "unconstrained scale. Re-centre it on the expected "
-                "hyperparameter values, or reduce its radius."
-            )
-            raise ValueError(msg)
-
-        # pick the candidate closest to the requested quantile of the finite
-        # losses. argmin also settles a tie, which the previous equality test
-        # could not.
-        target = np.percentile(losses[finite], loss_quantile)
-        idx = finite[int(np.argmin(np.abs(losses[finite] - target)))]
-
-        init_prior_model = init_prior[idx]
-        return init_prior_model, loss_list, init_prior, init_matrix
+        return result.prior_model, result.losses, result.candidates
 
     def init_matrix_slice(  # noqa: D102
         self,
@@ -457,25 +381,9 @@ class ParametricPrior:
         parameters: list[Parameter],
         trainer: Trainer,
     ) -> Any:
-        if initializer["distribution"] is None:
-            return initializer["hyperparams"]
-
-        # the dry run only needs a slice of the right shape. The warm start
-        # searches for the real values during `fit`.
-        method = initializer["method"]
-        if method == "warmstart":
-            method = "random"
-
-        init_matrix = el.initialization.uniform_samples(
-            seed=trainer["seed"],
-            hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
-            n_samples=initializer["iterations"],  # type: ignore [arg-type]
-            method=method,  # type: ignore [arg-type]
-            mean=initializer["distribution"]["mean"],
-            radius=initializer["distribution"]["radius"],
-            parameters=parameters,
+        return el.initialization.resolve_init_method(initializer).dry_run_slice(
+            initializer, parameters, trainer
         )
-        return {f"{key}": init_matrix[key][0] for key in init_matrix}
 
 
 class DeepPrior:
@@ -612,7 +520,7 @@ class DeepPrior:
         expert: ExpertDict,
         seed: int,
         progress: int,
-    ) -> tuple[Any, Any, Any, Any]:
+    ) -> tuple[Any, Any, Any]:
         """Build the prior model used to start the training."""
         # prepare generative model
         init_prior_model = el.simulations.Priors(
@@ -624,8 +532,8 @@ class DeepPrior:
             expert=expert,
             seed=seed,
         )
-        # loss_list, init_prior and init_matrix stay empty for this method
-        return init_prior_model, None, None, None
+        # loss_list and init_matrix stay empty for this method
+        return init_prior_model, None, None
 
     def init_matrix_slice(  # noqa: D102
         self,

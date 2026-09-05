@@ -582,20 +582,18 @@ class Elicit:
         )
 
         # initialization of hyperparameter
-        (init_prior_model, loss_list, init_prior_obj, init_matrix) = (
-            initialization.init_prior(
-                expert_elicits,
-                self.initializer,
-                self.parameters,
-                self.trainer,
-                self.optimizer,
-                self.model,
-                self.targets,
-                self.network,
-                self.expert,
-                seed,
-                self.trainer["progress"],
-            )
+        (init_prior_model, loss_list, init_matrix) = initialization.init_prior(
+            expert_elicits,
+            self.initializer,
+            self.parameters,
+            self.trainer,
+            self.optimizer,
+            self.model,
+            self.targets,
+            self.network,
+            self.expert,
+            seed,
+            self.trainer["progress"],
         )
         # run dag with optimal set of initial values
         # save results in corresp. attributes

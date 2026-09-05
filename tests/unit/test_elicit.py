@@ -167,9 +167,10 @@ def test_initializer():
     with pytest.raises(ValueError, match=msg):
         el.initializer(method="random", distribution=None, iterations=32)
 
+    # the list of valid names comes from the initialization registry
     msg = (
-        "Currently implemented initialization "
-        "methods are 'random', 'sobol', 'lhs', and 'warmstart', but got "
+        "Currently implemented initialization methods are "
+        "'lhs', 'random', 'sobol', 'warmstart', but got "
         "method='something' as input."
     )
     with pytest.raises(ValueError, match=msg):

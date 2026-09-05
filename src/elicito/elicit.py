@@ -8,6 +8,7 @@ from typing import Any, Callable, Optional
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
+import elicito as el
 from elicito.types import (
     ExpertDict,
     Hyper,
@@ -852,32 +853,16 @@ def initializer(
         quantile_perc = loss_quantile
 
     else:
-        args = {"distribution": distribution, "iterations": iterations}
-
-        for name, value in args.items():
-            if value is None:
-                msg = f"If '{name}' is None, then 'method' must also be None."
-                raise ValueError(msg)
-
         # hardcode loss_quantile as it was rather meant for experimental purposes
         # however results suggest that loss_quantile different from zero are not
         # really reasonable
         loss_quantile = 0.0
 
         # compute percentage from probability
-        if loss_quantile is not None:
-            quantile_perc = int(loss_quantile * 100)
+        quantile_perc = int(loss_quantile * 100)
         # ensure that iterations is an integer
         if iterations is not None:
             iterations = int(iterations)
-
-        if method not in ["random", "lhs", "sobol", "warmstart"]:
-            msg = (
-                "Currently implemented initialization "
-                f"methods are 'random', 'sobol', 'lhs', and 'warmstart', but "
-                f"got {method=} as input."
-            )
-            raise ValueError(msg)
 
     init_dict: Initializer = dict(
         method=method,
@@ -887,6 +872,9 @@ def initializer(
         warmup_epochs=int(warmup_epochs),
         hyperparams=hyperparams,
     )
+
+    # each initialization method rejects the input it cannot use
+    el.initialization.resolve_init_method(init_dict).check(init_dict)
 
     return init_dict
 
