@@ -423,11 +423,6 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
         samples from the uniform distribution.
 
     """
-    try:
-        from scipy.stats import qmc
-    except ImportError as exc:
-        raise MissingOptionalDependencyError("scipy", requirement="scipy") from exc
-
     # set seed
     tf.random.set_seed(seed)
 
@@ -444,6 +439,12 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     if method not in ["sobol", "lhs", "random"]:
         msg = "Unsupported method. Choose from 'sobol', 'lhs', or 'random'."
         raise ValueError(msg)
+
+    if method in ("sobol", "lhs"):
+        try:
+            from scipy.stats import qmc
+        except ImportError as exc:
+            raise MissingOptionalDependencyError("scipy", requirement="scipy") from exc
 
     # counter number of hyperparameters
     n_hypparam = 0
