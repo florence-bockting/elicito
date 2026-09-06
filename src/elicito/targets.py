@@ -30,7 +30,9 @@ def pearson_correlation(prior_samples: tf.Tensor) -> tf.Tensor:
     """
     corM = tfp.stats.correlation(prior_samples, sample_axis=1, event_axis=-1)
     tensor = tf.experimental.numpy.triu(corM, 1)
-    tensor_mask = tf.experimental.numpy.triu(corM, 1) != 0.0
+    # mask the upper triangle by position, not by value; a correlation
+    # of exactly 0.0 must stay in the result
+    tensor_mask = tf.experimental.numpy.triu(tf.ones_like(corM), 1) != 0.0
 
     cor = tf.boolean_mask(tensor, tensor_mask, axis=0)
     diag_elements = int((tensor.shape[-1] * (tensor.shape[-1] - 1)) / 2)
@@ -55,7 +57,11 @@ def use_custom_functions(simulations: dict[str, Any], custom_func: Any) -> Any:
     custom_function :
         Custom function with keyword arguments
     """
-    vars_from_func = custom_func.__code__.co_varnames
+    # co_varnames holds arguments and local variables;
+    # only the first co_argcount entries are arguments
+    vars_from_func = custom_func.__code__.co_varnames[
+        : custom_func.__code__.co_argcount
+    ]
     res = {f"{var}": simulations[var] for var in vars_from_func if var in simulations}
     return custom_func(**res)
 
@@ -134,9 +140,9 @@ def computation_elicited_statistics(
                 quan_reshaped = target_tensor
             else:
                 msg = (
-                    "rank of tensor of target quantity must be <=3,",
-                    f"but got {tensor_rank}.",
-                    f"for target quantity {targets[i]['name']}",
+                    "Rank of tensor of target quantity must be <=3, "
+                    f"but got {tensor_rank}. "
+                    f"For target quantity {targets[i]['name']}"
                 )
                 raise ValueError(msg)
 

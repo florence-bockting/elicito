@@ -682,7 +682,7 @@ expert = Expert()
 
 
 def optimizer(
-    optimizer: Any = tf.keras.optimizers.Adam(), **kwargs: dict[Any, Any]
+    optimizer: Any = tf.keras.optimizers.Adam, **kwargs: dict[Any, Any]
 ) -> dict[str, Any]:
     """
     Specify optimizer and its settings for SGD.
@@ -691,7 +691,7 @@ def optimizer(
     ----------
     optimizer
         Optimizer used for SGD implemented.
-        Must be an object implemented in [`tf.keras.optimizers`](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers)
+        Must be a class implemented in [`tf.keras.optimizers`](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers)
 
     **kwargs
         Additional keyword arguments expected by **optimizer**.

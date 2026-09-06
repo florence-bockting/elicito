@@ -128,6 +128,10 @@ class ParametricPrior:
 
     name = PriorMethods.parametric_prior.value
 
+    def __init__(self) -> None:
+        # cache filled by `new_history`; the map is constant during training
+        self._constraints: dict[str, Any] | None = None
+
     def build(
         self,
         parameters: list[Parameter],
@@ -223,6 +227,7 @@ class ParametricPrior:
     ) -> dict[str, Any]:
         """Create the per-epoch record, seeded with the initial values."""
         constraints = _constraints(parameters)
+        self._constraints = constraints
         history: dict[str, Any] = {}
         for var in prior_model.trainable_variables:
             name = var.name[:-2].split(".")[1]
@@ -239,7 +244,9 @@ class ParametricPrior:
         parameters: list[Parameter],
     ) -> None:
         """Create the per-epoch record, seeded with the initial values."""
-        constraints = _constraints(parameters)
+        constraints = self._constraints
+        if constraints is None:
+            constraints = _constraints(parameters)
         for var in trainable_vars:
             name = var.name[:-2].split(".")[1]
             history[name].append(float(constraints[name](var.numpy().copy())))
@@ -437,6 +444,9 @@ class DeepPrior:
             # build network
             # initialize base distribution
             base_dist = network["base_distribution"](num_params=len(parameters))  # type: ignore
+            # the base distribution never changes during training;
+            # keep it on the prior object instead of rebuilding it per epoch
+            init_prior.base_distribution = base_dist
             # sample from base distribution
             u = base_dist.sample((128, 200))
             init_prior(u, None)
@@ -450,10 +460,8 @@ class DeepPrior:
         B: int,
         num_samples: int,
     ) -> Any:
-        # initialize base distribution
-        base_dist = network["base_distribution"](num_params=len(parameters))  # type: ignore
-        # sample from base distribution
-        u = base_dist.sample((B, num_samples))
+        # reuse the base distribution built in `build`
+        u = initialized_priors.base_distribution.sample((B, num_samples))
         # apply transformation function to samples from base distr.
         (unconstr_priors, _) = initialized_priors(u, condition=None, inverse=False)
         # apply parameter constraints if specified
@@ -567,16 +575,17 @@ class DeepPrior:
         return None
 
 
-_METHODS: dict[str, PriorMethod] = {
-    ParametricPrior.name: ParametricPrior(),
-    DeepPrior.name: DeepPrior(),
+_METHODS: dict[str, type[PriorMethod]] = {
+    ParametricPrior.name: ParametricPrior,
+    DeepPrior.name: DeepPrior,
 }
 
 
 def get_method(name: str) -> PriorMethod:
-    """Return the strategy for a ``trainer["method"]`` string."""
+    """Return a new strategy object for a ``trainer["method"]`` string."""
     try:
-        return _METHODS[name]
+        method_cls = _METHODS[name]
     except KeyError:
         msg = f"Unknown method {name!r}. Valid: {sorted(_METHODS)}."
         raise ValueError(msg) from None
+    return method_cls()

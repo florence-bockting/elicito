@@ -3,18 +3,17 @@ A Python package for learning prior distributions based on expert knowledge
 """
 
 import importlib.metadata
-import warnings
 from types import SimpleNamespace
 from typing import Any
 
 import joblib
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
-import xarray as xr
 
 from elicito import (
     _checks,
     _outputs,
+    elicit,
     initialization,
     losses,
     networks,
@@ -51,7 +50,6 @@ from elicito.types import (
 tfd = tfp.distributions
 
 tf.get_logger().setLevel("ERROR")
-warnings.filterwarnings("ignore")
 
 __version__ = importlib.metadata.version("elicito")
 
@@ -62,6 +60,7 @@ __all__ = [
     "initialization",
     "initializer",
     "losses",
+    "meta_settings",
     "model",
     "networks",
     "optimization",
@@ -97,7 +96,7 @@ class Elicit:
         optimizer: dict[str, Any],
         network: NFDict | None = None,
         initializer: Initializer | None = None,
-        meta_settings: MetaSettings = meta_settings(),
+        meta_settings: MetaSettings | None = None,
     ):
         """
         Specify the elicitation method
@@ -180,6 +179,9 @@ class Elicit:
             [GitHub issue #35](https://github.com/florence-bockting/prior_elicitation/issues/35).
 
         """  # noqa: E501
+        if meta_settings is None:
+            meta_settings = elicit.meta_settings()
+
         _checks.check_elicit(
             model,
             parameters,
@@ -232,57 +234,49 @@ class Elicit:
     def __str__(self) -> str:  # noqa: PLR0912
         """Return a readable summary of the object."""
         # fitted eliobj with shape information
-        try:
-            self.results  # type: ignore
-        except AttributeError:
-            if len(self.temp_results) != 0:
-                targets_str = "\n".join(
-                    f"  - {k1} {tuple(self.temp_results[0]['target_quantities'][k1].shape)} -> "  # noqa: E501
-                    f"{k2} {tuple(self.temp_results[0]['elicited_statistics'][k2].shape)}"  # noqa: E501
-                    for k1, k2 in zip(
-                        self.temp_results[0]["target_quantities"],
-                        self.temp_results[0]["elicited_statistics"],
-                    )
-                )
-            # unfitted eliobj with shape information due to dry run
-            elif self.dry_run:
-                targets_str = "\n".join(
-                    f"  - {k1} {tuple(self.dry_targets[k1].shape)} -> "
-                    f"{k2} {tuple(self.dry_elicits[k2].shape)}"
-                    for k1, k2 in zip(self.dry_targets, self.dry_elicits)
-                )
-            # unfitted eliobj without shape information
-            else:
-                targets_str = "\n".join(
-                    f"  - {self.targets[tar]['name']} -> {eli}"
-                    for tar, eli in zip(
-                        range(len(self.targets)),
-                        utils.get_expert_datformat(self.targets),
-                    )
-                )
-        else:
-            target_list = list(self.results.target_quantity.data_vars.keys())  # type: ignore
-            elicit_list = list(self.results.elicited_summary.data_vars.keys())  # type: ignore
+        if hasattr(self, "results"):
+            target_list = list(self.results.target_quantity.data_vars.keys())
+            elicit_list = list(self.results.elicited_summary.data_vars.keys())
 
             targets_str = "\n".join(
-                f"  - {k1} {self.results.target_quantity[k1].shape[1:]} -> "  # type: ignore
-                f"{k2} {self.results.elicited_summary[k2].shape[1:]}"  # type: ignore
+                f"  - {k1} {self.results.target_quantity[k1].shape[1:]} -> "
+                f"{k2} {self.results.elicited_summary[k2].shape[1:]}"
                 for k1, k2 in zip(target_list, elicit_list)
+            )
+        elif len(self.temp_results) != 0:
+            targets_str = "\n".join(
+                f"  - {k1} {tuple(self.temp_results[0]['target_quantities'][k1].shape)} -> "  # noqa: E501
+                f"{k2} {tuple(self.temp_results[0]['elicited_statistics'][k2].shape)}"
+                for k1, k2 in zip(
+                    self.temp_results[0]["target_quantities"],
+                    self.temp_results[0]["elicited_statistics"],
+                )
+            )
+        # unfitted eliobj with shape information due to dry run
+        elif self.dry_run:
+            targets_str = "\n".join(
+                f"  - {k1} {tuple(self.dry_targets[k1].shape)} -> "
+                f"{k2} {tuple(self.dry_elicits[k2].shape)}"
+                for k1, k2 in zip(self.dry_targets, self.dry_elicits)
+            )
+        # unfitted eliobj without shape information
+        else:
+            targets_str = "\n".join(
+                f"  - {self.targets[tar]['name']} -> {eli}"
+                for tar, eli in zip(
+                    range(len(self.targets)),
+                    utils.get_expert_datformat(self.targets),
+                )
             )
 
         opt_name = self.optimizer["optimizer"].__name__
         opt_lr = self.optimizer["learning_rate"]
 
         get_num_hyperpar: int | str
-        try:
-            self.results  # type: ignore
-        except AttributeError:
-            pass
-        else:
-            if self.trainer["method"] == "deep_prior":
-                get_num_hyperpar = utils.compute_num_weights(
-                    self.results[0]["num_NN_weights"]  # type: ignore
-                )
+        if hasattr(self, "results") and self.trainer["method"] == "deep_prior":
+            get_num_hyperpar = utils.compute_num_weights(
+                self.results[0]["num_NN_weights"]  # type: ignore
+            )
 
         if (self.trainer["method"] == "deep_prior") and (self.dry_run):
             trainable_vars = self.dry_prior_model.init_priors.trainable_variables
@@ -355,6 +349,11 @@ class Elicit:
             specify parallelization settings if multiple trainings should run
             in parallel. See [`parallel`][elicito.utils.parallel].
 
+        Raises
+        ------
+        ValueError
+            The eliobj is already fitted and ``overwrite`` is ``False``.
+
         Examples
         --------
         >>> eliobj.fit()  # doctest: +SKIP
@@ -368,83 +367,57 @@ class Elicit:
         tf.random.set_seed(self.trainer["seed"])
 
         # check whether elicit object is already fitted
-        try:
-            self.results  # type: ignore
-        except AttributeError:
-            # run single time if no parallelization is required
-            if parallel is None:
-                self.temp_results = []
-                self.temp_history = []
-                self.results = xr.DataTree()
-
-                results, history = self.workflow(self.trainer["seed"])
-                # include seed information into results
-                results["seed"] = self.trainer["seed"]
-                # save results in list attribute
-                self.temp_history.append(history)
-                self.temp_results.append(results)
-
-                results = _outputs.create_datatree(
-                    self.temp_history,
-                    self.temp_results,
-                    self.trainer,
-                    self.parameters,
-                    self.expert,
-                )
-
-                self.results.update(results)
-                delattr(self, "temp_history")
-                delattr(self, "temp_results")
-
-            # run multiple replications
-            if parallel is not None:
-                self.temp_results = []
-                self.temp_history = []
-                self.results = xr.DataTree()
-
-                # create a list of seeds if not provided
-                if parallel["seeds"] is None:
-                    # generate seeds
-                    seeds = [
-                        int(s) for s in tfd.Uniform(0, 999999).sample(parallel["runs"])
-                    ]
-                else:
-                    seeds = parallel["seeds"]
-
-                # run training simultaneously for multiple seeds
-                (*res,) = joblib.Parallel(n_jobs=parallel["cores"])(
-                    joblib.delayed(self.workflow)(seed) for seed in seeds
-                )
-
-                for i, seed in enumerate(seeds):
-                    self.temp_results.append(res[i][0])
-                    self.temp_history.append(res[i][1])
-                    self.temp_results[i]["seed"] = seed
-
-                results = _outputs.create_datatree(
-                    self.temp_history,
-                    self.temp_results,
-                    self.trainer,
-                    self.parameters,
-                    self.expert,
-                )
-
-                self.results = results
-                delattr(self, "temp_history")
-                delattr(self, "temp_results")
-        else:
+        if hasattr(self, "results"):
             if not overwrite:
-                user_answ = input(
-                    "eliobj is already fitted."
-                    + " Do you want to fit it again and overwrite the results?"
-                    + " Press 'n' to stop process and 'y' to continue fitting."
+                msg = (
+                    "eliobj is already fitted. Use overwrite=True to fit it "
+                    "again and replace the results."
                 )
+                raise ValueError(msg)
+            delattr(self, "results")
 
-                if user_answ not in ["y", "n"]:
-                    raise ValueError("Invalid input. Please use 'y' or 'n'.")  # noqa: TRY003
+        self.temp_results = []
+        self.temp_history = []
 
-                if user_answ == "n":
-                    print("Process aborded; eliobj is not re-fitted.")
+        # run single time if no parallelization is required
+        if parallel is None:
+            results, history = self.workflow(self.trainer["seed"])
+            # include seed information into results
+            results["seed"] = self.trainer["seed"]
+            # save results in list attribute
+            self.temp_history.append(history)
+            self.temp_results.append(results)
+        # run multiple replications
+        else:
+            # create a list of seeds if not provided
+            if parallel["seeds"] is None:
+                # generate seeds
+                seeds = [
+                    int(s) for s in tfd.Uniform(0, 999999).sample(parallel["runs"])
+                ]
+            else:
+                seeds = parallel["seeds"]
+
+            # run training simultaneously for multiple seeds
+            (*res,) = joblib.Parallel(n_jobs=parallel["cores"])(
+                joblib.delayed(self.workflow)(seed) for seed in seeds
+            )
+
+            for i, seed in enumerate(seeds):
+                self.temp_results.append(res[i][0])
+                self.temp_history.append(res[i][1])
+                self.temp_results[i]["seed"] = seed
+
+        self.results = _outputs.create_datatree(
+            self.temp_history,
+            self.temp_results,
+            self.trainer,
+            self.parameters,
+            self.expert,
+        )
+
+        delattr(self, "temp_history")
+        delattr(self, "temp_results")
 
     def save(
         self,
@@ -487,15 +460,6 @@ class Elicit:
         >>> eliobj.save(file="res/toymodel", overwrite=True)  # doctest: +SKIP
 
         """
-        # check that either name or file is specified
-        if not (name is None) ^ (file is None):
-            msg = (
-                "Name and file cannot be both None or both specified. "
-                + "Either one has to be None.",
-            )
-            raise AssertionError(msg)
-
-        # add a saving path
         return utils.save(self, name=name, file=file, overwrite=overwrite)
 
     def update(self, **kwargs: dict[Any, Any]) -> None:
@@ -573,11 +537,7 @@ class Elicit:
         for i, key in enumerate(kwargs):
             setattr(self, key, kwargs[key])
             # reset results
-            try:
-                self.results
-            except AttributeError:
-                pass
-            else:
+            if hasattr(self, "results"):
                 delattr(self, "results")
             self.temp_results = list()
             self.temp_history = list()
@@ -607,7 +567,6 @@ class Elicit:
         # TODO test correct seed usage for parallel processing
         globals()["SEED"] = seed
 
-        self.trainer["seed_chain"] = seed
         # get expert data; use trainer seed
         # (and not seed from list)
         expert_elicits, expert_prior = utils.get_expert_data(

@@ -129,17 +129,12 @@ def to_dataset(
     return ds
 
 
-def create_initialization_group(
-    parameters: list[Any], results: list[Any]
-) -> xr.Dataset:
+def create_initialization_group(results: list[Any]) -> xr.Dataset:
     """
     Create result group for initialization runs
 
     Parameters
     ----------
-    parameters :
-        parameter information from eliobj
-
     results :
         results of fitted eliobj for the final epoch
 
@@ -152,17 +147,9 @@ def create_initialization_group(
     """
     init_loss = combine_reps(results, "init_loss_list")
 
-    # use set and then list to remove duplicate labels,
-    # due to pot. hyperparameter sharing
-    hyp_names = list(
-        set(
-            [
-                parameters[i]["hyperparams"][k]["name"]
-                for i in range(len(parameters))
-                for k in parameters[i]["hyperparams"]
-            ]
-        )
-    )
+    # the keys of init_matrix set the column order of the data below;
+    # take the labels from the same source so they cannot diverge
+    hyp_names = list(results[0]["init_matrix"].keys())
 
     da_init_hyp = xr.DataArray(
         data=tf.stack(
@@ -377,7 +364,7 @@ def create_result_group(
     group: str,
     description: str,
     dim_name: Optional[str] = None,
-    base_dims: list[str] = ["replication", "batch", "draw"],
+    base_dims: Optional[list[str]] = None,
 ) -> xr.Dataset:
     """
     Build an xarray.Dataset from eliobj results for a given group.
@@ -404,6 +391,9 @@ def create_result_group(
     :
         Dataset containing one DataArray per variable in the group.
     """
+    if base_dims is None:
+        base_dims = ["replication", "batch", "draw"]
+
     ds_group = xr.Dataset(attrs=dict(description=description))
 
     n_replications = len(results)
@@ -711,7 +701,7 @@ def create_datatree(
     if (trainer["method"] == "parametric_prior") and (
         results[0]["init_loss_list"] is not None
     ):
-        init_ds = create_initialization_group(parameters, results)
+        init_ds = create_initialization_group(results)
         res = res.assign({"initialization": xr.DataTree(init_ds)})
 
     return res

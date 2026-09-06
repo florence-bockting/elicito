@@ -83,11 +83,6 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
         samples from the uniform distribution.
 
     """
-    try:
-        from scipy.stats import qmc
-    except ImportError as exc:
-        raise MissingOptionalDependencyError("scipy", requirement="scipy") from exc
-
     # set seed
     tf.random.set_seed(seed)
 
@@ -105,6 +100,12 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
         msg = "Unsupported method. Choose from 'sobol', 'lhs', or 'random'."
         raise ValueError(msg)
 
+    if method in ("sobol", "lhs"):
+        try:
+            from scipy.stats import qmc
+        except ImportError as exc:
+            raise MissingOptionalDependencyError("scipy", requirement="scipy") from exc
+
     # counter number of hyperparameters
     n_hypparam = 0
     name_hyper: list[str] = []
@@ -113,14 +114,14 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     if hyppar is None:
         if type(mean) is list:  # type: ignore [unreachable]
             msg = (
-                "If different mean values should be specified per",
-                "hyperparameter, the hyppar argument cannot be None.",
+                "If different mean values should be specified per "
+                "hyperparameter, the hyppar argument cannot be None."
             )
             raise ValueError(msg)
         if type(radius) is list:
             msg = (
-                "If different radius values should be specified per",
-                "hyperparameter, the hyppar argument cannot be None.",
+                "If different radius values should be specified per "
+                "hyperparameter, the hyppar argument cannot be None."
             )
             raise ValueError(msg)
         for i in range(len(parameters)):
@@ -159,9 +160,9 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     else:
         if (type(mean) is not list) or (type(radius) is not list):
             msg = (
-                "mean and radius arguments of function uniform_samples",
-                "must be of type list.",
-            )  # type: ignore
+                "mean and radius arguments of function uniform_samples "
+                "must be of type list."
+            )
             raise ValueError(msg)
 
         # initialize sampler

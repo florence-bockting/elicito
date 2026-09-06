@@ -207,38 +207,30 @@ def test_save_and_load_path(monkeypatch, eliobj, fit, test_path, overwrite):
         # Mock os.path.isfile to return True for our path
         monkeypatch.setattr("os.path.isfile", lambda p: True)
 
-        # Mock input() to simulate user typing 'n'
-        monkeypatch.setattr("builtins.input", lambda _: "n")
-
-        called = {"used": False}
-        monkeypatch.setattr(
-            "elicito.utils.save", lambda eliobj, file: called.update("used", True)
-        )
+        with pytest.raises(FileExistsError, match="already exists"):
+            save(eliobj, file=test_path, overwrite=False)
+        return
 
     # Check saving object works
     save(eliobj, file=test_path, overwrite=overwrite)
+    assert os.path.isfile(expected_file)
 
-    if not overwrite:
-        assert not called["used"]
+    # Check that loading object works
+    loaded_eliobj = load(expected_file)
+
+    assert loaded_eliobj.model["obj"] == TestModel
+    assert loaded_eliobj.parameters[0]["name"] == "b0"
+    assert loaded_eliobj.targets[0]["name"] == "b0"
+    assert loaded_eliobj.trainer["method"] == "parametric_prior"
+    assert loaded_eliobj.trainer["seed"] == 42
+    if fit:
+        assert loaded_eliobj.results == eliobj.results
     else:
-        assert os.path.isfile(expected_file)
+        assert loaded_eliobj.temp_history == eliobj.temp_history
+        assert loaded_eliobj.temp_results == eliobj.temp_results
 
-        # Check that loading object works
-        loaded_eliobj = load(expected_file)
-
-        assert loaded_eliobj.model["obj"] == TestModel
-        assert loaded_eliobj.parameters[0]["name"] == "b0"
-        assert loaded_eliobj.targets[0]["name"] == "b0"
-        assert loaded_eliobj.trainer["method"] == "parametric_prior"
-        assert loaded_eliobj.trainer["seed"] == 42
-        if fit:
-            assert loaded_eliobj.results == eliobj.results
-        else:
-            assert loaded_eliobj.temp_history == eliobj.temp_history
-            assert loaded_eliobj.temp_results == eliobj.temp_results
-
-        # clean-up directory
-        shutil.rmtree("tests/test-data")
+    # clean-up directory
+    shutil.rmtree("tests/test-data")
 
 
 @pytest.mark.parametrize(

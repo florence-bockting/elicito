@@ -28,7 +28,9 @@ tf.get_logger().setLevel("ERROR")
 class MetaDictSetting:
     """Implement interface for a default meta_dict"""
 
-    def __init__(self, meta_dict: dict[str, Any], mandatory_fields: list[str] = []):
+    def __init__(
+        self, meta_dict: dict[str, Any], mandatory_fields: Optional[list[str]] = None
+    ):
         """Configure meta dict with mandatory arguments
 
         Parameters
@@ -39,7 +41,7 @@ class MetaDictSetting:
             List of keys in `meta_dict` that need to be provided by the user.
         """
         self.meta_dict = meta_dict
-        self.mandatory_fields = mandatory_fields
+        self.mandatory_fields = [] if mandatory_fields is None else mandatory_fields
 
 
 DEFAULT_SETTING_INVERTIBLE_NET = MetaDictSetting(

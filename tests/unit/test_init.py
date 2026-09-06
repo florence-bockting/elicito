@@ -4,7 +4,6 @@ Unittest for init.py module
 
 import re
 from copy import deepcopy
-from unittest.mock import patch
 
 import pytest
 import tensorflow as tf
@@ -301,32 +300,19 @@ def test_hyperparameters(eliobj):
         eliobj.update(parameters=[el.parameter(name=f"b{i}") for i in range(2)])
 
 
-def test_checks_fit(capsys):
-    # negate
-    with patch("builtins.input", side_effect=["n"]):
+def test_checks_fit():
+    # refitting without overwrite is refused
+    with pytest.raises(ValueError, match="already fitted"):
         base_eliobj.fit(overwrite=False)
 
-    captured = capsys.readouterr()
-    assert "not re-fitted" in captured.out
-
-    # wrong input
-    msg = "Invalid input. Please use 'y' or 'n'."
-    with pytest.raises(ValueError, match=msg):
-        with patch("builtins.input", side_effect=["x"]):
-            base_eliobj.fit(overwrite=False)
-
-    # approve
-    with patch("builtins.input", side_effect=["y"]):
-        base_eliobj.fit(overwrite=False)
+    # overwrite=True refits and replaces the results
+    base_eliobj.fit(overwrite=True)
 
     epochs = base_eliobj.results["history_stats"]["epoch"].shape[0]
     assert base_eliobj.results["history_stats"]["loss"]["total_loss"].values.shape == (
         1,
         epochs,
     )
-
-    base_eliobj.fit(overwrite=True)
-    assert hasattr(base_eliobj, "results")
     assert isinstance(base_eliobj.results, xr.DataTree)
 
 
