@@ -192,14 +192,18 @@ def _select_candidate(losses: list[Any], initializer: Initializer) -> int:
     finite = np.flatnonzero(np.isfinite(values))
 
     if finite.size == 0:
+        dist = initializer["distribution"]
+        detail = (
+            f"The initialization distribution is centred at {dist['mean']} "
+            f"with radius {dist['radius']}, on the unconstrained scale. "
+            "Re-centre it on the expected hyperparameter values, or "
+            "reduce its radius."
+            if dist is not None
+            else "No initialization distribution is set."
+        )
         msg = (
             f"All {values.size} initialization candidates yield a "
-            "non-finite loss, so no start value can be selected. The "
-            "initialization distribution is centred at "
-            f"{initializer['distribution']['mean']} with radius "  # type: ignore [index]
-            f"{initializer['distribution']['radius']}, on the "  # type: ignore [index]
-            "unconstrained scale. Re-centre it on the expected "
-            "hyperparameter values, or reduce its radius."
+            f"non-finite loss, so no start value can be selected. {detail}"
         )
         raise ValueError(msg)
 
