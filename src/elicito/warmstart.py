@@ -94,7 +94,9 @@ def score(  # noqa: PLR0913
         elicit_expert=expert_elicited_statistics,
         targets=targets,
     )
-    value = float(loss)
+    # `loss` has shape (1,). NumPy 2.5 rejects `float()` on an array
+    # that is not 0-dimensional, so reduce the shape first.
+    value = float(tf.squeeze(loss))
     # A quantile query hides an overflow, so the loss alone is not enough.
     # One flat failure value would give Nelder-Mead nothing to follow, so
     # grade the penalty by the share of draws that overflow. The search can

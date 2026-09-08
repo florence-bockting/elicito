@@ -4,7 +4,7 @@ plotting helpers
 
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import tensorflow as tf
@@ -710,7 +710,7 @@ def marginals(
     elicits_std = eliobj.results.history_stats.prior_marginal["std"].values
 
     fig = plt.figure(**kwargs)
-    subfigs = fig.subfigures(2, 1, wspace=0.07)
+    subfigs = cast("np.ndarray[Any, Any]", fig.subfigures(2, 1, wspace=0.07))
     _convergence_plot(
         subfigs[0],
         elicits_means,
@@ -901,7 +901,9 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
 
     # plot average and single priors
     fig = plt.figure(layout="constrained", **kwargs)  # type: ignore
-    subfigs = fig.subfigures(2, 1, height_ratios=height_ratio)
+    subfigs = cast(
+        "np.ndarray[Any, Any]", fig.subfigures(2, 1, height_ratios=height_ratio)
+    )
     subfig0 = subfigs[0].subplots(1, 1)
     subfig1 = subfigs[1].subplots(rows, cols)
 
