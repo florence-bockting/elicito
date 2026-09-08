@@ -12,7 +12,6 @@ import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
 import elicito as el
-from elicito.exceptions import MissingOptionalDependencyError
 from elicito.simulations import Priors, simulate_from_generator
 from elicito.targets import (
     computation_elicited_statistics,
@@ -650,14 +649,8 @@ def load(file: str) -> Any:
         loaded ``eliobj`` object.
 
     """
-    try:
-        import pandas as pd
-    except ImportError as exc:
-        raise MissingOptionalDependencyError(
-            "data_wrangling", requirement="pandas"
-        ) from exc
-
-    obj_pickled = pd.read_pickle(file)  # noqa: S301
+    with open(file, "rb") as f:
+        obj_pickled = pickle.load(f)  # noqa: S301
     obj = pickle.loads(obj_pickled)  # noqa: S301
 
     eliobj = el.Elicit(

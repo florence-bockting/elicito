@@ -866,13 +866,6 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
             "plotting", requirement="arviz_stats"
         ) from exc
 
-    try:
-        import pandas as pd
-    except ImportError as exc:
-        raise MissingOptionalDependencyError(
-            "data_wrangling", requirement="pandas"
-        ) from exc
-
     # prepare plotting
     n_par = len(eliobj.parameters)
     name_params = [eliobj.parameters[i]["name"] for i in range(n_par)]
@@ -885,7 +878,7 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
     # modify success for non-parallel case
     if n_reps == 1:
         success = [0]
-        success_name = str(eliobj.trainer["seed"])
+        success_name = [str(eliobj.trainer["seed"])]
     else:
         # remove chains for which training yield NaN
         (_, success, success_name) = _check_NaN(eliobj, n_reps)
@@ -894,10 +887,8 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
     (w_MMD, averaged_priors, B, n_samples) = _model_averaging(
         eliobj, weight_factor, success, n_sim, seed
     )
-    # store results in data frame
-    df = pd.DataFrame(dict(weight=w_MMD, seed=[str(i) for i in success_name]))
-    # sort data frame according to weight values
-    df_sorted = df.sort_values(by="weight", ascending=False).reset_index(drop=True)
+    # sort the seeds by weight, largest weight first
+    order = np.argsort(w_MMD)[::-1]
 
     # plot average and single priors
     fig = plt.figure(layout="constrained", **kwargs)  # type: ignore
@@ -908,8 +899,8 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
     subfig1 = subfigs[1].subplots(rows, cols)
 
     # plot weights of model averaging
-    seeds = np.array(df_sorted["seed"])
-    weights = np.array(df_sorted["weight"])
+    seeds = np.array([str(success_name[i]) for i in order])
+    weights = np.array(w_MMD)[order]
 
     subfig0.barh(seeds, weights, color="darkgrey")
     subfig0.spines[["right", "top"]].set_visible(False)

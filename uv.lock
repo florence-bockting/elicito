@@ -343,19 +343,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cma"
-version = "4.4.4"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/67/ac/8c27720838e293898671f01b5c452236a0c74f4799a3f2d5fcccbbf50d71/cma-4.4.4.tar.gz", hash = "sha256:632bd654b5dce04c0eaa3166679d3e4773ce7a79eab7934e7f363c341b9a8170", size = 316645, upload-time = "2026-02-25T22:18:16Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d4/d4/ec46cedab6a6145e21768baa8110db3e2e836a320d8499e4ef18bc894e61/cma-4.4.4-py3-none-any.whl", hash = "sha256:edb6d02eb2aac2d54650f16a8f0c70711ff17445957de7c9de92ff7fd4b7ef38", size = 328311, upload-time = "2026-02-25T22:18:09.602Z" },
-]
-
-[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -593,20 +580,12 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-cma = [
-    { name = "cma" },
-]
 full = [
     { name = "arviz-stats", version = "0.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "arviz-stats", version = "1.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "cma" },
     { name = "matplotlib" },
-    { name = "pandas" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-]
-pandas = [
-    { name = "pandas" },
 ]
 plots = [
     { name = "arviz-stats", version = "0.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -708,7 +687,6 @@ all-dev = [
     { name = "overrides" },
     { name = "packaging" },
     { name = "paginate" },
-    { name = "pandas-stubs" },
     { name = "pandocfilters" },
     { name = "parso" },
     { name = "pathspec" },
@@ -782,7 +760,6 @@ dev = [
     { name = "mypy" },
     { name = "mypy-extensions" },
     { name = "nodeenv" },
-    { name = "pandas-stubs" },
     { name = "pip" },
     { name = "platformdirs" },
     { name = "pre-commit" },
@@ -946,15 +923,11 @@ tests-min = [
 [package.metadata]
 requires-dist = [
     { name = "arviz-stats", marker = "extra == 'plots'", specifier = ">=0.6.0" },
-    { name = "cma", marker = "extra == 'cma'", specifier = ">=3.3.0" },
-    { name = "elicito", extras = ["cma"], marker = "extra == 'full'" },
-    { name = "elicito", extras = ["pandas"], marker = "extra == 'full'" },
     { name = "elicito", extras = ["plots"], marker = "extra == 'full'" },
     { name = "elicito", extras = ["scipy"], marker = "extra == 'full'" },
     { name = "joblib", specifier = ">=1.4.2" },
     { name = "matplotlib", marker = "extra == 'plots'", specifier = ">=3.7.1" },
     { name = "numpy", specifier = ">=1.24" },
-    { name = "pandas", marker = "extra == 'pandas'", specifier = ">=2.2.3" },
     { name = "scipy", marker = "extra == 'scipy'", specifier = ">=1.14.0" },
     { name = "tensorflow", specifier = ">=2.16.0" },
     { name = "tensorflow-probability", specifier = ">=0.24.0" },
@@ -962,7 +935,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.38" },
     { name = "xarray", specifier = ">=2025.9.0" },
 ]
-provides-extras = ["plots", "pandas", "scipy", "cma", "full"]
+provides-extras = ["plots", "scipy", "full"]
 
 [package.metadata.requires-dev]
 all-dev = [
@@ -1055,7 +1028,6 @@ all-dev = [
     { name = "overrides", specifier = "==7.7.0" },
     { name = "packaging", specifier = "==24.2" },
     { name = "paginate", specifier = "==0.5.7" },
-    { name = "pandas-stubs", specifier = ">=2.3.0.250703" },
     { name = "pandocfilters", specifier = "==1.5.1" },
     { name = "parso", specifier = "==0.8.4" },
     { name = "pathspec", specifier = "==0.12.1" },
@@ -1129,7 +1101,6 @@ dev = [
     { name = "mypy", specifier = "==1.14.0" },
     { name = "mypy-extensions", specifier = "==1.0.0" },
     { name = "nodeenv", specifier = "==1.9.1" },
-    { name = "pandas-stubs", specifier = ">=2.3.0.250703" },
     { name = "pip", specifier = "==24.3.1" },
     { name = "platformdirs", specifier = "==4.3.6" },
     { name = "pre-commit", specifier = "==4.0.1" },
@@ -2893,19 +2864,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/8d/36dade89b49e4f9d5cbdbe863772581f98c0c6d78fc39ad4c557f6f2e17e/pandas-3.0.5-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:db172144bb56422bd157812f3b021eacc255451470b31e2c633c349490a1cfee", size = 11989004, upload-time = "2026-07-22T22:18:42.208Z" },
     { url = "https://files.pythonhosted.org/packages/9c/ba/18c4ec8a746e177da05a9e7a7963781d8ea195780724f854601b6ebd6b78/pandas-3.0.5-cp313-cp313-win_amd64.whl", hash = "sha256:0d298e951f23016ce4699951d044ae6418dbc91bf68cefca0f77666fcbb4e5c6", size = 9826896, upload-time = "2026-07-22T22:18:44.539Z" },
     { url = "https://files.pythonhosted.org/packages/de/ec/28a57266b753799a87b8bc79e7887ac6fd981b8c6d2978a0b7e7b6bd708c/pandas-3.0.5-cp313-cp313-win_arm64.whl", hash = "sha256:66266d3442a5e8b3c90274c2b8b230bee42dd1c286bc822cc2f9f2c7e12b883e", size = 9094790, upload-time = "2026-07-22T22:18:47.468Z" },
-]
-
-[[package]]
-name = "pandas-stubs"
-version = "3.0.5.260730"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c2/d2/dea4a3a56b7b5f69c5fbca9f14625fcf28e1a39a657e9833d4a10bcac593/pandas_stubs-3.0.5.260730.tar.gz", hash = "sha256:f70a232c57d93a5a2c81f8a53953e10891a5374bc92652277deb325e2e4d0ff3", size = 114631, upload-time = "2026-07-30T14:31:42.271Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/60/c2/959caec5c46f484b5f8bb6def4b0cf7a45ba6acda26f12b75142d98cc5ae/pandas_stubs-3.0.5.260730-py3-none-any.whl", hash = "sha256:60e90e3e1eda6937e337e243cbe6217e151c11137cd7eddf832af537c7310bfd", size = 174807, upload-time = "2026-07-30T14:31:41.17Z" },
 ]
 
 [[package]]
