@@ -165,3 +165,66 @@ class TestPlottingFunctions:
         """Test priorpredictive plot with non-existent target."""
         with pytest.raises((ValueError, KeyError)):
             el.plots.priorpredictive(fitted_eliobj, target="nonexistent_target")
+
+
+def test_density_of_a_collapsed_parameter():
+    """two distinct draws have no density; the panel must not raise"""
+    fig, ax = plt.subplots()
+
+    two_values = np.where(np.arange(1000) % 2 == 0, 0.0, 17.5)
+    el.plots._plot_density(ax, two_values, "ts", color="black")
+    # one vertical line per value, instead of a density
+    assert len(ax.lines) == 2
+
+    el.plots._plot_density(ax, np.full(1000, 3.0), "s0", color="black")
+    assert len(ax.lines) == 3
+
+    plt.close(fig)
+
+
+def test_density_leaves_out_non_finite_draws():
+    """a single non-finite draw must not remove the density"""
+    fig, ax = plt.subplots()
+
+    draws = np.concatenate([np.random.default_rng(0).normal(size=999), [np.inf]])
+    el.plots._plot_density(ax, draws, "b", color="black")
+
+    assert len(ax.lines) == 1
+    assert bool(np.isfinite(ax.lines[0].get_xdata()).all())
+    plt.close(fig)
+
+
+def test_prior_joint_survives_a_density_that_fails(fitted_eliobj, monkeypatch):
+    """a density that raises must cost one panel, not the whole figure"""
+    from arviz_stats.base import array_stats
+
+    def failing_kde(ary, **kwargs):
+        msg = "cannot convert float infinity to integer"
+        raise OverflowError(msg)
+
+    monkeypatch.setattr(array_stats, "kde", failing_kde)
+
+    fig, axes = el.plots.prior_joint(fitted_eliobj)
+
+    # every density is empty, and the scatter panels are still drawn
+    assert all(len(axes[i, i].lines) == 0 for i in range(axes.shape[0]))
+    assert len(axes[0, 1].lines) == 1
+    plt.close(fig)
+
+
+def test_prior_joint_panels_share_the_axis_of_their_column(fitted_eliobj):
+    """the scatter of column j uses the parameter of the density in column j"""
+    priors = (
+        fitted_eliobj.results.prior.sel(replication=0)
+        .to_dataset()
+        .to_array()
+        .stack(stacked=("batch", "draw"))
+        .values
+    )
+    fig, axes = el.plots.prior_joint(fitted_eliobj)
+
+    # the column sets x, the row sets y
+    scatter = axes[0, 1].lines[0]
+    np.testing.assert_allclose(scatter.get_xdata(), priors[1], rtol=1e-6)
+    np.testing.assert_allclose(scatter.get_ydata(), priors[0], rtol=1e-6)
+    plt.close(fig)
