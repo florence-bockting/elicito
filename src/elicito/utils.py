@@ -5,7 +5,7 @@ helper functions for setting up the Elicit object
 import logging
 import os
 import pickle
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import cloudpickle  # type: ignore
 import tensorflow as tf
@@ -719,6 +719,71 @@ def load(file: str) -> Any:
         eliobj.temp_results = obj["temp_results"]
 
     return eliobj
+
+
+def add_derived(samples: Any, **derived: Callable[[Any], Any]) -> None:
+    """
+    Add derived parameters to the prior samples
+
+    A derived parameter is a function of the model parameters, computed in the
+    generative model and not sampled. It is therefore not in the prior group
+    of the samples. This function computes it from the prior samples and
+    stores it there. The plotting functions can then select it by name.
+
+    Parameters
+    ----------
+    samples
+        result of :func:`elicito.Elicit.sample`. The prior group is changed
+        in place.
+
+    **derived
+        one function per derived parameter, named by the argument. Each
+        function gets the prior samples as an ``xarray.Dataset`` and returns
+        the derived samples.
+
+    Examples
+    --------
+    >>> samples = eliobj.sample()  # doctest: +SKIP
+    >>> el.utils.add_derived(  # doctest: +SKIP
+    ...     samples,
+    ...     h1=lambda prior: prior["hts"] + prior["dh"],
+    ... )
+    >>> el.plots.prior_marginals(  # doctest: +SKIP
+    ...     eliobj, params=["h1", "hts"], samples=samples
+    ... )
+
+    Raises
+    ------
+    KeyError
+        Can't find 'prior' in the samples.
+
+    ValueError
+        A name in ``derived`` is already a model parameter.
+
+    """
+    try:
+        prior = samples["prior"]
+    except KeyError:
+        raise KeyError(  # noqa: TRY003
+            "No 'prior' group found. Pass the result of 'eliobj.sample()'."
+        )
+
+    model_params = prior.attrs["model_parameters"]
+    # `to_dataset` copies the samples out of the DataTree node, so the new
+    # variables are written back with the setter below
+    prior_samples = prior.to_dataset()
+
+    for name, function in derived.items():
+        if name in model_params:
+            raise ValueError(
+                f"'{name}' is a model parameter. A derived parameter needs"
+                + " a name of its own."
+            )
+        if name in prior_samples.data_vars:
+            logger.info(f"Replacing the derived parameter '{name}'.")
+        prior_samples[name] = function(prior_samples)
+
+    samples["prior"].dataset = prior_samples
 
 
 def parallel(
