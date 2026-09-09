@@ -262,7 +262,12 @@ class DenseCouplingNet(tf.keras.Model):  # type: ignore
         out :
             residual output
         """
-        self.fc.build(input_shape=target.shape)
+        # Keras stores the full shape, batch dimensions included, and
+        # refuses a second build with a different one. The dense layers
+        # only read the last axis, so one build is enough. Without the
+        # guard, B and num_samples cannot change after the first call.
+        if not self.fc.built:
+            self.fc.build(input_shape=target.shape)
         # Handle case no condition
         if condition is None:
             if self.residual_output is not None:

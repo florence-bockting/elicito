@@ -2,8 +2,11 @@
 Strategy objects for the prior-learning methods
 """
 
+import contextlib
+from collections.abc import Iterator
 from typing import Any, Protocol
 
+import numpy as np
 import tensorflow as tf
 
 import elicito as el
@@ -17,6 +20,37 @@ from elicito.types import (
     Target,
     Trainer,
 )
+
+
+@contextlib.contextmanager
+def numpy_seed(seed: int) -> Iterator[None]:
+    """
+    Seed the numpy global generator for the duration of the block
+
+    A network can draw from the numpy global generator while it is built.
+    `elicito.networks.Permutation` does, and `tf.random.set_seed` does not
+    control that generator. Two networks built from the same seed then
+    permute differently, and a fitted network cannot be rebuilt from its
+    stored weights.
+
+    The generator of the caller is restored on exit.
+
+    Parameters
+    ----------
+    seed
+        Seed of the current workflow run.
+
+    Yields
+    ------
+    :
+        None. The block runs with the seeded generator.
+    """
+    state = np.random.get_state()  # noqa: NPY002
+    np.random.seed(seed)  # noqa: NPY002
+    try:
+        yield
+    finally:
+        np.random.set_state(state)  # noqa: NPY002
 
 
 def _constraints(parameters: list[Parameter]) -> dict[str, Any]:
@@ -405,7 +439,10 @@ class DeepPrior:
         if network is not None:
             INN = network["inference_network"]
 
-            invertible_neural_network = INN(**network["network_specs"])  # type: ignore [call-arg]
+            # The permutation layers draw from the numpy global generator,
+            # see `numpy_seed`.
+            with numpy_seed(seed):
+                invertible_neural_network = INN(**network["network_specs"])  # type: ignore [call-arg]
 
             # save initialized priors
             init_prior = invertible_neural_network
