@@ -234,8 +234,9 @@ def test_integration_initialization():
     )
 
     # check whether prior samples reflect corresponding initial hyperparameter
-    means = eliobj.results.prior.mean().to_dataset().to_array().values
-    stds = eliobj.results.prior.std().to_dataset().to_array().values
+    draws = eliobj.sample()
+    means = draws["prior"].mean().to_dataset().to_array().values
+    stds = draws["prior"].std().to_dataset().to_array().values
 
     np.testing.assert_allclose(means, [0.0, 1.0], atol=0.03)
     # the box gives the unconstrained values 2.0 and 3.0. A scale is bounded

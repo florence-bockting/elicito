@@ -242,14 +242,16 @@ def test_prior_joint_survives_a_density_that_fails(fitted_eliobj, monkeypatch):
 
 def test_prior_joint_panels_share_the_axis_of_their_column(fitted_eliobj):
     """the scatter of column j uses the parameter of the density in column j"""
+    draws = fitted_eliobj.sample()
     priors = (
-        fitted_eliobj.results.prior.sel(replication=0)
+        draws["prior"]
+        .sel(replication=0)
         .to_dataset()
         .to_array()
         .stack(stacked=("batch", "draw"))
         .values
     )
-    fig, axes = el.plots.prior_joint(fitted_eliobj)
+    fig, axes = el.plots.prior_joint(fitted_eliobj, samples=draws)
 
     # the column sets x, the row sets y
     scatter = axes[0, 1].lines[0]

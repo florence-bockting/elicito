@@ -370,6 +370,41 @@ def hyperparameter(
     return fig, axes
 
 
+def _get_samples(eliobj: Any, samples: Any) -> Any:
+    """
+    Return the samples to plot
+
+    The simulated quantities are not part of `eliobj.results`. Either the
+    caller passes the result of `eliobj.sample()`, or the plot runs one
+    forward simulation of its own.
+
+    Parameters
+    ----------
+    eliobj :
+        fitted eliobj object.
+
+    samples :
+        result of `eliobj.sample()`, or None.
+
+    Returns
+    -------
+    :
+        xr.DataTree with the simulated quantities
+
+    Raises
+    ------
+    AttributeError
+        eliobj has not been fitted yet.
+    """
+    if samples is not None:
+        return samples
+    if not hasattr(eliobj, "results"):
+        raise AttributeError(  # noqa: TRY003
+            "No results found in 'eliobj'. Fit the eliobj first."
+        )
+    return eliobj.sample()
+
+
 def _select_params(name_params: list[str], params: list[str] | None) -> list[str]:
     """
     Keep the requested model parameters, in the order of the request
@@ -410,6 +445,7 @@ def prior_joint(
     idx: int | list[int] | None = None,
     titles: list[str] | None = None,
     params: list[str] | None = None,
+    samples: Any = None,
     **kwargs: dict[Any, Any],
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
@@ -434,6 +470,9 @@ def prior_joint(
     params : list of str, optional
         names of the model parameters to plot, in the order of the rows and
         columns. If None, all model parameters are plotted.
+    samples : xr.DataTree, optional
+        result of :func:`elicito.Elicit.sample`. If None, the plot runs one
+        forward simulation of its own.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -458,7 +497,7 @@ def prior_joint(
         A name in 'params' is not a model parameter.
 
     AttributeError
-        Can't find 'prior' in 'eliobj.results'
+        eliobj has not been fitted yet.
 
     """
     try:
@@ -469,15 +508,17 @@ def prior_joint(
             "plotting", requirement="matplotlib"
         ) from exc
 
+    samples = _get_samples(eliobj, samples)
+
     if idx is None:
         idx = [0]
     if type(idx) is not list:
         idx = [idx]  # type: ignore
-    if len(idx) > eliobj.results.prior.sizes["replication"]:
+    if len(idx) > samples["prior"].sizes["replication"]:
         raise ValueError(
             "The value for 'idx' is larger than the number"
             + " of parallelizations. 'idx' should not exceed"
-            + f" {eliobj.results.prior.sizes['replication']} but got {len(idx)}."
+            + f" {samples['prior'].sizes['replication']} but got {len(idx)}."
         )
     if eliobj.results.history_stats.loss.sizes["epoch"] < eliobj.trainer["epochs"]:
         seed = eliobj.results.history_stats.seed_replication.sel(replication=idx).values
@@ -486,16 +527,9 @@ def prior_joint(
             + " No results for plotting available."
         )
 
-    # check that all information can be assessed
-    try:
-        eliobj.results.prior
-    except AttributeError:
-        raise AttributeError(  # noqa: TRY003
-            "No information about 'prior' found in 'eliobj.results'."
-        )
     cmap = mpl.colormaps["turbo"]
     # get parameter names
-    name_params = _select_params(list(eliobj.results.prior.data_vars), params)
+    name_params = _select_params(list(samples["prior"].data_vars), params)
     n_params = len(name_params)
     _, _, titles = _get_names_titles(name_params, titles)
 
@@ -508,7 +542,8 @@ def prior_joint(
     for c, k in enumerate(idx):
         # reshape samples by merging batches and number of samples
         priors = (
-            eliobj.results.prior.sel(replication=k)
+            samples["prior"]
+            .sel(replication=k)
             .to_dataset()[name_params]
             .to_array()
             .stack(stacked=("batch", "draw"))
@@ -542,6 +577,7 @@ def prior_marginals(
     cols: int = 4,
     titles: list[str] | None = None,
     params: list[str] | None = None,
+    samples: Any = None,
     **kwargs: Any,
 ) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
@@ -560,6 +596,9 @@ def prior_marginals(
     params : list of str, optional
         names of the model parameters to plot, in the order of the subplots.
         If None, all model parameters are plotted.
+    samples : xr.DataTree, optional
+        result of :func:`elicito.Elicit.sample`. If None, the plot runs one
+        forward simulation of its own.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -576,19 +615,20 @@ def prior_marginals(
     Raises
     ------
     AttributeError
-        Can't find 'prior' in 'eliobj.results'
+        eliobj has not been fitted yet.
 
     ValueError
         A name in 'params' is not a model parameter.
     """
-    eliobj_res, parallel, n_reps = _check_parallel(eliobj)
+    samples = _get_samples(eliobj, samples)
+    _, parallel, n_reps = _check_parallel(eliobj)
     # check chains that yield NaN
     if parallel:
         _, success, _ = _check_NaN(eliobj, n_reps)
     else:
         success = [0]
     # get parameter names, and keep only the requested ones
-    name_params = _select_params(list(eliobj.results.prior.data_vars), params)
+    name_params = _select_params(list(samples["prior"].data_vars), params)
     # get shape of prior samples
     n_par = len(name_params)
     _, _, titles = _get_names_titles(name_params, titles)
@@ -598,20 +638,13 @@ def prior_marginals(
     kwargs.setdefault("figsize", (cols * 2, rows * 2))
     kwargs.setdefault("constrained_layout", True)
 
-    # check that all information can be assessed
-    try:
-        eliobj_res.prior
-    except AttributeError:
-        raise AttributeError(  # noqa: TRY003
-            "No information about 'prior' found in 'eliobj.results'."
-        )
-
     fig, axes = _setup_grid(rows, cols, **kwargs)
 
     for j, (ax, title) in enumerate(zip(axes, titles)):
         for i in success:
             priors = (
-                eliobj.results.prior.sel(replication=i)
+                samples["prior"]
+                .sel(replication=i)
                 .to_dataset()[name_params]
                 .stack(combined=("batch", "draw"))
                 .to_array()
@@ -635,7 +668,7 @@ def prior_marginals(
 
 
 def elicits(
-    eliobj: Any, cols: int = 4, **kwargs: Any
+    eliobj: Any, cols: int = 4, samples: Any = None, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the expert-elicited vs. model-simulated statistics.
@@ -647,6 +680,9 @@ def elicits(
     cols : int, optional
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
+    samples : xr.DataTree, optional
+        result of :func:`elicito.Elicit.sample`. If None, the plot runs one
+        forward simulation of its own.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -666,10 +702,11 @@ def elicits(
         No information about expert 'elicited_summary' found.
 
     """
+    samples = _get_samples(eliobj, samples)
     # check whether parallelization has been used
-    eliobj_res, parallel, n_reps = _check_parallel(eliobj)
+    _, parallel, n_reps = _check_parallel(eliobj)
     # get number of elicited summaries
-    n_elicits = len(eliobj_res.elicited_summary.data_vars)
+    n_elicits = len(samples["elicited_summary"].data_vars)
     # check chains that yield NaN
     if parallel:
         _, success, _ = _check_NaN(eliobj, n_reps)
@@ -682,7 +719,7 @@ def elicits(
     kwargs.setdefault("constrained_layout", True)
 
     # extract quantities of interest needed for plotting
-    name_elicits = list(eliobj_res.elicited_summary.data_vars)
+    name_elicits = list(samples["elicited_summary"].data_vars)
     method_name = [name_elicits[i].split("_")[0] for i in range(n_elicits)]
 
     # check that all information can be assessed
@@ -711,7 +748,7 @@ def elicits(
         elif meth == "cor":
             labels = [("expert", "train")] + [(None, None) for _ in range(n_reps - 1)]
             method = _correlation
-            num_cor = eliobj.results.elicited_summary.to_dataset()[elicit].shape[-1]
+            num_cor = samples["elicited_summary"].to_dataset()[elicit].shape[-1]
             prep = (
                 ax.set_ylim(-1, 1),
                 ax.set_xlim(-0.5, num_cor),
@@ -727,7 +764,7 @@ def elicits(
                 method(
                     ax,
                     expert_res.sel(replication=i)[elicit].values,
-                    eliobj.results.elicited_summary.sel(replication=i)[elicit].values,
+                    samples["elicited_summary"].sel(replication=i)[elicit].values,
                     labels[i],
                 )
                 + prep
@@ -862,7 +899,7 @@ def marginals(
 
 
 def priorpredictive(
-    eliobj: Any, target: str, replication: int = 0, **kwargs: Any
+    eliobj: Any, target: str, replication: int = 0, samples: Any = None, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot prior predictive distribution (PPD)
@@ -877,6 +914,9 @@ def priorpredictive(
         name of the target quantity to be plotted.
     replication : int, optional
         index of the replication to be plotted. The default is ``0``.
+    samples : xr.DataTree, optional
+        result of :func:`elicito.Elicit.sample`. If None, the plot runs one
+        forward simulation of its own.
     kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -889,21 +929,15 @@ def priorpredictive(
     Raises
     ------
     AttributeError
-        Can't find 'target_quantity' in 'eliobj.results'.
+        eliobj has not been fitted yet.
 
     ValueError
         Can't find '=target' in list of target quantity names.
 
     """
-    # check that all information can be assessed
-    try:
-        eliobj.results.target_quantity
-    except AttributeError:
-        raise AttributeError(  # noqa: TRY003
-            "No information about 'target_quantity' found in 'eliobj.results'."
-        )
+    samples = _get_samples(eliobj, samples)
 
-    tar_name = list(eliobj.results.target_quantity.data_vars)
+    tar_name = list(samples["target_quantity"].data_vars)
     if target not in tar_name:
         raise ValueError(  # noqa: TRY003
             f"Can't find {target} in list of target quantity names: {tar_name}"
@@ -913,7 +947,7 @@ def priorpredictive(
     kwargs.setdefault("constrained_layout", True)
 
     target_reshaped = (
-        eliobj.results.target_quantity[target]
+        samples["target_quantity"][target]
         .to_dataset()
         .stack(stacked=("batch", "draw"))
         .to_array()
@@ -950,6 +984,7 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
     weight_factor: float = 1.0,
     seed: int = 123,
     xlim_weights: float = 0.2,
+    samples: Any = None,
     **kwargs: dict[Any, Any],
 ) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
@@ -972,6 +1007,9 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
         weighting factor of each model in prior averaging
     xlim_weights : float, optional
         limit of x-axis of weights plot
+    samples : xr.DataTree, optional
+        result of :func:`elicito.Elicit.sample`. If None, the plot runs one
+        forward simulation of its own.
     kwargs : any, optional
         additional arguments passed to matplotlib
     """
@@ -988,6 +1026,8 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
         raise MissingOptionalDependencyError(
             "plotting", requirement="arviz_stats"
         ) from exc
+
+    samples = _get_samples(eliobj, samples)
 
     # prepare plotting
     n_par = len(eliobj.parameters)
@@ -1008,7 +1048,7 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
 
     # perform model averaging
     (w_MMD, averaged_priors, B, n_samples) = _model_averaging(
-        eliobj, weight_factor, success, n_sim, seed
+        eliobj, weight_factor, success, n_sim, seed, samples
     )
     # sort the seeds by weight, largest weight first
     order = np.argsort(w_MMD)[::-1]
@@ -1043,7 +1083,8 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
         # Plot prior samples for each success
         for i in success:
             prior = (
-                eliobj.results.prior.sel(replication=i)
+                samples["prior"]
+                .sel(replication=i)
                 .to_dataset()
                 .stack(stacked=("batch", "draw"))
                 .to_array()
@@ -1087,6 +1128,7 @@ def _model_averaging(  # noqa: PLR0913
     success: Any,
     n_sim: int,
     seed: int,
+    samples: Any,
     last_vals: int = 30,
 ) -> tuple[Any, ...]:
     # compute final loss per run by averaging over last x values
@@ -1112,7 +1154,7 @@ def _model_averaging(  # noqa: PLR0913
     # extract prior samples; shape = (num_sims, B*sim_prior, num_param)
     prior_samples = np.stack(
         [
-            eliobj.results.prior.sel(replication=i).to_dataset().to_array().values
+            samples["prior"].sel(replication=i).to_dataset().to_array().values
             for i in success
         ]
     )
