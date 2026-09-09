@@ -235,13 +235,18 @@ def create_hyperparameter_group(history: list[Any]) -> xr.Dataset:
         }
     )
 
-    ds_hyp_grad = to_dataset(
-        obj=history,
-        group="hyperparameter_gradient",
-        dims=MAIN_DIMS,
-        names_subgroups=[f"grad_{k}" for k in hyp_names],
-    )
-    hyp_group = ds_hyp.merge(ds_hyp_grad)
+    # a derivative-free fitter, such as CMA-ES, records no gradient
+    has_gradients = any(rep.get("hyperparameter_gradient") for rep in history)
+    if has_gradients:
+        ds_hyp_grad = to_dataset(
+            obj=history,
+            group="hyperparameter_gradient",
+            dims=MAIN_DIMS,
+            names_subgroups=[f"grad_{k}" for k in hyp_names],
+        )
+        hyp_group = ds_hyp.merge(ds_hyp_grad)
+    else:
+        hyp_group = ds_hyp
 
     hyp_group = hyp_group.assign_coords(create_hist_corrds(history))
     hyp_group = hyp_group.assign_attrs(

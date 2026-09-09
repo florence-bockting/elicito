@@ -697,7 +697,22 @@ def optimizer(
     ----------
     optimizer
         Optimizer used for SGD implemented.
-        Must be a class implemented in [`tf.keras.optimizers`](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers)
+        Must be a class implemented in [`tf.keras.optimizers`](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers),
+        or the string ``"cmaes"``.
+
+        ``"cmaes"`` replaces the gradient descent by a CMA-ES search
+        ([`cma_training`][elicito.cmaes.cma_training]). It needs no gradient,
+        and it can leave a local basin. It is available for
+        ``method="parametric_prior"`` only, and it needs the optional
+        ``cma`` dependency. Its settings are ``sigma0``, the first step size
+        on the unconstrained scale, and ``popsize``, the number of candidates
+        in one generation. ``trainer(epochs=...)`` is then the budget in
+        forward simulations, not the number of generations.
+
+        ``sigma0`` is one number for every coordinate. Give a dictionary
+        ``{hyperparameter name: step size}`` if the hyperparameters do not
+        live on the same scale. A name that is not given gets the default
+        step size. An unknown name raises a ``ValueError``.
 
     **kwargs
         Additional keyword arguments expected by **optimizer**.
@@ -720,6 +735,16 @@ def optimizer(
     >>>     optimizer=tf.keras.optimizers.Adam,  # doctest: +SKIP
     >>>     learning_rate=0.1,  # doctest: +SKIP
     >>>     clipnorm=1.0  # doctest: +SKIP
+    >>> )  # doctest: +SKIP
+
+    >>> optimizer = el.optimizer(  # doctest: +SKIP
+    >>>     optimizer="cmaes",  # doctest: +SKIP
+    >>>     sigma0=0.5,  # doctest: +SKIP
+    >>> )  # doctest: +SKIP
+
+    >>> optimizer = el.optimizer(  # doctest: +SKIP
+    >>>     optimizer="cmaes",  # doctest: +SKIP
+    >>>     sigma0=dict(a_ts=0.1, b_ts=0.5),  # doctest: +SKIP
     >>> )  # doctest: +SKIP
     """
     optimizer_dict = dict(optimizer=optimizer)

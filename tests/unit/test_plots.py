@@ -258,3 +258,71 @@ def test_prior_joint_panels_share_the_axis_of_their_column(fitted_eliobj):
     np.testing.assert_allclose(scatter.get_xdata(), priors[1], rtol=1e-6)
     np.testing.assert_allclose(scatter.get_ydata(), priors[0], rtol=1e-6)
     plt.close(fig)
+
+
+def test_plots_without_an_initialization_group():
+    """`initializer(method="cmaes")` draws no candidates, so it writes no group"""
+    pytest.importorskip("cma")
+    from tests.utils import eliobj as base
+
+    eliobj = el.Elicit(
+        model=base.model,
+        parameters=base.parameters,
+        targets=base.targets,
+        expert=base.expert,
+        optimizer=el.optimizer(optimizer=el.cmaes.CMAES, sigma0=0.5, popsize=4),
+        trainer=el.trainer(method="parametric_prior", seed=0, epochs=8, progress=0),
+        initializer=el.initializer(
+            method="cmaes",
+            distribution=el.initialization.uniform(radius=1.0, mean=0.0),
+        ),
+    )
+    eliobj.fit()
+    assert "initialization" not in eliobj.results.children
+
+    # the names come from the model, so the convergence plot still works
+    fig, axes = el.plots.hyperparameter(eliobj)
+    names = el.initialization.hyper_names(eliobj.parameters)
+    assert [ax.get_title() for ax in axes] == names
+    plt.close(fig)
+
+    # the ecdf of the initialization distribution has nothing to show
+    with pytest.raises(KeyError, match="draws no candidates"):
+        el.plots.initialization(eliobj)
+
+
+def test_hyperparameter_plot_leaves_out_the_gradients(fitted_eliobj):
+    """the history holds a gradient per hyperparameter; they are not panels"""
+    recorded = list(fitted_eliobj.results.history_stats.hyperparameter.data_vars)
+    assert any(name.startswith("grad_") for name in recorded)
+
+    fig, axes = el.plots.hyperparameter(fitted_eliobj)
+    assert axes.shape == (len(el.initialization.hyper_names(fitted_eliobj.parameters)),)
+    plt.close(fig)
+
+
+def test_plots_accept_a_cmaes_fit():
+    """the plots read the epoch axis as generations, not as gradient steps"""
+    pytest.importorskip("cma")
+    from tests.utils import eliobj as base
+
+    eliobj = el.Elicit(
+        model=base.model,
+        parameters=base.parameters,
+        targets=base.targets,
+        expert=base.expert,
+        optimizer=el.optimizer(optimizer=el.cmaes.CMAES, sigma0=0.5, popsize=4),
+        trainer=el.trainer(method="parametric_prior", seed=0, epochs=12, progress=0),
+        initializer=el.initializer(
+            method="sobol",
+            iterations=2,
+            distribution=el.initialization.uniform(radius=1.0, mean=0.0),
+        ),
+    )
+    eliobj.fit()
+
+    # 12 evaluations of 4 candidates are 3 generations, not 12 epochs
+    el.plots.loss(eliobj)
+    el.plots.hyperparameter(eliobj)
+    el.plots.prior_joint(eliobj)
+    plt.close("all")

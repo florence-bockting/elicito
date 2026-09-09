@@ -859,3 +859,265 @@ def test_box_vector_reads_every_entry_of_the_box():
         radius=[1.0, 2.0], mean=[3.0, 4.0], hyper=["sigma0", "mu0"]
     )
     assert el.warmstart._box_vector(listed_box, names, "radius") == [2.0, 1.0]
+
+
+def test_cmaes_is_a_registered_initialization_method():
+    method = el.initialization.get_init_method("cmaes")
+
+    assert isinstance(method, el.initialization.CmaEs)
+    assert method.default_iterations == 500
+
+
+def test_cma_search_returns_one_value_per_hyperparameter():
+    pytest.importorskip("cma")
+
+    expert_elicits, _ = el.utils.get_expert_data(
+        base_eliobj.trainer,
+        base_eliobj.model,
+        base_eliobj.targets,
+        base_eliobj.expert,
+        base_eliobj.parameters,
+        base_eliobj.network,
+        base_eliobj.trainer["seed"],
+    )
+
+    hyperparams = el.cmaes.cma_search(
+        expert_elicited_statistics=expert_elicits,
+        parameters=base_eliobj.parameters,
+        trainer=base_eliobj.trainer,
+        model=base_eliobj.model,
+        targets=base_eliobj.targets,
+        expert=base_eliobj.expert,
+        distribution=el.initialization.uniform(radius=1.0, mean=0.0),
+        max_evals=12,
+        seed=0,
+    )
+
+    assert list(hyperparams) == el.initialization.hyper_names(base_eliobj.parameters)
+    assert all(np.isfinite(v) for v in hyperparams.values())
+
+
+def test_cma_search_falls_back_when_every_point_fails(monkeypatch, caplog):
+    """a point that failed is never returned as a start value"""
+    pytest.importorskip("cma")
+
+    monkeypatch.setattr(
+        el.warmstart,
+        "compile_score",
+        lambda **kwargs: lambda hyperparams: el.warmstart.PENALTY * 1.5,
+    )
+
+    with caplog.at_level("WARNING"):
+        hyperparams = el.cmaes.cma_search(
+            expert_elicited_statistics={},
+            parameters=base_eliobj.parameters,
+            trainer=base_eliobj.trainer,
+            model=base_eliobj.model,
+            targets=base_eliobj.targets,
+            expert=base_eliobj.expert,
+            distribution=el.initialization.uniform(radius=1.0, mean=2.0),
+            max_evals=12,
+            seed=0,
+        )
+
+    assert set(hyperparams.values()) == {2.0}
+    assert "every evaluated point failed" in caplog.text
+
+
+def _cmaes_eliobj(
+    epochs,
+    sigma0=0.5,
+    popsize=4,
+    method="parametric_prior",
+    init_method="sobol",
+):
+    """an eliobj that is fitted with the CMA-ES search instead of a gradient"""
+    return Elicit(
+        model=base_eliobj.model,
+        parameters=base_eliobj.parameters,
+        targets=base_eliobj.targets,
+        expert=base_eliobj.expert,
+        optimizer=el.optimizer(
+            optimizer=el.cmaes.CMAES, sigma0=sigma0, popsize=popsize
+        ),
+        trainer=el.trainer(method=method, seed=0, epochs=epochs, progress=0),
+        initializer=el.initializer(
+            method=init_method,
+            iterations=2,
+            distribution=el.initialization.uniform(radius=1.0, mean=0.0),
+        ),
+    )
+
+
+def test_cma_training_records_one_point_per_generation():
+    pytest.importorskip("cma")
+
+    eliobj = _cmaes_eliobj(epochs=12)
+    eliobj.fit()
+
+    loss = eliobj.results["history_stats/loss"]["total_loss"]
+    hyper = eliobj.results["history_stats/hyperparameter"]
+    # 12 evaluations, 4 candidates per generation
+    assert loss.sizes["epoch"] == 3
+    for name in el.initialization.hyper_names(base_eliobj.parameters):
+        assert hyper[name].sizes["epoch"] == 3
+    assert np.all(np.isfinite(loss.values))
+
+
+def test_cma_training_spends_the_budget(monkeypatch):
+    pytest.importorskip("cma")
+
+    calls = []
+    original = el.warmstart.evaluate
+
+    def counted(**kwargs):
+        calls.append(1)
+        return original(**kwargs)
+
+    monkeypatch.setattr(el.warmstart, "evaluate", counted)
+
+    eliobj = _cmaes_eliobj(epochs=12)
+    eliobj.fit()
+
+    # the budget, plus the final evaluation of the best point
+    assert len(calls) == 12 + 1
+
+
+def test_cma_training_improves_the_loss():
+    pytest.importorskip("cma")
+
+    eliobj = _cmaes_eliobj(epochs=40)
+    eliobj.fit()
+
+    loss = eliobj.results["history_stats/loss"]["total_loss"].values
+    assert loss[0, -1] < loss[0, 0]
+
+
+def test_step_size_reads_a_number():
+    assert el.cmaes._step_size(0.3, ["mu0", "sigma0"]) == (0.3, None)
+
+
+def test_step_size_orders_a_dict_like_the_variables():
+    names = ["mu0", "sigma0", "mu1"]
+    sigma0, stds = el.cmaes._step_size(dict(mu1=0.1, mu0=0.2), names)
+
+    # the scalar is 1.0, so `CMA_stds` alone sets the step size
+    assert sigma0 == 1.0
+    # `sigma0` is not given, so it gets the default
+    assert stds == [0.2, el.cmaes.DEFAULT_SIGMA0, 0.1]
+
+
+def test_step_size_fills_a_missing_name_from_the_default():
+    names = ["mu0", "sigma0", "mu1"]
+    box = dict(mu0=3.5, sigma0=3.5, mu1=3.5)
+
+    _, stds = el.cmaes._step_size(dict(mu1=0.1), names, box)
+
+    # `mu1` is given, the other two keep the value of the box
+    assert stds == [3.5, 3.5, 0.1]
+
+
+def test_step_size_rejects_an_unknown_hyperparameter():
+    with pytest.raises(ValueError, match="mu2"):
+        el.cmaes._step_size(dict(mu2=0.1), ["mu0", "sigma0"])
+
+
+def test_cma_training_accepts_a_step_size_per_hyperparameter():
+    pytest.importorskip("cma")
+
+    eliobj = _cmaes_eliobj(epochs=12, sigma0=dict(mu0=0.1, sigma2=1.0))
+    eliobj.fit()
+
+    loss = eliobj.results["history_stats/loss"]["total_loss"].values
+    assert np.all(np.isfinite(loss))
+    assert "sigma0=2 values" in repr(eliobj)
+
+
+def test_cmaes_init_drops_its_search_for_a_cmaes_training():
+    box = el.initialization.uniform(radius=1.0, mean=0.0)
+    method = el.initialization.resolve_init_method(
+        el.initializer(method="cmaes", distribution=box)
+    )
+
+    # the training runs the same search, so one search is enough
+    assert method.skips_search(dict(optimizer=el.cmaes.CMAES))
+    # a gradient training is a different search, so the start value is needed
+    assert not method.skips_search(dict(optimizer=tf.keras.optimizers.Adam))
+
+
+def test_warmstart_init_keeps_its_search_for_a_cmaes_training():
+    box = el.initialization.uniform(radius=1.0, mean=0.0)
+    method = el.initialization.resolve_init_method(
+        el.initializer(method="warmstart", distribution=box)
+    )
+
+    assert not method.skips_search(dict(optimizer=el.cmaes.CMAES))
+
+
+def test_box_step_size_reads_the_radius_of_the_box():
+    expert_elicits, _ = el.utils.get_expert_data(
+        base_eliobj.trainer,
+        base_eliobj.model,
+        base_eliobj.targets,
+        base_eliobj.expert,
+        base_eliobj.parameters,
+        base_eliobj.network,
+        base_eliobj.trainer["seed"],
+    )
+    box = el.initialization.uniform(radius=4.0, mean=0.0)
+
+    sigma0 = el.cmaes.box_step_size(
+        el.initializer(method="cmaes", distribution=box),
+        expert_elicits,
+        base_eliobj.parameters,
+    )
+
+    names = el.initialization.hyper_names(base_eliobj.parameters)
+    assert sigma0 == {name: 2.0 for name in names}
+
+    # a method that keeps its own search hands no box to the training
+    other = el.cmaes.box_step_size(
+        el.initializer(method="sobol", distribution=box),
+        expert_elicits,
+        base_eliobj.parameters,
+    )
+    assert other == el.cmaes.DEFAULT_SIGMA0
+
+
+def test_cma_training_runs_no_search_before_it(monkeypatch):
+    pytest.importorskip("cma")
+
+    calls = []
+    monkeypatch.setattr(el.cmaes, "cma_search", lambda **kwargs: calls.append(1) or {})
+
+    eliobj = _cmaes_eliobj(epochs=12, sigma0=None, init_method="cmaes")
+    eliobj.optimizer.pop("sigma0")
+    eliobj.fit()
+
+    assert calls == []
+    loss = eliobj.results["history_stats/loss"]["total_loss"].values
+    assert np.all(np.isfinite(loss))
+
+
+def test_cmaes_optimizer_rejects_the_deep_prior_method():
+    with pytest.raises(ValueError, match="parametric_prior"):
+        _cmaes_eliobj(epochs=12, method="deep_prior")
+
+
+def test_cmaes_optimizer_rejects_a_warmup():
+    eliobj = _cmaes_eliobj(epochs=12)
+    with pytest.raises(ValueError, match="warmup_epochs"):
+        Elicit(
+            model=eliobj.model,
+            parameters=eliobj.parameters,
+            targets=eliobj.targets,
+            expert=eliobj.expert,
+            optimizer=eliobj.optimizer,
+            trainer=eliobj.trainer,
+            initializer=el.initializer(
+                method="sobol",
+                iterations=2,
+                warmup_epochs=2,
+                distribution=el.initialization.uniform(radius=1.0, mean=0.0),
+            ),
+        )
