@@ -898,6 +898,7 @@ def trainer(  # noqa: PLR0913
     B: int = 128,
     num_samples: int = 200,
     progress: ProgressMethod = ProgressMethod.SHOW_PROGRESS,
+    kappa: float = 0.0,
 ) -> Trainer:
     """
     Specify training settings for learning the prior distribution(s).
@@ -925,6 +926,11 @@ def trainer(  # noqa: PLR0913
         whether training progress should be printed. Progress is shown if
         `progress=1` and muted if `progress=0`.
 
+    kappa
+        Weight of the spread penalty. The penalty keeps a prior away from a
+        point mass. Use it when a hyperparameter is not identified by the
+        elicited statistics. A value of 0 disables the penalty.
+
     Returns
     -------
     train_dict :
@@ -940,6 +946,8 @@ def trainer(  # noqa: PLR0913
         is 1.
 
         `progress` can only be 0 (mute progress) or 1 (print progress)
+
+        ``kappa`` cannot be negative.
 
     Examples
     --------
@@ -959,6 +967,11 @@ def trainer(  # noqa: PLR0913
         msg = "The number of epochs has to be greater 0." f" Got {epochs=}."
         raise ValueError(msg)
 
+    # check that the penalty weight is not negative
+    if kappa < 0:
+        msg = f"The weight kappa cannot be negative. Got {kappa=}."
+        raise ValueError(msg)
+
     # check that method is implemented
     if method not in ["parametric_prior", "deep_prior"]:
         msg = (
@@ -974,6 +987,7 @@ def trainer(  # noqa: PLR0913
         num_samples=int(num_samples),
         epochs=int(epochs),
         progress=progress,
+        kappa=float(kappa),
     )
     return train_dict
 

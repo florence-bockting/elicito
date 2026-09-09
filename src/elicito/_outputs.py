@@ -339,6 +339,13 @@ def create_loss_group(history: list[Any], results: list[Any]) -> xr.Dataset:
         name="loss",
     )
 
+    ds_loss["penalty"] = to_dataarray(
+        obj=history,
+        group="penalty",
+        dims=MAIN_DIMS,
+        name="penalty",
+    )
+
     ds_loss_comp = to_dataset(
         obj=history,
         group="loss_component",
