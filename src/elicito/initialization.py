@@ -612,8 +612,10 @@ def init_runs(  # noqa: PLR0913
 
     """
     # create a copy of the seed variable for incremental increase of seed
-    # for each initialization run
-    seed_copy = tf.identity(seed)
+    # for each initialization run. It stays a Python integer: a tensor seed
+    # reaches `tf.random.set_seed`, and the graph of a compiled forward pass
+    # then cannot read the global seed.
+    seed_copy = int(seed)
     # set seed
     tf.random.set_seed(seed)
     # initialize saving of results

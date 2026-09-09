@@ -61,11 +61,11 @@ def preprocess(elicited_statistics: dict[str, tf.Tensor]) -> dict[str, tf.Tensor
         # extract data
         tensor_elicit = elicited_statistics[name]
 
-        if tf.rank(tensor_elicit) > 2:  # noqa: PLR2004
+        if len(tensor_elicit.shape) > 2:  # noqa: PLR2004
             msg = "elicited statistics can only have 2 dimensions."
             raise AssertionError(msg)
 
-        if tf.rank(tensor_elicit) == 1:
+        if len(tensor_elicit.shape) == 1:
             # add a last axis for loss computation
             prep_elicit = tf.expand_dims(tensor_elicit, axis=-1)
             # store result

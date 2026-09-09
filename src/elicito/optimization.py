@@ -14,7 +14,7 @@ from elicito.losses import total_loss
 from elicito.methods import get_method
 from elicito.simulations import Priors
 from elicito.types import Parameter, Target, Trainer
-from elicito.utils import one_forward_simulation
+from elicito.utils import simulate_and_elicit
 
 tfd = tfp.distributions
 
@@ -130,16 +130,25 @@ def sgd_training(  # noqa: PLR0913, PLR0915
     n_skipped = 0
     n_skipped_total = 0
 
-    for epoch in epochs:
-        # runtime of one epoch
-        epoch_time_start = time.time()
+    # the same objects during the whole run, so the graph reads them and the
+    # optimizer updates them
+    trainable_vars = method.trainable_variables(prior_model)
 
+    # Traced once, then re-used. Eager execution dispatches every operation of
+    # the epoch from Python, and the tensors of one epoch are small, so that
+    # dispatch, and not the arithmetic, decides the runtime. Measured on the
+    # human growth model, one epoch went from 424 ms to 14.6 ms.
+    #
+    # Warning: no `tf.random.set_seed` may run inside this loop. It clears the
+    # kernel caches, and the next call rebuilds the whole graph, which costs
+    # 90 ms. The draws repeat without it, because the simulation seeds every
+    # distribution itself.
+    @tf.function(reduce_retracing=True)  # type: ignore [misc]
+    def train_step() -> Any:
         with tf.GradientTape() as tape:
             # generate simulations from model
-            (train_elicits, prior_sim, model_sim, target_quants) = (
-                one_forward_simulation(
-                    prior_model=prior_model, model=model, targets=targets, seed=seed
-                )
+            (train_elicits, prior_sim, model_sim, target_quants) = simulate_and_elicit(
+                prior_model=prior_model, model=model, targets=targets, seed=seed
             )
             # compute total loss as weighted sum
             (loss, indiv_losses, loss_components_expert, loss_components_training) = (
@@ -149,24 +158,60 @@ def sgd_training(  # noqa: PLR0913, PLR0915
                     targets=targets,
                 )
             )
-            trainable_vars = method.trainable_variables(prior_model)
-
-            # compute gradient of loss wrt trainable_variables
-            gradients = tape.gradient(loss, trainable_vars)
-
-        # check before the update, so a non-finite value never reaches the
-        # variables. A gradient can be non-finite while the loss is finite.
-        step_ok = bool(tf.math.is_finite(tf.squeeze(loss))) and all(
-            bool(tf.reduce_all(tf.math.is_finite(g)))
-            for g in gradients
-            if g is not None
+        # compute gradient of loss wrt trainable_variables
+        gradients = tape.gradient(loss, trainable_vars)
+        # checked in the graph. Read one value at a time, the check costs one
+        # device synchronisation per gradient.
+        step_ok = tf.math.is_finite(tf.squeeze(loss))
+        for gradient in gradients:
+            if gradient is not None:
+                step_ok = tf.logical_and(
+                    step_ok, tf.reduce_all(tf.math.is_finite(gradient))
+                )
+        return (
+            loss,
+            indiv_losses,
+            gradients,
+            step_ok,
+            train_elicits,
+            prior_sim,
+            model_sim,
+            target_quants,
+            loss_components_expert,
+            loss_components_training,
         )
 
-        if step_ok:
+    # the update is traced as well. In eager mode the optimizer dispatches
+    # about 450 operations per epoch for a model with twelve hyperparameters.
+    @tf.function(reduce_retracing=True)  # type: ignore [misc]
+    def apply_update(gradients: Any) -> None:
+        sgd_optimizer.apply_gradients(zip(gradients, trainable_vars))
+
+    for epoch in epochs:
+        # runtime of one epoch
+        epoch_time_start = time.time()
+
+        (
+            loss,
+            indiv_losses,
+            gradients,
+            step_ok,
+            train_elicits,
+            prior_sim,
+            model_sim,
+            target_quants,
+            loss_components_expert,
+            loss_components_training,
+        ) = train_step()
+
+        # the check happens before the update, so a non-finite value never
+        # reaches the variables. A gradient can be non-finite while the loss
+        # is finite.
+        if bool(step_ok):
             n_skipped = 0
             # update trainable_variables using gradient info with adam
             # optimizer
-            sgd_optimizer.apply_gradients(zip(gradients, trainable_vars))
+            apply_update(gradients)
         else:
             n_skipped += 1
             n_skipped_total += 1

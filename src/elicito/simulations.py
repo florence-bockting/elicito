@@ -2,12 +2,13 @@
 Simulations from prior and model
 """
 
+import inspect
 from typing import Any, Callable, Optional, Union
 
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-from elicito.methods import get_method
+from elicito.methods import get_method, seed_pair
 from elicito.types import ExpertDict, NFDict, Parameter, Trainer
 
 tfd = tfp.distributions
@@ -146,6 +147,11 @@ def intialize_priors(
     return get_method(method).build(parameters, network, init_matrix_slice, seed)
 
 
+# AutoGraph cannot build a control-flow graph for this function: it raises an
+# AssertionError in `cfg.py` on Python 3.13, up to TensorFlow 2.21. The
+# conversion is not needed, because every branch below tests a Python value
+# and never a tensor. The decorator skips the conversion and its warning.
+@tf.autograph.experimental.do_not_convert  # type: ignore [misc]
 def sample_from_priors(  # noqa: PLR0913
     initialized_priors: Union[None, dict[str, tf.Tensor], Callable[[Any], Any]],
     ground_truth: bool,
@@ -198,16 +204,17 @@ def sample_from_priors(  # noqa: PLR0913
         Samples from prior distributions.
 
     """
-    # set seed
-    tf.random.set_seed(seed)
     if ground_truth:
         # number of samples for ground truth
         rep_true = expert["num_samples"]
         priors = []
 
-        for pr in list(expert["ground_truth"].values()):
+        truths = list(expert["ground_truth"].values())
+        # one stateless seed per distribution, see `ParametricPrior.sample`
+        seeds = tfp.random.split_seed(seed_pair(seed), n=len(truths), salt="truth")
+        for pr, pr_seed in zip(truths, seeds):
             # sample from the prior distribution
-            prior_sample = pr.sample((1, rep_true))
+            prior_sample = pr.sample((1, rep_true), seed=pr_seed)
             # ensure that all samples have the same shape
             try:
                 prior_sample.shape
@@ -227,7 +234,7 @@ def sample_from_priors(  # noqa: PLR0913
         return prior_samples
 
     return get_method(method).sample(
-        initialized_priors, parameters, network, B, num_samples
+        initialized_priors, parameters, network, B, num_samples, seed
     )
 
 
@@ -256,14 +263,21 @@ def simulate_from_generator(
         simulated data from generative model.
 
     """
-    # set seed
-    tf.random.set_seed(seed)
     # get model and initialize generative model
     GenerativeModel = model["obj"]
     generative_model = GenerativeModel()
     # get model specific arguments (that are not prior samples)
     add_model_args = model.copy()
     add_model_args.pop("obj")
+    # A model that accepts a `seed` argument is given a stateless seed. Its
+    # draws then repeat without `tf.random.set_seed`, so the model can run
+    # inside a compiled forward pass. A model without the argument keeps the
+    # global generator, and repeats only if the caller sets the seed.
+    signature = inspect.signature(generative_model.__call__)
+    if "seed" in signature.parameters and "seed" not in add_model_args:
+        add_model_args["seed"] = tfp.random.split_seed(
+            seed_pair(seed), n=1, salt="model"
+        )[0]
     # simulate from generator
     if len(add_model_args) < 1:
         model_simulations = generative_model(prior_samples)
