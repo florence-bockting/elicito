@@ -940,7 +940,7 @@ tests-min = [
 [package.metadata]
 requires-dist = [
     { name = "arviz-stats", marker = "extra == 'plots'", specifier = ">=0.6.0" },
-    { name = "cma", marker = "extra == 'cma'", specifier = ">=3.3.0" },
+    { name = "cma", marker = "extra == 'cma'", specifier = ">=3.4.0" },
     { name = "elicito", extras = ["cma"], marker = "extra == 'full'" },
     { name = "elicito", extras = ["plots"], marker = "extra == 'full'" },
     { name = "elicito", extras = ["scipy"], marker = "extra == 'full'" },

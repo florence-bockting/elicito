@@ -52,7 +52,7 @@ scipy = [
     "scipy>=1.14.0"
 ]
 cma = [
-    "cma>=3.3.0"
+    "cma>=3.4.0"
 ]
 
 full = [
