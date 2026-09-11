@@ -744,10 +744,6 @@ def create_datatree(
         time_seed_ds.assign_coords(coords), children=history_dict
     )
 
-    # the learned trainable variables. Together with the generative model and
-    # the parameter definitions they reproduce the prior samples, the model
-    # simulations, the target quantities and the elicited summaries. Those
-    # four groups are therefore not stored; `Elicit.sample` computes them.
     weights_ds = create_result_group(
         results,
         group="learned_weights",
