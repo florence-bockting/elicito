@@ -10,7 +10,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 from tqdm import tqdm
 
-from elicito.losses import total_loss
+from elicito.losses import spread_penalty, total_loss
 from elicito.methods import get_method
 from elicito.simulations import Priors
 from elicito.types import Parameter, Target, Trainer
@@ -104,6 +104,8 @@ def sgd_training(  # noqa: PLR0913, PLR0915
     # prepare generative model
     prior_model = prior_model_init
     total_losses = []
+    penalties = []
+    kappa = trainer.get("kappa", 0.0)
     component_losses = []
     gradients_ep = []
     time_per_epoch = []
@@ -147,6 +149,9 @@ def sgd_training(  # noqa: PLR0913, PLR0915
                     targets=targets,
                 )
             )
+            # keep a non-identified prior away from a point mass
+            penalty = spread_penalty(prior_sim)
+            loss += kappa * penalty
         # compute gradient of loss wrt trainable_variables
         gradients = tape.gradient(loss, trainable_vars)
         step_ok = tf.math.is_finite(tf.squeeze(loss))
@@ -157,6 +162,7 @@ def sgd_training(  # noqa: PLR0913, PLR0915
                 )
         return (
             loss,
+            penalty,
             indiv_losses,
             gradients,
             step_ok,
@@ -178,6 +184,7 @@ def sgd_training(  # noqa: PLR0913, PLR0915
 
         (
             loss,
+            penalty,
             indiv_losses,
             gradients,
             step_ok,
@@ -209,6 +216,7 @@ def sgd_training(  # noqa: PLR0913, PLR0915
         # savings per epoch (independent from chosen method)
         time_per_epoch.append(epoch_time)
         total_losses.append(tf.squeeze(loss))
+        penalties.append(tf.squeeze(penalty))
         component_losses.append(indiv_losses)
 
         # the run cannot recover; stop after the epoch has been recorded
@@ -234,6 +242,7 @@ def sgd_training(  # noqa: PLR0913, PLR0915
 
     res_ep = {
         "loss": total_losses,
+        "penalty": penalties,
         "loss_component": component_losses,
         "time": time_per_epoch,
         "hyperparameter": res_dict,

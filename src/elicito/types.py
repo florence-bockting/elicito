@@ -163,6 +163,7 @@ class Trainer(TypedDict, total=False):
     epochs: int
     seed_chain: int
     progress: int
+    kappa: float
 
 
 class NFDict(TypedDict):

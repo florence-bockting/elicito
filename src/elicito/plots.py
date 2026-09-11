@@ -211,7 +211,11 @@ def loss(
     """
     eliobj_res, parallel, n_reps = _check_parallel(eliobj)
     # names of loss_components
-    names_losses = list(eliobj_res.history_stats.loss.data_vars)[1:]
+    names_losses = [
+        name
+        for name in eliobj_res.history_stats.loss.data_vars
+        if name not in ("total_loss", "penalty")
+    ]
     # get weights in targets
     if weighted:
         in_title = "weighted "
@@ -246,9 +250,9 @@ def loss(
             # preprocess loss_component results
             indiv_losses = (
                 eliobj.results.history_stats.loss.sel(replication=j)
-                .to_dataset()
+                .to_dataset()[names_losses]
                 .to_array()
-                .values[1:, :]
+                .values
             )
             if j == 0:
                 axes[1].plot(

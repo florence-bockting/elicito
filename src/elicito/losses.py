@@ -180,6 +180,37 @@ def total_loss(
     return (loss, individual_losses, elicit_expert_prep, elicit_training_prep)
 
 
+def spread_penalty(
+    prior_samples: tf.Tensor,  # shape=[B, num_samples, num_params]
+    eps: float = 1e-8,
+) -> tf.Tensor:  # shape=[]
+    """
+    Penalize priors that collapse to a point mass
+
+    Compute the negative mean log standard deviation of the marginal priors.
+    The value goes to infinity as one marginal standard deviation goes to
+    zero. Add it to the loss to keep a non-identified hyperparameter away
+    from a degenerate solution. See Manderson and Goudie (2023).
+
+    Parameters
+    ----------
+    prior_samples
+        Samples from the prior distributions.
+
+    eps
+        Constant added to the standard deviation. It keeps the logarithm
+        finite.
+
+    Returns
+    -------
+    penalty :
+        Negative mean log standard deviation across all model parameters.
+
+    """
+    sd = tf.math.reduce_std(prior_samples, axis=1)
+    return -tf.reduce_mean(tf.math.log(sd + eps))
+
+
 def L2(
     loss_component_expert: tf.Tensor,  # shape=[B, num_stats]
     loss_component_training: tf.Tensor,  # shape=[B, num_stats]
