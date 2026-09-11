@@ -126,9 +126,6 @@ Additional dependencies can be installed using
 
     # To add scipy dependency
     pip install 'elicito[scipy]'
-
-    # To add pandas dependency
-    pip install 'elicito[pandas]'
     ```
 
 ### For developers

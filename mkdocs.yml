@@ -78,7 +78,6 @@ plugins:
             - https://ncdata.readthedocs.io/en/stable/objects.inv
             - https://numpy.org/doc/stable/objects.inv
             - https://openscm-units.readthedocs.io/en/stable/objects.inv
-            - https://pandas.pydata.org/docs/objects.inv
             - https://pint.readthedocs.io/en/stable/objects.inv
             - https://www.fatiando.org/pooch/latest/objects.inv
             - https://docs.python.org/3/objects.inv
