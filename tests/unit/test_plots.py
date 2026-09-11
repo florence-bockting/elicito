@@ -118,6 +118,20 @@ class TestPlottingFunctions:
         assert [ax.get_xlabel() for ax in np.diag(axes)] == titles
         plt.close(fig)
 
+    def test_prior_joint_params(self, fitted_eliobj):
+        """Test that 'params' selects a subset of the parameters."""
+        names = [param["name"] for param in fitted_eliobj.parameters]
+        selected = [names[2], names[0]]
+        fig, axes = el.plots.prior_joint(fitted_eliobj, params=selected)
+        assert axes.shape == (2, 2)
+        assert [ax.get_xlabel() for ax in np.diag(axes)] == selected
+        plt.close(fig)
+
+    def test_prior_joint_unknown_param(self, fitted_eliobj):
+        """Test that an unknown name in 'params' raises a ValueError."""
+        with pytest.raises(ValueError, match="Unknown parameter"):
+            el.plots.prior_joint(fitted_eliobj, params=["not_a_parameter"])
+
     def test_prior_marginals_plot(self, fitted_eliobj):
         """Test the prior marginals plot function."""
         titles = ["$\beta_0$", "$\beta_1$", r"$\sigma$"]
@@ -126,6 +140,20 @@ class TestPlottingFunctions:
         assert axes.shape == (3,)
         assert [ax.get_title() for ax in axes] == titles
         plt.close(fig)
+
+    def test_prior_marginals_params(self, fitted_eliobj):
+        """Test that 'params' selects a subset of the parameters."""
+        names = [param["name"] for param in fitted_eliobj.parameters]
+        selected = [names[2], names[0]]
+        fig, axes = el.plots.prior_marginals(fitted_eliobj, params=selected)
+        assert axes.shape == (2,)
+        assert [ax.get_title() for ax in axes] == selected
+        plt.close(fig)
+
+    def test_prior_marginals_unknown_param(self, fitted_eliobj):
+        """Test that an unknown name in 'params' raises a ValueError."""
+        with pytest.raises(ValueError, match="Unknown parameter"):
+            el.plots.prior_marginals(fitted_eliobj, params=["not_a_parameter"])
 
     def test_elicits_plot(self, fitted_eliobj):
         """Test elicits plot with custom column layout."""

@@ -366,10 +366,46 @@ def hyperparameter(
     return fig, axes
 
 
+def _select_params(name_params: list[str], params: list[str] | None) -> list[str]:
+    """
+    Keep the requested model parameters, in the order of the request
+
+    Parameters
+    ----------
+    name_params
+        names of all model parameters, in the order of the prior samples.
+
+    params
+        names of the requested parameters. If None, all parameters are kept.
+
+    Returns
+    -------
+    :
+        names of the parameters to plot.
+
+    Raises
+    ------
+    ValueError
+        A name in 'params' is not a model parameter.
+
+    """
+    if params is None:
+        return name_params
+
+    unknown = [p for p in params if p not in name_params]
+    if unknown:
+        raise ValueError(
+            f"Unknown parameter(s) {unknown} in 'params'."
+            + f" Available parameters are {name_params}."
+        )
+    return list(params)
+
+
 def prior_joint(
     eliobj: Any,
     idx: int | list[int] | None = None,
     titles: list[str] | None = None,
+    params: list[str] | None = None,
     **kwargs: dict[Any, Any],
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
@@ -391,6 +427,9 @@ def prior_joint(
     titles : list of str, optional
         Labels for the main diagonal. If None, the names of the hyperparameters
         will be used. The length of titles should match the number of hyperparameters.
+    params : list of str, optional
+        names of the model parameters to plot, in the order of the rows and
+        columns. If None, all model parameters are plotted.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -411,6 +450,8 @@ def prior_joint(
         constraint type.
 
         The value for 'idx' is larger than the number of parallelizations.
+
+        A name in 'params' is not a model parameter.
 
     AttributeError
         Can't find 'prior' in 'eliobj.results'
@@ -450,7 +491,7 @@ def prior_joint(
         )
     cmap = mpl.colormaps["turbo"]
     # get parameter names
-    name_params = list(eliobj.results.prior.data_vars)
+    name_params = _select_params(list(eliobj.results.prior.data_vars), params)
     n_params = len(name_params)
     _, _, titles = _get_names_titles(name_params, titles)
 
@@ -464,7 +505,7 @@ def prior_joint(
         # reshape samples by merging batches and number of samples
         priors = (
             eliobj.results.prior.sel(replication=k)
-            .to_dataset()
+            .to_dataset()[name_params]
             .to_array()
             .stack(stacked=("batch", "draw"))
             .values
@@ -493,7 +534,11 @@ def prior_joint(
 
 
 def prior_marginals(
-    eliobj: Any, cols: int = 4, titles: list[str] | None = None, **kwargs: Any
+    eliobj: Any,
+    cols: int = 4,
+    titles: list[str] | None = None,
+    params: list[str] | None = None,
+    **kwargs: Any,
 ) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the convergence of each hyperparameter across epochs.
@@ -508,6 +553,9 @@ def prior_marginals(
     titles : list of str, optional
         titles for each subplot. If None, the names of the hyperparameters
         will be used. The length of titles should match the number of hyperparameters.
+    params : list of str, optional
+        names of the model parameters to plot, in the order of the subplots.
+        If None, all model parameters are plotted.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -525,6 +573,9 @@ def prior_marginals(
     ------
     AttributeError
         Can't find 'prior' in 'eliobj.results'
+
+    ValueError
+        A name in 'params' is not a model parameter.
     """
     eliobj_res, parallel, n_reps = _check_parallel(eliobj)
     # check chains that yield NaN
@@ -532,10 +583,10 @@ def prior_marginals(
         _, success, _ = _check_NaN(eliobj, n_reps)
     else:
         success = [0]
+    # get parameter names, and keep only the requested ones
+    name_params = _select_params(list(eliobj.results.prior.data_vars), params)
     # get shape of prior samples
-    n_par = len(list(eliobj.results.prior.data_vars))
-    # get parameter names
-    name_params = list(eliobj.results.prior.data_vars)
+    n_par = len(name_params)
     _, _, titles = _get_names_titles(name_params, titles)
     # prepare plot axes
     (cols, rows, _) = _prep_subplots(eliobj, cols, n_par, bounderies=False)
@@ -557,7 +608,7 @@ def prior_marginals(
         for i in success:
             priors = (
                 eliobj.results.prior.sel(replication=i)
-                .to_dataset()
+                .to_dataset()[name_params]
                 .stack(combined=("batch", "draw"))
                 .to_array()
                 .values
