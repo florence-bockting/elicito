@@ -278,8 +278,8 @@ class DenseCouplingNet(tf.keras.Model):  # type: ignore
         if len(tf.shape(target)) == 3 and len(tf.shape(condition)) == 2:  # noqa: PLR2004
             shape = tf.shape(target)
             condition = tf.expand_dims(condition, 1)
-            condition = tf.tile(condition, [1, shape[1], 1])
-        inp = tf.concat((target, condition), axis=-1)  # type: ignore
+            condition = tf.tile(condition, tf.stack([1, shape[1], 1]))
+        inp = tf.concat((target, condition), axis=-1)
         out = self.fc(inp, **kwargs)
 
         if self.residual_output is not None:
@@ -885,9 +885,9 @@ class InvertibleNetwork(tf.keras.Model):  # type: ignore
 
             # Needs to be concatinable with condition
             if len(condition_shape) == 2:  # noqa: PLR2004
-                shape_scale = (condition_shape[0], 1)
+                shape_scale = tf.stack([condition_shape[0], 1])
             else:
-                shape_scale = (condition_shape[0], condition_shape[1], 1)  # type: ignore
+                shape_scale = tf.stack([condition_shape[0], condition_shape[1], 1])
 
             # Case training mode
             if kwargs.get("training"):
@@ -1555,10 +1555,10 @@ class SplineCoupling(tf.keras.Model):  # type: ignore
                 "Spline flows can currently only operate on 2D and 3D inputs!"
             )
         parameters = tf.reshape(parameters, new_shape)
-        parameters = tf.split(
+        split_parameters = tf.split(
             parameters, list(self.spline_params_counts.values()), axis=-1
         )
-        return parameters  # type: ignore
+        return split_parameters  # type: ignore
 
     def _constrain_parameters(self, parameters: tuple[Any]) -> tuple[Any]:
         """Take care of zero spline parameters
