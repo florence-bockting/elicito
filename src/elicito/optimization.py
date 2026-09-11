@@ -149,8 +149,6 @@ def sgd_training(  # noqa: PLR0913, PLR0915
             )
         # compute gradient of loss wrt trainable_variables
         gradients = tape.gradient(loss, trainable_vars)
-        # checked in the graph. Read one value at a time, the check costs one
-        # device synchronisation per gradient.
         step_ok = tf.math.is_finite(tf.squeeze(loss))
         for gradient in gradients:
             if gradient is not None:
