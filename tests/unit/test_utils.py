@@ -28,6 +28,61 @@ from elicito.utils import (
 tfd = tfp.distributions
 
 
+@pytest.fixture
+def fitted_eliobj():
+    """Fixture providing a fitted elicit object for testing."""
+    from tests.utils import eliobj as base_eliobj
+
+    eliobj_copy = el.Elicit(
+        model=base_eliobj.model,
+        parameters=base_eliobj.parameters,
+        targets=base_eliobj.targets,
+        expert=base_eliobj.expert,
+        optimizer=base_eliobj.optimizer,
+        trainer=el.trainer(method="parametric_prior", seed=0, epochs=1, progress=0),
+        initializer=el.initializer(
+            method="sobol",
+            iterations=1,
+            distribution=el.initialization.uniform(radius=1.0, mean=0.0),
+        ),
+    )
+    eliobj_copy.fit()
+    return eliobj_copy
+
+
+def test_add_derived(fitted_eliobj):
+    """Test that a derived parameter is added to the prior samples."""
+    draws = fitted_eliobj.sample()
+    names = list(draws["prior"].data_vars)
+
+    el.utils.add_derived(draws, total=lambda prior: prior[names[0]] + prior[names[1]])
+
+    samples = draws["prior"].to_dataset()
+    assert "total" in samples.data_vars
+    np.testing.assert_allclose(
+        samples["total"].values, (samples[names[0]] + samples[names[1]]).values
+    )
+    # the derived parameter can be selected in the plots
+    assert [*names, "total"] == list(samples.data_vars)
+
+
+def test_add_derived_rejects_model_parameter(fitted_eliobj):
+    """Test that a derived parameter can't overwrite a model parameter."""
+    draws = fitted_eliobj.sample()
+    name = fitted_eliobj.parameters[0]["name"]
+
+    with pytest.raises(ValueError, match="is a model parameter"):
+        el.utils.add_derived(draws, **{name: lambda prior: prior[name]})
+
+
+def test_add_derived_requires_samples():
+    """Test that a tree without a prior group raises a KeyError."""
+    tree = xr.DataTree(name="samples")
+
+    with pytest.raises(KeyError, match="No 'prior' group found"):
+        el.utils.add_derived(tree, total=lambda prior: prior)
+
+
 def test_save_as_pkl():
     test_object = xr.DataTree(xr.Dataset({"a": 1, "b": [1, 2, 3]}))
     test_path = "tests/test-data/test_object.pkl"
