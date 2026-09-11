@@ -189,9 +189,6 @@ def sgd_training(  # noqa: PLR0913, PLR0915
             loss_components_training,
         ) = train_step()
 
-        # the check happens before the update, so a non-finite value never
-        # reaches the variables. A gradient can be non-finite while the loss
-        # is finite.
         if bool(step_ok):
             n_skipped = 0
             # update trainable_variables using gradient info with adam
