@@ -130,19 +130,8 @@ def sgd_training(  # noqa: PLR0913, PLR0915
     n_skipped = 0
     n_skipped_total = 0
 
-    # the same objects during the whole run, so the graph reads them and the
-    # optimizer updates them
     trainable_vars = method.trainable_variables(prior_model)
 
-    # Traced once, then re-used. Eager execution dispatches every operation of
-    # the epoch from Python, and the tensors of one epoch are small, so that
-    # dispatch, and not the arithmetic, decides the runtime. Measured on the
-    # human growth model, one epoch went from 424 ms to 14.6 ms.
-    #
-    # Warning: no `tf.random.set_seed` may run inside this loop. It clears the
-    # kernel caches, and the next call rebuilds the whole graph, which costs
-    # 90 ms. The draws repeat without it, because the simulation seeds every
-    # distribution itself.
     @tf.function(reduce_retracing=True)  # type: ignore [misc]
     def train_step() -> Any:
         with tf.GradientTape() as tape:
