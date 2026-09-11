@@ -147,10 +147,6 @@ def intialize_priors(
     return get_method(method).build(parameters, network, init_matrix_slice, seed)
 
 
-# AutoGraph cannot build a control-flow graph for this function: it raises an
-# AssertionError in `cfg.py` on Python 3.13, up to TensorFlow 2.21. The
-# conversion is not needed, because every branch below tests a Python value
-# and never a tensor. The decorator skips the conversion and its warning.
 @tf.autograph.experimental.do_not_convert  # type: ignore [misc]
 def sample_from_priors(  # noqa: PLR0913
     initialized_priors: Union[None, dict[str, tf.Tensor], Callable[[Any], Any]],
