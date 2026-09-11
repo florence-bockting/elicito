@@ -9,7 +9,9 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 import tensorflow as tf
 
+from elicito.cmaes import CMAES
 from elicito.exceptions import MissingOptionalDependencyError
+from elicito.initialization import hyper_names
 
 if TYPE_CHECKING:
     import matplotlib.axes
@@ -133,6 +135,16 @@ def initialization(
 
     """
     eliobj_res, *_ = _check_parallel(eliobj)
+
+    # check that all information can be assessed
+    if "initialization" not in eliobj_res.children:
+        msg = (
+            "No 'initialization' found in 'eliobj.results'. The initialization"
+            f" method '{eliobj.initializer['method']}' draws no candidates, so"
+            " there is no initialization distribution to plot."
+        )
+        raise KeyError(msg)
+
     # get number of hyperparameters and their names
     names, n_par, titles = _get_names_titles(
         eliobj_res.initialization.hyperparameter.values.tolist(), titles
@@ -144,12 +156,6 @@ def initialization(
     kwargs.setdefault("figsize", (cols * 2, rows * 2))
     kwargs.setdefault("constrained_layout", True)
     kwargs.setdefault("sharex", True)
-
-    # check that all information can be assessed
-    try:
-        eliobj_res.initialization
-    except KeyError:
-        logger.warning("Can't find 'initialization' in eliobj.results.")
 
     # plot ecdf of initialization distribution
     # differentiate between subplots that have (1) only one row vs.
@@ -321,9 +327,24 @@ def hyperparameter(
         )
 
     eliobj_res, parallel, n_reps = _check_parallel(eliobj)
-    # get number of hyperparameters and their names
+
+    # check that all information can be assessed
+    try:
+        history = eliobj_res.history_stats.hyperparameter
+    except AttributeError:
+        raise AttributeError(
+            "No information about 'hyperparameter' found in "
+            + "'eliobj.results.history_stats'."
+        )
+
+    # The names come from the model, in the order the initializer uses. They
+    # cannot come from the initialization group: an initializer that draws no
+    # candidates, such as `cmaes`, writes none. A shared hyperparameter is
+    # named once, and the gradients in the history are not hyperparameters.
+    recorded = list(history.data_vars)
     names, n_par, titles = _get_names_titles(
-        eliobj_res.initialization.hyperparameter.values.tolist(), titles
+        list(dict.fromkeys(n for n in hyper_names(eliobj.parameters) if n in recorded)),
+        titles,
     )
 
     # check chains that yield NaN
@@ -337,15 +358,6 @@ def hyperparameter(
     kwargs.setdefault("figsize", (cols * 2, rows * 2))
     kwargs.setdefault("constrained_layout", True)
     kwargs.setdefault("sharex", True)
-
-    # check that all information can be assessed
-    try:
-        eliobj_res.history_stats.hyperparameter
-    except AttributeError:
-        raise AttributeError(
-            "No information about 'hyperparameter' found in "
-            + "'eliobj.results.history_stats'."
-        )
 
     fig, axes = _setup_grid(rows, cols, k, **kwargs)
     for ax, hyp, title in zip(axes, names, titles):
@@ -520,7 +532,8 @@ def prior_joint(
             + " of parallelizations. 'idx' should not exceed"
             + f" {samples['prior'].sizes['replication']} but got {len(idx)}."
         )
-    if eliobj.results.history_stats.loss.sizes["epoch"] < eliobj.trainer["epochs"]:
+    recorded = eliobj.results.history_stats.loss.sizes["epoch"]
+    if recorded < _planned_epochs(eliobj, recorded):
         seed = eliobj.results.history_stats.seed_replication.sel(replication=idx).values
         raise ValueError(
             f"Training failed for seed {seed} (index={idx}). Loss is NAN."
@@ -1323,6 +1336,33 @@ def _convergence_plot(  # noqa: PLR0913
     return axes
 
 
+def _planned_epochs(eliobj: Any, recorded: int) -> int:
+    """
+    Count the history points that a finished run must have
+
+    The gradient fitter writes one point per epoch, so a shorter history means
+    that the run stopped early. The CMA-ES fitter writes one point per
+    generation, and the number of generations is not known before the run.
+
+    Parameters
+    ----------
+    eliobj
+        fitted ``eliobj`` object.
+
+    recorded
+        number of history points that this run wrote.
+
+    Returns
+    -------
+    :
+        expected number of history points.
+
+    """
+    if eliobj.optimizer["optimizer"] == CMAES:
+        return recorded
+    return int(eliobj.trainer["epochs"])
+
+
 def _check_NaN(eliobj: Any, n_reps: int) -> tuple[Any, ...]:
     # check whether some replications stopped with NAN
     ep_run = [
@@ -1330,12 +1370,17 @@ def _check_NaN(eliobj: Any, n_reps: int) -> tuple[Any, ...]:
         for i in range(n_reps)
     ]
     seed_rep = eliobj.results.history_stats.seed_replication.values
+
+    # a replication of a CMA-ES run that stopped early has fewer points than
+    # the other replications
+    n_planned = _planned_epochs(eliobj, max(ep_run))
+
     # extract successful and failed seeds and indices for further plotting
     fail = []
     success = []
     success_name = []
     for i, ep in enumerate(ep_run):
-        if ep < eliobj.trainer["epochs"]:
+        if ep < n_planned:
             fail.append((i, seed_rep[i]))
         else:
             success.append(i)

@@ -51,10 +51,14 @@ plots = [
 scipy = [
     "scipy>=1.14.0"
 ]
+cma = [
+    "cma>=3.4.0"
+]
 
 full = [
     "elicito[plots]",
     "elicito[scipy]",
+    "elicito[cma]",
 ]
 
 [dependency-groups]

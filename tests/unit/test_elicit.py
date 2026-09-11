@@ -174,7 +174,7 @@ def test_initializer():
     # the list of valid names comes from the initialization registry
     msg = (
         "Currently implemented initialization methods are "
-        "'lhs', 'random', 'sobol', 'warmstart', but got "
+        "'cmaes', 'lhs', 'random', 'sobol', 'warmstart', but got "
         "method='something' as input."
     )
     with pytest.raises(ValueError, match=msg):

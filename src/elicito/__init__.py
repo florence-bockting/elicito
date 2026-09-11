@@ -4,6 +4,7 @@ A Python package for learning prior distributions based on expert knowledge
 
 import importlib.metadata
 from collections import defaultdict
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any
 
@@ -14,6 +15,7 @@ import tensorflow_probability as tfp  # type: ignore
 from elicito import (
     _checks,
     _outputs,
+    cmaes,
     elicit,
     initialization,
     losses,
@@ -58,6 +60,7 @@ __version__ = importlib.metadata.version("elicito")
 
 __all__ = [
     "Elicit",
+    "cmaes",
     "expert",
     "hyper",
     "initialization",
@@ -267,8 +270,16 @@ class Elicit:
         else:
             targets_str = names_str
 
-        opt_name = self.optimizer["optimizer"].__name__
-        opt_lr = self.optimizer["learning_rate"]
+        if self.optimizer["optimizer"] == cmaes.CMAES:
+            sigma0 = self.optimizer.get("sigma0", cmaes.DEFAULT_SIGMA0)
+            if isinstance(sigma0, dict):
+                # a step size per hyperparameter is too long for one line
+                sigma0 = f"{len(sigma0)} values"
+            opt_str = f"{cmaes.CMAES}(sigma0={sigma0})"
+        else:
+            opt_name = self.optimizer["optimizer"].__name__
+            opt_lr = self.optimizer["learning_rate"]
+            opt_str = f"{opt_name}(lr={opt_lr})"
 
         get_num_hyperpar: int | str
         if hasattr(self, "results") and self.trainer["method"] == "deep_prior":
@@ -306,7 +317,7 @@ class Elicit:
             f"Epochs: {self.trainer['epochs']}\n"
             f"Method: {self.trainer['method']}\n"
             f"Seed: {self.trainer['seed']}\n"
-            f"Optimizer: {opt_name}(lr={opt_lr})\n"
+            f"Optimizer: {opt_str}\n"
         )
         if self.trainer["method"] == "parametric_prior":
             if self.initializer is not None:
@@ -700,7 +711,22 @@ class Elicit:
         # run dag with optimal set of initial values
         # save results in corresp. attributes
 
-        history, results = optimization.sgd_training(
+        # the optimizer is either a tf.keras class, or the name of a
+        # derivative-free search
+        extra: dict[str, Any] = {}
+        fit_method: Callable[..., tuple[dict[Any, Any], dict[Any, Any]]]
+        if self.optimizer["optimizer"] == cmaes.CMAES:
+            fit_method = cmaes.cma_training
+            # the search starts where the initialization stopped. If the
+            # initialization only read the box, the box also sets the first
+            # step size of each coordinate.
+            extra["default_sigma0"] = cmaes.box_step_size(
+                self.initializer, expert_elicits, self.parameters
+            )
+        else:
+            fit_method = optimization.sgd_training
+
+        history, results = fit_method(
             expert_elicits,
             init_prior_model,
             self.trainer,
@@ -710,6 +736,7 @@ class Elicit:
             self.parameters,
             seed,
             self.trainer["progress"],
+            **extra,
         )
         # add some additional results
         results["expert_elicited_statistics"] = expert_elicits

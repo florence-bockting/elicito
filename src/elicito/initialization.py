@@ -67,6 +67,10 @@ class InitMethod(Protocol):
         """Reject an input this method cannot use."""
         ...
 
+    def skips_search(self, optimizer: dict[str, Any]) -> bool:
+        """Whether the training repeats this search, so it can be dropped."""
+        ...
+
     def propose(  # noqa: PLR0913
         self,
         expert_elicited_statistics: dict[str, tf.Tensor],
@@ -140,6 +144,10 @@ class ExactValues:
         if initializer["hyperparams"] is None:
             msg = "Method 'exact' needs 'hyperparams'."
             raise ValueError(msg)
+
+    def skips_search(self, optimizer: dict[str, Any]) -> bool:
+        """Whether the training repeats this search, so it can be dropped."""
+        return False
 
     def propose(  # noqa: PLR0913
         self,
@@ -231,6 +239,10 @@ class BoxSample:
         """Reject an input this method cannot use."""
         _check_box(initializer)
 
+    def skips_search(self, optimizer: dict[str, Any]) -> bool:
+        """Whether the training repeats this search, so it can be dropped."""
+        return False
+
     def propose(  # noqa: PLR0913
         self,
         expert_elicited_statistics: dict[str, tf.Tensor],
@@ -289,15 +301,34 @@ for _sampler in ("sobol", "lhs", "random"):
     _INIT_METHODS[_sampler] = BoxSample
 
 
-class WarmStart:
-    """Search for a start point with Nelder-Mead, from the box centre."""
+class _SearchStart:
+    """A start value that a derivative-free search picks out of the box."""
 
-    name = "warmstart"
-    default_iterations = 100  # objective evaluations, not candidates
+    name: str
+    default_iterations: int
 
     def check(self, initializer: Initializer) -> None:
         """Reject an input this method cannot use."""
         _check_box(initializer)
+
+    def skips_search(self, optimizer: dict[str, Any]) -> bool:
+        """Whether the training repeats this search, so it can be dropped."""
+        return False
+
+    def search(  # noqa: PLR0913
+        self,
+        expert_elicited_statistics: dict[str, tf.Tensor],
+        parameters: list[Parameter],
+        trainer: Trainer,
+        model: dict[str, Any],
+        targets: list[Target],
+        expert: ExpertDict,
+        distribution: dict[str, Any],
+        max_evals: int,
+        seed: int,
+    ) -> dict[str, Any]:
+        """Return one value per hyperparameter, on the unconstrained scale."""
+        raise NotImplementedError
 
     def propose(  # noqa: PLR0913
         self,
@@ -318,24 +349,34 @@ class WarmStart:
         iterations = initializer["iterations"]
         if distribution is None or iterations is None:
             # check() rejects this earlier; the guard narrows the type
-            msg = "Method 'warmstart' needs 'distribution' and 'iterations'."
+            msg = f"Method {self.name!r} needs 'distribution' and 'iterations'."
             raise ValueError(msg)
 
         # a derivative-free search needs no gradient, so it cannot diverge.
         # The copy keeps the user's Elicit object unchanged.
         initializer = dict(initializer)  # type: ignore [assignment]
-        initializer["hyperparams"] = el.warmstart.warm_start(
-            expert_elicited_statistics=expert_elicited_statistics,
-            parameters=parameters,
-            trainer=trainer,
-            model=model,
-            targets=targets,
-            expert=expert,
-            # dict() satisfies the signature; a TypedDict is invariant
-            distribution=dict(distribution),
-            max_evals=iterations,
-            seed=seed,
-        )
+        if self.skips_search(optimizer):
+            logger.info(
+                f"{self.name}: the training runs the same search, so the "
+                "initialization only reads the box. 'iterations' is not used."
+            )
+            names = hyper_names(parameters)
+            box = build_box(dict(distribution), expert_elicited_statistics, parameters)
+            centre = el.warmstart._box_vector(box, names, "mean")
+            initializer["hyperparams"] = dict(zip(names, centre))
+        else:
+            initializer["hyperparams"] = self.search(
+                expert_elicited_statistics=expert_elicited_statistics,
+                parameters=parameters,
+                trainer=trainer,
+                model=model,
+                targets=targets,
+                expert=expert,
+                # dict() satisfies the signature; a TypedDict is invariant
+                distribution=dict(distribution),
+                max_evals=iterations,
+                seed=seed,
+            )
         return ExactValues().propose(
             expert_elicited_statistics=expert_elicited_statistics,
             initializer=initializer,
@@ -357,14 +398,93 @@ class WarmStart:
         trainer: Trainer,
     ) -> Any:
         """Return a slice of the right shape for ``Elicit.__init__``."""
-        # the dry run only needs a slice of the right shape. The warm start
-        # searches for the real values during `fit`.
+        # the dry run only needs a slice of the right shape. The search
+        # looks for the real values during `fit`.
         initializer = dict(initializer)  # type: ignore [assignment]
         initializer["method"] = "random"
         return BoxSample().dry_run_slice(initializer, parameters, trainer)
 
 
+class WarmStart(_SearchStart):
+    """Search for a start point with Nelder-Mead, from the box centre."""
+
+    name = "warmstart"
+    default_iterations = 100  # objective evaluations, not candidates
+
+    def search(  # noqa: PLR0913
+        self,
+        expert_elicited_statistics: dict[str, tf.Tensor],
+        parameters: list[Parameter],
+        trainer: Trainer,
+        model: dict[str, Any],
+        targets: list[Target],
+        expert: ExpertDict,
+        distribution: dict[str, Any],
+        max_evals: int,
+        seed: int,
+    ) -> dict[str, Any]:
+        """Return one value per hyperparameter, on the unconstrained scale."""
+        return el.warmstart.warm_start(
+            expert_elicited_statistics=expert_elicited_statistics,
+            parameters=parameters,
+            trainer=trainer,
+            model=model,
+            targets=targets,
+            expert=expert,
+            distribution=distribution,
+            max_evals=max_evals,
+            seed=seed,
+        )
+
+
 _INIT_METHODS[WarmStart.name] = WarmStart
+
+
+class CmaEs(_SearchStart):
+    """Search for a start point with CMA-ES, over the whole box."""
+
+    name = "cmaes"
+    # objective evaluations, not candidates. A global search needs more of
+    # them than the local warm start: it spends the first generations on
+    # where the good region is, not on the value inside it.
+    default_iterations = 500
+
+    def skips_search(self, optimizer: dict[str, Any]) -> bool:
+        """Whether the training repeats this search, so it can be dropped."""
+        # `optimizer="cmaes"` runs this search again, from the point that
+        # this search returns. The second run starts with a new covariance
+        # matrix, so it drops what the first one learned. One run over the
+        # whole budget is then better, and the box gives it its start point
+        # and its step size.
+        return bool(optimizer["optimizer"] == el.cmaes.CMAES)
+
+    def search(  # noqa: PLR0913
+        self,
+        expert_elicited_statistics: dict[str, tf.Tensor],
+        parameters: list[Parameter],
+        trainer: Trainer,
+        model: dict[str, Any],
+        targets: list[Target],
+        expert: ExpertDict,
+        distribution: dict[str, Any],
+        max_evals: int,
+        seed: int,
+    ) -> dict[str, Any]:
+        """Return one value per hyperparameter, on the unconstrained scale."""
+        return el.cmaes.cma_search(
+            expert_elicited_statistics=expert_elicited_statistics,
+            parameters=parameters,
+            trainer=trainer,
+            model=model,
+            targets=targets,
+            expert=expert,
+            distribution=distribution,
+            max_evals=max_evals,
+            seed=seed,
+        )
+
+
+_INIT_METHODS[CmaEs.name] = CmaEs
 
 
 def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
