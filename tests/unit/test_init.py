@@ -949,6 +949,22 @@ def _cmaes_eliobj(
     )
 
 
+def test_cmaes_fills_a_missing_initializer(eliobj):
+    cma = el.optimizer(optimizer=el.cmaes.CMAES)
+    new = Elicit(
+        model=base_eliobj.model,
+        parameters=base_eliobj.parameters,
+        targets=base_eliobj.targets,
+        expert=base_eliobj.expert,
+        optimizer=cma,
+        trainer=el.trainer(method="parametric_prior", seed=0, epochs=2),
+    )
+    assert new.initializer["method"] == "cmaes"
+
+    eliobj.update(optimizer=cma, initializer=None)
+    assert eliobj.initializer["method"] == "cmaes"
+
+
 def test_cma_training_records_one_point_per_generation():
     pytest.importorskip("cma")
 

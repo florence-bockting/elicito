@@ -222,6 +222,7 @@ class SamplingMethod(str, Enum):
     random = "random"
     lhs = "lhs"
     warmstart = "warmstart"
+    cmaes = "cmaes"
 
 
 class VariableType(str, Enum):

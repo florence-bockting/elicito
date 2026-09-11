@@ -48,6 +48,7 @@ from elicito.types import (
     NFDict,
     Parallel,
     Parameter,
+    SamplingMethod,
     Target,
     Trainer,
 )
@@ -86,6 +87,15 @@ __all__ = [
 # global variable (gets overwritten by user-defined
 # seed in Elicit object)
 SEED = 0
+
+
+def _default_initializer(
+    optimizer: dict[str, Any], initializer: Initializer | None
+) -> Initializer | None:
+    """Use the default box of CMA-ES if no initializer is given"""
+    if initializer is None and optimizer["optimizer"] == cmaes.CMAES:
+        return elicit.initializer(method=SamplingMethod.cmaes)
+    return initializer
 
 
 class Elicit:
@@ -140,7 +150,8 @@ class Elicit:
         initializer
             specification of initialization settings using
             [`initializer`][elicito.elicit.initializer].
-            Only required for ``parametric_prior`` method.
+            Only required for ``parametric_prior`` method. With
+            ``optimizer="cmaes"``, ``None`` means ``initializer(method="cmaes")``.
 
         meta_settings
             dictionary of meta settings for the elicitation workflow. See
@@ -188,6 +199,8 @@ class Elicit:
         """  # noqa: E501
         if meta_settings is None:
             meta_settings = elicit.meta_settings()
+
+        initializer = _default_initializer(optimizer, initializer)
 
         _checks.check_elicit(
             model,
@@ -636,6 +649,8 @@ class Elicit:
         for key, value in kwargs.items():
             setattr(test, key, value)
 
+        test.initializer = _default_initializer(test.optimizer, test.initializer)
+
         _checks.check_elicit(
             test.model,
             test.parameters,
@@ -659,6 +674,8 @@ class Elicit:
             if i == 0:
                 # inform user about reset of results
                 print("INFO: Results have been reset.")
+        # a kwarg initializer=None must not replace the CMA-ES default
+        self.initializer = test.initializer
 
     def workflow(self, seed: int) -> tuple[Any, ...]:
         """
