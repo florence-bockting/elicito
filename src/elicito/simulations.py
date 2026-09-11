@@ -265,10 +265,6 @@ def simulate_from_generator(
     # get model specific arguments (that are not prior samples)
     add_model_args = model.copy()
     add_model_args.pop("obj")
-    # A model that accepts a `seed` argument is given a stateless seed. Its
-    # draws then repeat without `tf.random.set_seed`, so the model can run
-    # inside a compiled forward pass. A model without the argument keeps the
-    # global generator, and repeats only if the caller sets the seed.
     signature = inspect.signature(generative_model.__call__)
     if "seed" in signature.parameters and "seed" not in add_model_args:
         add_model_args["seed"] = tfp.random.split_seed(
