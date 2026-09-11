@@ -237,9 +237,6 @@ class Elicit:
 
     def __str__(self) -> str:  # noqa: PLR0912
         """Return a readable summary of the object."""
-        # names only. A fitted eliobj no longer stores the simulated
-        # quantities, so their shapes would cost one forward simulation.
-        # 'eliobj.sample()' returns them.
         names_str = "\n".join(
             f"  - {self.targets[tar]['name']} -> {eli}"
             for tar, eli in zip(
