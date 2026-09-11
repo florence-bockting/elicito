@@ -192,3 +192,11 @@ def test_invertible_network(  # noqa: PLR0912
         assert ldj.shape[0] == inp.shape[0]
     else:
         assert ldj.shape[0] == inp.shape[0] and ldj.shape[1] == inp.shape[1]
+
+
+def test_network_accepts_a_second_batch_shape():
+    """One build, so B and num_samples can change after the first call."""
+    network = InvertibleNetwork(num_params=2, num_coupling_layers=2)
+    network(np.random.normal(size=(128, 200, 2)).astype(np.float32), None)  # noqa: NPY002
+    z, _ = network(np.random.normal(size=(64, 200, 2)).astype(np.float32), None)  # noqa: NPY002
+    assert z.shape == (64, 200, 2)

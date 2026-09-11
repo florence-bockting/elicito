@@ -262,7 +262,8 @@ class DenseCouplingNet(tf.keras.Model):  # type: ignore
         out :
             residual output
         """
-        self.fc.build(input_shape=target.shape)
+        if not self.fc.built:
+            self.fc.build(input_shape=target.shape)
         # Handle case no condition
         if condition is None:
             if self.residual_output is not None:
