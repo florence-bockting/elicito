@@ -330,6 +330,9 @@ class ParametricPrior:
     ) -> None:
         """Add the method-specific entries to the results."""
         res_ep["hyperparameter_gradient"] = gradients_ep
+        output_res["learned_weights"] = {
+            f"weight_{i}": v.numpy().copy() for i, v in enumerate(trainable_vars)
+        }
 
     def check(
         self,
@@ -549,6 +552,9 @@ class DeepPrior:
     ) -> None:
         """Add the method-specific entries to the results."""
         output_res["num_NN_weights"] = [v.shape for v in trainable_vars]
+        output_res["learned_weights"] = {
+            f"weight_{i}": v.numpy().copy() for i, v in enumerate(trainable_vars)
+        }
 
     def check(
         self,

@@ -379,7 +379,9 @@ def test_str_method(dry_run):
 
     obs_eliobj2 = eliobj.__str__()
 
-    assert "y_obs (128, 200, 50) -> quantiles_y_obs (128, 5)" in obs_eliobj2
+    # a fitted eliobj no longer stores the simulated quantities, so the
+    # summary shows the names without the shapes
+    assert "y_obs -> quantiles_y_obs" in obs_eliobj2
 
 
 def test_eliobj_fit():

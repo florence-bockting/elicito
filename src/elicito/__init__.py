@@ -3,6 +3,7 @@ A Python package for learning prior distributions based on expert knowledge
 """
 
 import importlib.metadata
+from collections import defaultdict
 from types import SimpleNamespace
 from typing import Any
 
@@ -16,6 +17,7 @@ from elicito import (
     elicit,
     initialization,
     losses,
+    methods,
     networks,
     optimization,
     plots,
@@ -235,16 +237,16 @@ class Elicit:
 
     def __str__(self) -> str:  # noqa: PLR0912
         """Return a readable summary of the object."""
-        # fitted eliobj with shape information
-        if hasattr(self, "results"):
-            target_list = list(self.results.target_quantity.data_vars.keys())
-            elicit_list = list(self.results.elicited_summary.data_vars.keys())
-
-            targets_str = "\n".join(
-                f"  - {k1} {self.results.target_quantity[k1].shape[1:]} -> "
-                f"{k2} {self.results.elicited_summary[k2].shape[1:]}"
-                for k1, k2 in zip(target_list, elicit_list)
+        names_str = "\n".join(
+            f"  - {self.targets[tar]['name']} -> {eli}"
+            for tar, eli in zip(
+                range(len(self.targets)),
+                utils.get_expert_datformat(self.targets),
             )
+        )
+
+        if hasattr(self, "results"):
+            targets_str = names_str
         elif len(self.temp_results) != 0:
             targets_str = "\n".join(
                 f"  - {k1} {tuple(self.temp_results[0]['target_quantities'][k1].shape)} -> "  # noqa: E501
@@ -263,13 +265,7 @@ class Elicit:
             )
         # unfitted eliobj without shape information
         else:
-            targets_str = "\n".join(
-                f"  - {self.targets[tar]['name']} -> {eli}"
-                for tar, eli in zip(
-                    range(len(self.targets)),
-                    utils.get_expert_datformat(self.targets),
-                )
-            )
+            targets_str = names_str
 
         opt_name = self.optimizer["optimizer"].__name__
         opt_lr = self.optimizer["learning_rate"]
@@ -420,6 +416,112 @@ class Elicit:
 
         delattr(self, "temp_history")
         delattr(self, "temp_results")
+
+    def sample(
+        self,
+        num_samples: int | None = None,
+        B: int | None = None,
+        seed: int | None = None,
+    ) -> Any:
+        """
+        Simulate from the learned prior
+
+        The learned trainable variables, the generative model and the
+        parameter definitions reproduce the prior samples, the model
+        simulations, the target quantities and the elicited summaries. The
+        method runs one forward pass per replication.
+
+        Parameters
+        ----------
+        num_samples
+            number of prior samples per batch. Default is the value used
+            for training.
+
+        B
+            batch size. Default is the value used for training.
+
+        seed
+            seed of the forward pass. Default is the seed of the
+            corresponding replication. With the default, and with the
+            training values for **num_samples** and **B**, the samples
+            equal those of the last training epoch.
+
+        Returns
+        -------
+        :
+            xr.DataTree with the groups prior, model, target_quantity and
+            elicited_summary.
+
+        Raises
+        ------
+        AttributeError
+            eliobj has not been fitted yet.
+
+        ValueError
+            The stored weights do not match the trainable variables.
+
+        Examples
+        --------
+        >>> samples = eliobj.sample(num_samples=1_000)  # doctest: +SKIP
+        >>> el.plots.prior_marginals(samples)  # doctest: +SKIP
+        """
+        if not hasattr(self, "results"):
+            msg = "No results found. Run 'eliobj.fit()' before 'eliobj.sample()'."
+            raise AttributeError(msg)
+
+        weights = self.results["learned_weights"].to_dataset()
+        seeds = self.results.history_stats.seed_replication.values
+        method = methods.get_method(self.trainer["method"])
+
+        simulated = []
+        for i, replication_seed in enumerate(seeds):
+            run_seed = int(replication_seed) if seed is None else int(seed)
+            trainer = dict(self.trainer)
+            trainer["seed"] = run_seed
+            if num_samples is not None:
+                trainer["num_samples"] = num_samples
+            if B is not None:
+                trainer["B"] = B
+
+            # the build step reads an initial value for every hyperparameter.
+            # The learned values overwrite them below, so any number does.
+            prior_model = simulations.Priors(
+                ground_truth=False,
+                init_matrix_slice=defaultdict(lambda: tf.constant(0.0)),
+                trainer=trainer,  # type: ignore [arg-type]
+                parameters=self.parameters,
+                network=self.network,
+                expert=self.expert,
+                seed=run_seed,
+            )
+            variables = method.trainable_variables(prior_model)
+            if len(variables) != len(weights.data_vars):
+                msg = (
+                    f"The model has {len(variables)} trainable variables but"
+                    f" {len(weights.data_vars)} are stored in the results."
+                    " The results belong to a different model specification."
+                )
+                raise ValueError(msg)
+            for j, variable in enumerate(variables):
+                variable.assign(weights[f"weight_{j}"].sel(replication=i).values)
+
+            tf.random.set_seed(run_seed)
+            (elicits, prior_sim, model_sim, target_quants) = utils.simulate_and_elicit(
+                prior_model=prior_model,
+                model=self.model,
+                targets=self.targets,
+                seed=run_seed,
+            )
+            simulated.append(
+                dict(
+                    prior_samples=prior_sim,
+                    model_samples=model_sim,
+                    target_quantities=target_quants,
+                    elicited_statistics=elicits,
+                )
+            )
+
+        return _outputs.create_sample_tree(simulated, self.parameters)
 
     def save(
         self,

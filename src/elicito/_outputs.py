@@ -454,7 +454,9 @@ def create_prior_ds(results: list[Any], parameters: list[Parameter]) -> xr.Datas
             )
         }
     )
-    for j, k in enumerate([parameters[k]["name"] for k in range(len(parameters))]):
+    param_names = [parameters[k]["name"] for k in range(len(parameters))]
+    ds_prior.attrs["model_parameters"] = param_names
+    for j, k in enumerate(param_names):
         prior = tf.stack(
             [results[i]["prior_samples"][:, :, j] for i in range(len(results))]
         )
@@ -572,6 +574,95 @@ def create_expert_ds(results: list[Any]) -> xr.Dataset:
     return ds_elicit
 
 
+def create_simulation_groups(
+    results: list[Any], parameters: list[Parameter]
+) -> dict[str, xr.DataTree]:
+    """
+    Create the groups that hold the simulated quantities
+
+    The four groups are a function of the learned trainable variables, the
+    generative model and the parameter definitions. `create_datatree` uses
+    them for the last epoch of a fitted eliobj, `Elicit.sample` for a new
+    forward pass.
+
+    Parameters
+    ----------
+    results :
+        one result dictionary per replication
+
+    parameters :
+        parameter information from eliobj
+
+    Returns
+    -------
+    :
+        mapping from group name to the corresponding subtree
+    """
+    prior_ds = create_prior_ds(results, parameters)
+    model_ds = create_result_group(
+        results,
+        group="model_samples",
+        dim_name="model",
+        description=(
+            "Simulated quantities returned from the user-specified"
+            " generative model in the last epoch."
+        ),
+    )
+    target_ds = create_result_group(
+        results,
+        group="target_quantities",
+        dim_name="target",
+        description=(
+            "Simulated target quantities as specified in eliobj.targets."
+            " Simulated target quantities refer either directly to returned "
+            "values from the user-specified generative model or are computed"
+            " from them via a custom target-function."
+        ),
+    )
+    elicit_ds = create_result_group(
+        results,
+        group="elicited_statistics",
+        dim_name="summary",
+        description=(
+            "Simulated elicited summaries. This data structure should match "
+            "the expert-elicited summaries. The quantities are computed by "
+            "applying a summary function (cf. elicitation technique) to the "
+            "target quantities. A commonly used summary function is the "
+            "computation of quantiles."
+        ),
+        base_dims=["replication", "batch"],
+    )
+    return {
+        "prior": xr.DataTree(prior_ds),
+        "model": xr.DataTree(model_ds),
+        "target_quantity": xr.DataTree(target_ds),
+        "elicited_summary": xr.DataTree(elicit_ds),
+    }
+
+
+def create_sample_tree(results: list[Any], parameters: list[Parameter]) -> xr.DataTree:
+    """
+    Create the result tree of a new forward pass
+
+    Parameters
+    ----------
+    results :
+        one simulation dictionary per replication
+
+    parameters :
+        parameter information from eliobj
+
+    Returns
+    -------
+    :
+        xr.DataTree with the prior, model, target and elicited summaries
+    """
+    res = xr.DataTree(name="samples")
+    for name, group in create_simulation_groups(results, parameters).items():
+        res = res.assign({name: group})
+    return res
+
+
 def create_datatree(
     history: list[Any],
     results: list[Any],
@@ -653,48 +744,23 @@ def create_datatree(
         time_seed_ds.assign_coords(coords), children=history_dict
     )
 
-    # Create datasets for remaining groups
-    prior_ds = create_prior_ds(results, parameters)
-    model_ds = create_result_group(
+    weights_ds = create_result_group(
         results,
-        group="model_samples",
-        dim_name="model",
+        group="learned_weights",
+        dim_name="weight",
         description=(
-            "Simulated quantities returned from the user-specified"
-            " generative model in the last epoch."
+            "Learned values of the trainable variables in the last epoch."
+            " For method='parametric_prior' these are the unconstrained"
+            " hyperparameter values; for method='deep_prior' the weights"
+            " and biases of the normalizing flow. The key weight_i refers to"
+            " the i-th entry of prior_model.trainable_variables."
         ),
-    )
-    target_ds = create_result_group(
-        results,
-        group="target_quantities",
-        dim_name="target",
-        description=(
-            "Simulated target quantities as specified in eliobj.targets."
-            " Simulated target quantities refer either directly to returned "
-            "values from the user-specified generative model or are computed"
-            " from them via a custom target-function."
-        ),
-    )
-    elicit_ds = create_result_group(
-        results,
-        group="elicited_statistics",
-        dim_name="summary",
-        description=(
-            "Simulated elicited summaries. This data structure should match "
-            "the expert-elicited summaries. The quantities are computed by "
-            "applying a summary function (cf. elicitation technique) to the "
-            "target quantities. A commonly used summary function is the "
-            "computation of quantiles."
-        ),
-        base_dims=["replication", "batch"],
+        base_dims=["replication"],
     )
 
     # create final results object
     res = res.assign({"history_stats": history_stats})
-    res = res.assign({"prior": xr.DataTree(prior_ds)})
-    res = res.assign({"model": xr.DataTree(model_ds)})
-    res = res.assign({"target_quantity": xr.DataTree(target_ds)})
-    res = res.assign({"elicited_summary": xr.DataTree(elicit_ds)})
+    res = res.assign({"learned_weights": xr.DataTree(weights_ds)})
 
     try:
         expert["ground_truth"]
