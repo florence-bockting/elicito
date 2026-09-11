@@ -92,8 +92,14 @@ def test_sample_multivariate_normal(param):
 
     np.testing.assert_array_equal(samples.shape, (100, 10_000, 3))
 
+    # a relative tolerance on the smallest mean, 0.1, is 1.3 Monte Carlo
+    # standard errors, so it fails for one draw in five. The absolute
+    # tolerance is 12 standard errors.
     np.testing.assert_allclose(
-        tf.reduce_mean(samples, (0, 1)), init_matrix_slice["mus"], rtol=1e-2
+        tf.reduce_mean(samples, (0, 1)),
+        init_matrix_slice["mus"],
+        rtol=1e-2,
+        atol=1e-2,
     )
 
     np.testing.assert_allclose(

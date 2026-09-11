@@ -423,6 +423,9 @@ def one_forward_simulation(
     """
     Run one forward simulation from prior samples to elicited statistics.
 
+    The seed is set here. The simulation itself is done by
+    [`simulate_and_elicit`][elicito.utils.simulate_and_elicit].
+
     Parameters
     ----------
     prior_model
@@ -456,6 +459,50 @@ def one_forward_simulation(
     """
     # set seed
     tf.random.set_seed(seed)
+    return simulate_and_elicit(prior_model, model, targets, seed)
+
+
+def simulate_and_elicit(
+    prior_model: Priors, model: dict[str, Any], targets: list[Target], seed: int
+) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any]]:
+    """
+    Run one forward simulation, without setting the seed
+
+    The seed is set by the caller. A caller that compiles this function with
+    ``tf.function`` must set the seed before every call: a
+    ``tf.random.set_seed`` inside a graph runs at trace time only.
+
+    Parameters
+    ----------
+    prior_model
+        Initialized prior distributions which can be used for sampling.
+
+    model
+        Specification of generative model
+
+    targets
+        List of target quantities
+
+    seed
+        Random seed.
+
+    Returns
+    -------
+    elicited_statistics :
+        Dictionary containing the elicited statistics that can be used to
+        compute the loss components
+
+    prior_samples :
+        Samples from prior distributions
+
+    model_simulations :
+        Samples from the generative model (likelihood) given the prior samples
+        for the model parameters
+
+    target_quantities :
+        Target quantities as a function of the model simulations.
+
+    """
     # generate samples from initialized prior
     prior_samples = prior_model()
     # simulate prior predictive distribution based on prior samples

@@ -8,6 +8,7 @@ from typing import Any, Protocol
 
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp  # type: ignore
 
 import elicito as el
 from elicito import networks
@@ -53,6 +54,32 @@ def numpy_seed(seed: int) -> Iterator[None]:
         np.random.set_state(state)  # noqa: NPY002
 
 
+def seed_pair(seed: int) -> Any:
+    """
+    Turn an integer seed into a stateless seed pair
+
+    A stateless pair makes every draw a function of the seed alone. The draws
+    then repeat without ``tf.random.set_seed``, which a compiled forward pass
+    cannot use: it clears the kernel caches of the whole graph.
+
+    ``tfp.random.split_seed`` accepts an integer, but it turns one into a pair
+    with a stateful ``tf.random.uniform``. That op branches on a value, which
+    a graph cannot do, and it would make the draws differ between calls.
+
+    Parameters
+    ----------
+    seed
+        Seed of the current workflow run.
+
+    Returns
+    -------
+    pair :
+        Seed as a pair of integers.
+
+    """
+    return tf.constant([0, seed], dtype=tf.int32)
+
+
 def _constraints(parameters: list[Parameter]) -> dict[str, Any]:
     """Map each hyperparameter name to its constraint function."""
     constraints: dict[str, Any] = {}
@@ -80,13 +107,14 @@ class PriorMethod(Protocol):
         """Create the trainable prior object."""
         ...
 
-    def sample(
+    def sample(  # noqa: PLR0913
         self,
         initialized_priors: Any,
         parameters: list[Parameter],
         network: NFDict | None,
         B: int,
         num_samples: int,
+        seed: int,
     ) -> Any:
         """Draw prior samples of shape (B, num_samples, num_params)."""
         ...
@@ -221,14 +249,20 @@ class ParametricPrior:
                     checked_params.append(hp_n)
         return init_prior
 
-    def sample(  # noqa: D102
+    def sample(  # noqa: D102, PLR0913
         self,
         initialized_priors: Any,
         parameters: list[Parameter],
         network: NFDict | None,
         B: int,
         num_samples: int,
+        seed: int,
     ) -> Any:
+        # One stateless seed per parameter. A stateless seed repeats the draws
+        # without `tf.random.set_seed`, which a compiled forward pass cannot
+        # afford: it clears the kernel caches of the whole graph. One seed for
+        # every parameter would correlate the draws, so the seed is split.
+        seeds = tfp.random.split_seed(seed_pair(seed), n=len(parameters), salt="priors")
         priors = []
         for i in range(len(parameters)):
             # get the prior distribution family as specified by the user
@@ -243,7 +277,9 @@ class ParametricPrior:
                 # init_dict[f"{k}"]=initialized_priors[init_key]
                 init_dict[f"{k}"] = hp_constraint(initialized_priors[init_key])
             # sample from the prior distribution
-            priors.append(prior_family(**init_dict).sample((B, num_samples)))
+            priors.append(
+                prior_family(**init_dict).sample((B, num_samples), seed=seeds[i])
+            )
         # stack all prior distributions into one tf.Tensor of
         # shape (B, S, num_parameters)
         if len(priors[0].shape) < 3:  # noqa: PLR2004
@@ -458,16 +494,21 @@ class DeepPrior:
             init_prior(u, None)
         return init_prior
 
-    def sample(  # noqa: D102
+    def sample(  # noqa: D102, PLR0913
         self,
         initialized_priors: Any,
         parameters: list[Parameter],
         network: NFDict | None,
         B: int,
         num_samples: int,
+        seed: int,
     ) -> Any:
-        # reuse the base distribution built in `build`
-        u = initialized_priors.base_distribution.sample((B, num_samples))
+        # reuse the base distribution built in `build`. The seed is stateless,
+        # see `ParametricPrior.sample`.
+        u = initialized_priors.base_distribution.sample(
+            (B, num_samples),
+            seed=tfp.random.split_seed(seed_pair(seed), n=1, salt="base")[0],
+        )
         # apply transformation function to samples from base distr.
         (unconstr_priors, _) = initialized_priors(u, condition=None, inverse=False)
         # apply parameter constraints if specified

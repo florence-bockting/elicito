@@ -238,4 +238,6 @@ def test_integration_initialization():
     stds = eliobj.results.prior.std().to_dataset().to_array().values
 
     np.testing.assert_allclose(means, [0.0, 1.0], atol=0.03)
-    np.testing.assert_allclose(stds, [2.0, 3.0], atol=0.13)
+    # the box gives the unconstrained values 2.0 and 3.0. A scale is bounded
+    # below, so the prior uses softplus(2.0) and softplus(3.0).
+    np.testing.assert_allclose(stds, [2.1269, 3.0486], atol=0.02)

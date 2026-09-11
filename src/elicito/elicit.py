@@ -376,7 +376,10 @@ def model(obj: Callable[[str], tf.Tensor], **kwargs: dict[Any, Any]) -> dict[str
     >>>          )  # doctest: +SKIP
     """
     # get input arguments of generative model class
-    input_args = inspect.getfullargspec(obj.__call__)[0]  # type: ignore
+    # `signature` follows a decorator that sets `__wrapped__`, and
+    # `getfullargspec` does not. A model whose `__call__` carries
+    # `tf.autograph.experimental.do_not_convert` is then still read.
+    input_args = list(inspect.signature(obj.__call__).parameters)  # type: ignore
     # check correct input form of generative model class
     if "prior_samples" not in input_args:
         msg = (
@@ -386,8 +389,10 @@ def model(obj: Callable[[str], tf.Tensor], **kwargs: dict[Any, Any]) -> dict[str
         )
         raise ValueError(msg)
 
-    # check that all optional arguments have been provided by the user
-    optional_args = set(input_args).difference({"prior_samples", "self"})
+    # check that all optional arguments have been provided by the user.
+    # `seed` is the exception: `elicito` passes a stateless seed to a model
+    # that names it, so the user does not provide it.
+    optional_args = set(input_args).difference({"prior_samples", "self", "seed"})
     for arg in optional_args:
         if arg not in list(kwargs.keys()):
             msg = (

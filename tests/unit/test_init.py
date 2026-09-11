@@ -771,11 +771,14 @@ def test_warm_start_spends_the_budget(monkeypatch):
     """Nelder-Mead converges early, so the search restarts until the budget ends"""
     calls = {"n": 0}
 
-    def failing_score(**kwargs):
-        calls["n"] += 1
-        return el.warmstart.PENALTY * 1.5
+    def failing_scorer(**kwargs):
+        def scorer(hyperparams):
+            calls["n"] += 1
+            return el.warmstart.PENALTY * 1.5
 
-    monkeypatch.setattr(el.warmstart, "score", failing_score)
+        return scorer
+
+    monkeypatch.setattr(el.warmstart, "compile_score", failing_scorer)
 
     el.warmstart.warm_start(
         expert_elicited_statistics={},
@@ -795,7 +798,9 @@ def test_warm_start_spends_the_budget(monkeypatch):
 def test_warm_start_falls_back_when_every_point_fails(monkeypatch, caplog):
     """a point that failed is never returned as a start value"""
     monkeypatch.setattr(
-        el.warmstart, "score", lambda **kwargs: el.warmstart.PENALTY * 1.5
+        el.warmstart,
+        "compile_score",
+        lambda **kwargs: lambda hyperparams: el.warmstart.PENALTY * 1.5,
     )
 
     with caplog.at_level("WARNING"):
@@ -840,3 +845,15 @@ def test_warm_start_returns_one_value_per_hyperparameter():
 
     assert list(hyperparams) == el.initialization.hyper_names(base_eliobj.parameters)
     assert all(np.isfinite(v) for v in hyperparams.values())
+
+
+def test_box_vector_reads_every_entry_of_the_box():
+    names = ["mu0", "sigma0"]
+
+    scalar_box = el.initialization.uniform(radius=1.5, mean=2.0)
+    assert el.warmstart._box_vector(scalar_box, names, "radius") == [1.5, 1.5]
+
+    listed_box = el.initialization.uniform(
+        radius=[1.0, 2.0], mean=[3.0, 4.0], hyper=["sigma0", "mu0"]
+    )
+    assert el.warmstart._box_vector(listed_box, names, "radius") == [2.0, 1.0]
