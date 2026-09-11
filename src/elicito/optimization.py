@@ -170,8 +170,6 @@ def sgd_training(  # noqa: PLR0913, PLR0915
             loss_components_training,
         )
 
-    # the update is traced as well. In eager mode the optimizer dispatches
-    # about 450 operations per epoch for a model with twelve hyperparameters.
     @tf.function(reduce_retracing=True)  # type: ignore [misc]
     def apply_update(gradients: Any) -> None:
         sgd_optimizer.apply_gradients(zip(gradients, trainable_vars))
