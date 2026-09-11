@@ -8,9 +8,9 @@ from typing import Any
 
 import numpy as np
 import tensorflow as tf
-from tqdm import tqdm
 
 import elicito as el
+from elicito._progress import ProgressTable
 from elicito.exceptions import MissingOptionalDependencyError
 from elicito.types import ExpertDict, Parameter, Target, Trainer
 
@@ -431,9 +431,13 @@ def cma_training(  # noqa: PLR0913, PLR0915
     # be worse than a point seen before. Keep the best usable point.
     best: dict[str, Any] = {"value": el.warmstart.PENALTY, "values": None}
 
-    if progress != 0:
-        print("Training")
-        bar = tqdm(total=budget)
+    bar = ProgressTable(
+        "Training",
+        total=budget,
+        disable=progress == 0,
+        loss=float("nan"),
+        best=float("nan"),
+    )
 
     strategy = cma.CMAEvolutionStrategy(start, sigma0, options)
     used = 0
@@ -471,11 +475,13 @@ def cma_training(  # noqa: PLR0913, PLR0915
         penalties.append(el.losses.spread_penalty(leader["output"]["prior_samples"]))
         time_per_epoch.append(time.time() - generation_time_start)
 
-        if progress != 0:
-            bar.update(len(candidates))
+        bar.update(
+            advance=len(candidates),
+            loss=float(leader["value"]),
+            best=float(best["value"]),
+        )
 
-    if progress != 0:
-        bar.close()
+    bar.close()
 
     if best["values"] is None:
         logger.warning(

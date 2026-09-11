@@ -10,9 +10,9 @@ from typing import Any, Optional, Protocol, Union
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
-from tqdm import tqdm
 
 import elicito as el
+from elicito._progress import ProgressTable
 from elicito.exceptions import MissingOptionalDependencyError
 from elicito.types import (
     ExpertDict,
@@ -757,12 +757,15 @@ def init_runs(  # noqa: PLR0913
             parameters=parameters,
         )
 
-    epochs: Any
-    if progress == 1:
-        print("Initialization")
-        epochs = tqdm(range(initializer["iterations"]))  # type: ignore [arg-type]
-    else:
-        epochs = range(initializer["iterations"])  # type: ignore [arg-type]
+    epochs = range(initializer["iterations"])  # type: ignore [arg-type]
+    best_loss = float("inf")
+    bar = ProgressTable(
+        "Initialization",
+        total=initializer["iterations"],  # type: ignore [arg-type]
+        disable=progress != 1,
+        loss=float("nan"),
+        best=float("nan"),
+    )
 
     # a candidate is scored by its loss after `warmup_epochs` training epochs.
     # `0` scores it at epoch 0, which is the previous behaviour.
@@ -833,8 +836,10 @@ def init_runs(  # noqa: PLR0913
         init_var_list.append(prior_model)
         save_prior.append(prior_model.trainable_variables)
         loss_list.append(loss.numpy())
-    if progress == 1:
-        print(" ")
+        loss_value = float(tf.squeeze(loss))
+        best_loss = min(best_loss, loss_value)
+        bar.update(loss=loss_value, best=best_loss)
+    bar.close()
 
     # A candidate with a non-finite loss cannot be used as a start value. It
     # is kept in the list, so that loss_list stays aligned with init_matrix

@@ -8,8 +8,8 @@ from typing import Any
 
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
-from tqdm import tqdm
 
+from elicito._progress import ProgressTable
 from elicito.losses import spread_penalty, total_loss
 from elicito.methods import get_method
 from elicito.simulations import Priors
@@ -39,6 +39,14 @@ def _halve_learning_rate(sgd_optimizer: Any) -> None:
     lr = sgd_optimizer.learning_rate
     if hasattr(lr, "assign"):
         lr.assign(lr * 0.5)
+
+
+def _learning_rate(sgd_optimizer: Any) -> float:
+    """Return the current learning rate, also for a schedule"""
+    lr = sgd_optimizer.learning_rate
+    if callable(lr):
+        lr = lr(sgd_optimizer.iterations)
+    return float(lr)
 
 
 def sgd_training(  # noqa: PLR0913, PLR0915
@@ -120,11 +128,17 @@ def sgd_training(  # noqa: PLR0913, PLR0915
     sgd_optimizer = init_sgd_optimizer(**optimizer_copy)
 
     # start training loop
-    if progress == 0:
-        epochs = tf.range(trainer["epochs"])
-    else:
-        print("Training")
-        epochs = tqdm(tf.range(trainer["epochs"]))
+    epochs = tf.range(trainer["epochs"])
+    best_loss = float("inf")
+    bar = ProgressTable(
+        "Training",
+        total=trainer["epochs"],
+        disable=progress == 0,
+        loss=float("nan"),
+        best=float("nan"),
+        skipped=0,
+        lr=_learning_rate(sgd_optimizer),
+    )
 
     # A single non-finite step must not end the run. The update is skipped and
     # the learning rate is halved, which often lets the run recover. Training
@@ -219,6 +233,15 @@ def sgd_training(  # noqa: PLR0913, PLR0915
         penalties.append(tf.squeeze(penalty))
         component_losses.append(indiv_losses)
 
+        loss_value = float(tf.squeeze(loss))
+        best_loss = min(best_loss, loss_value)
+        bar.update(
+            loss=loss_value,
+            best=best_loss,
+            skipped=n_skipped_total,
+            lr=_learning_rate(sgd_optimizer),
+        )
+
         # the run cannot recover; stop after the epoch has been recorded
         if n_skipped >= MAX_SKIPPED_STEPS:
             msg = (
@@ -232,6 +255,8 @@ def sgd_training(  # noqa: PLR0913, PLR0915
             else:
                 logger.info(msg)
             break
+
+    bar.close()
 
     if n_skipped_total > 0:
         logger.info(

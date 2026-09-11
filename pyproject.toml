@@ -8,11 +8,11 @@ authors = [
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11, <3.14"
 dependencies = [
-    "tqdm >= 4.38",
+    "joblib >= 1.4.2",
     "numpy >= 1.24",
+    "rich >= 13.0",
     "tensorflow >= 2.16.0",
     "tensorflow-probability >= 0.24.0",
-    "joblib >= 1.4.2",
     "tf-keras >= 2.16.0",
     "xarray>=2025.9.0",
 ]
@@ -77,7 +77,6 @@ dev = [
     "jupyter >= 1.1.1",
     # Required for type-checking
     "types-tensorflow>=2.18.0",
-    "types-tqdm>=4.67.0",
     "scipy-stubs<1.15; python_full_version >= '3.11'",
     "joblib-stubs>=1.4.2",
     # xarray stubs
