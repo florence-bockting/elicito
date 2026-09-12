@@ -42,14 +42,14 @@ trainer = el.trainer(method="parametric_prior", seed=123, epochs=1)
 initializer = el.initializer(
     method="sobol",
     iterations=32,
-    distribution=el.initialization.uniform(radius=2.0, mean=0.0),
+    distribution=el.initializers.uniform(radius=2.0, mean=0.0),
 )
 
 
 def test_dryrun():
     pytest.importorskip("scipy")
 
-    res_dry = el.utils.dry_run(
+    res_dry = el.elicit.dry_run(
         model, parameters, targets, trainer, initializer, network=None
     )
 

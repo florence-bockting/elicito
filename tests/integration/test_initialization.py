@@ -47,7 +47,7 @@ def test_uniform_samples(parameters):
     mean = 0.0
     radius = 0.001
 
-    init_matrix = el.initialization.uniform_samples(
+    init_matrix = el.initializers.sampling.uniform_samples(
         seed, hyppar, n_samples, method, mean, radius, parameters
     )
 
@@ -74,7 +74,7 @@ def test_uniform_samples_array(parameters):
     mean = [0.0, 1.0, 2.0, 3.0, 4.0]
     radius = [0.001] * 5
 
-    init_matrix = el.initialization.uniform_samples(
+    init_matrix = el.initializers.sampling.uniform_samples(
         seed, hyppar, n_samples, method, mean, radius, parameters
     )
 
@@ -103,7 +103,7 @@ def test_uniform_samples_order(parameters):
     mean = [0.0, 1.0, 2.0, 3.0, 4.0]
     radius = [0.001] * 5
 
-    init_matrix = el.initialization.uniform_samples(
+    init_matrix = el.initializers.sampling.uniform_samples(
         seed, hyppar, n_samples, method, mean, radius, parameters
     )
 
@@ -205,7 +205,7 @@ def test_integration_initialization():
         initializer=el.initializer(
             method="sobol",
             iterations=1,
-            distribution=el.initialization.uniform(
+            distribution=el.initializers.uniform(
                 radius=[0.01] * 4,
                 mean=[0.0, 1.0, 2.0, 3.0],
                 hyper=["mu0", "mu1", "sigma0", "sigma1"],

@@ -46,7 +46,7 @@ def test_initialization_multivariate_normal(param):
             [[0.36, 0.12, 0.06], [0.12, 0.29, -0.13], [0.06, -0.13, 0.26]]
         ),
     )
-    init_prior = el.simulations.intialize_priors(
+    init_prior = el.parameters.priors.intialize_priors(
         init_matrix_slice,
         method="parametric_prior",
         seed=1,
@@ -71,14 +71,14 @@ def test_sample_multivariate_normal(param):
     init_matrix_slice = dict(
         mus=[0.5, 0.3, 0.1], cov_matrix=tf.linalg.cholesky(covariance_matrix)
     )
-    init_prior = el.simulations.intialize_priors(
+    init_prior = el.parameters.priors.intialize_priors(
         init_matrix_slice,
         method="parametric_prior",
         seed=1,
         parameters=param,
         network=None,
     )
-    samples = el.simulations.sample_from_priors(
+    samples = el.parameters.priors.sample_from_priors(
         initialized_priors=init_prior,
         ground_truth=False,
         num_samples=10_000,
@@ -130,7 +130,7 @@ def test_trainable_variables_multivariate_normal(param):
         hyperparams=dict(mus=[0.5, 0.3, 0.1], cov_matrix=tf.eye(3)),
     )
 
-    init_priors = el.simulations.Priors(
+    init_priors = el.parameters.priors.Priors(
         ground_truth=False,
         init_matrix_slice=init_matrix["hyperparams"],
         trainer=dict(method="parametric_prior"),

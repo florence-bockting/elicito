@@ -1,5 +1,5 @@
 """
-Defines the optimization algorithm
+Training of the prior with a gradient-based optimizer
 """
 
 import logging
@@ -11,8 +11,9 @@ import tensorflow_probability as tfp  # type: ignore
 
 from elicito._progress import ProgressTable
 from elicito.losses import spread_penalty, total_loss
-from elicito.methods import get_method
-from elicito.simulations import Priors, simulate_and_elicit
+from elicito.models import simulate_and_elicit
+from elicito.parameters.methods import get_method
+from elicito.parameters.priors import Priors
 from elicito.types import Parameter, Target, Trainer
 
 tfd = tfp.distributions

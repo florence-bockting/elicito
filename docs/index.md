@@ -69,8 +69,10 @@ A brief overview of these arguments is provided below:
     seed, number of epochs, sample size, and batch size.
 + `initializer`: Defines the initialization strategy for the hyperparameters used to
     instantiate the simulation-based optimization process.
-+ `networks`: Specifies the architecture of the deep generative model; required only when
++ `network`: Specifies the architecture of the deep generative model; required only when
     using non-parametric prior distributions.
++ `meta_settings`: Controls the dry run before the training. The dry run executes the
+    generative model once and collects the shape of each tensor.
 
 By configuring these core components, **elicito** supports a wide range of elicitation
 methods, including both structural and predictive approaches, univariate and

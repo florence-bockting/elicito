@@ -147,7 +147,7 @@ eliobj = el.Elicit(
     initializer=el.initializer(
         method="random",
         iterations=2,
-        distribution=el.initialization.uniform(radius=1, mean=0),
+        distribution=el.initializers.uniform(radius=1, mean=0),
     ),
     # network = el.networks.NF(...) # TODO vs. el.normalizing_flow(...)
 )

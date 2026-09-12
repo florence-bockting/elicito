@@ -192,7 +192,7 @@ trainer = el.trainer(method="parametric_prior", seed=0, epochs=4, progress=0)
 initializer = el.initializer(
     method="sobol",
     iterations=32,
-    distribution=el.initialization.uniform(radius=1, mean=0),
+    distribution=el.initializers.uniform(radius=1, mean=0),
 )
 
 eliobj = el.Elicit(

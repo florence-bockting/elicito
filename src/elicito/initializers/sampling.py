@@ -1,21 +1,22 @@
 """
-Hyperparameter initialization for parametric prior
+Initialization by sampling candidates from a box
 """
 
 import logging
 from collections.abc import Iterable
-from dataclasses import dataclass
-from typing import Any, Optional, Protocol, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-from elicito import cmaes, optimization, simulations, warmstart
-from elicito._initialization_box import hyper_names, start_vector
+from elicito import models
 from elicito._progress import ProgressTable
 from elicito.exceptions import MissingOptionalDependencyError
+from elicito.initializers._base import InitResult, _check_box, _select_candidate
 from elicito.losses import total_loss
+from elicito.optimizers import sgd
+from elicito.parameters.priors import Priors
 from elicito.types import (
     ExpertDict,
     Initializer,
@@ -27,177 +28,7 @@ from elicito.types import (
 )
 
 tfd = tfp.distributions
-
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class InitResult:
-    """What an initialization method returns to ``initialize``."""
-
-    prior_model: Any
-    candidates: Optional[dict[str, Any]] = None
-    losses: Optional[list[Any]] = None
-
-
-class InitMethod(Protocol):
-    """Behaviour that differs between the initialization methods."""
-
-    name: str
-    default_iterations: int
-
-    def check(self, initializer: Initializer) -> None:
-        """Reject an input this method cannot use."""
-        ...
-
-    def skips_search(self, optimizer: dict[str, Any]) -> bool:
-        """Whether the training repeats this search, so it can be dropped."""
-        ...
-
-    def propose(  # noqa: PLR0913
-        self,
-        expert_elicited_statistics: dict[str, tf.Tensor],
-        initializer: Initializer,
-        parameters: list[Parameter],
-        trainer: Trainer,
-        optimizer: dict[str, Any],
-        model: dict[str, Any],
-        targets: list[Target],
-        network: Optional[NFDict],
-        expert: ExpertDict,
-        seed: int,
-        progress: int,
-    ) -> InitResult:
-        """Pick the hyperparameters that start the training."""
-        ...
-
-    def dry_run_slice(
-        self,
-        initializer: Initializer,
-        parameters: list[Parameter],
-        trainer: Trainer,
-    ) -> Any:
-        """Return a slice of the right shape for ``Elicit.__init__``."""
-        ...
-
-
-_INIT_METHODS: dict[str, type[InitMethod]] = {}
-
-
-def get_init_method(name: str) -> InitMethod:
-    """Return a new strategy object for an ``initializer["method"]`` string."""
-    try:
-        method_cls = _INIT_METHODS[name]
-    except KeyError:
-        msg = (
-            "Currently implemented initialization methods are "
-            f"{', '.join(repr(key) for key in sorted(_INIT_METHODS))}, but got "
-            f"method={name!r} as input."
-        )
-        raise ValueError(msg) from None
-    return method_cls()
-
-
-def resolve_init_method(initializer: Initializer) -> InitMethod:
-    """Return the initialization method that ``initializer`` asks for."""
-    # exact values are chosen by their presence, not by a method string
-    if initializer["hyperparams"] is not None:
-        return ExactValues()
-
-    name = initializer["method"]
-    if name is None:
-        msg = (
-            "Either 'method' or 'hyperparams' has"
-            "to be specified. Use method for sampling from an"
-            "initialization distribution and 'hyperparams' for"
-            "specifying exact initial values per hyperparameter."
-        )
-        raise ValueError(msg)
-    return get_init_method(name)
-
-
-class ExactValues:
-    """Start from hyperparameter values the user supplied."""
-
-    name = "exact"
-    default_iterations = 0  # nothing is drawn
-
-    def check(self, initializer: Initializer) -> None:
-        """Reject an input this method cannot use."""
-        if initializer["hyperparams"] is None:
-            msg = "Method 'exact' needs 'hyperparams'."
-            raise ValueError(msg)
-
-    def skips_search(self, optimizer: dict[str, Any]) -> bool:
-        """Whether the training repeats this search, so it can be dropped."""
-        return False
-
-    def propose(  # noqa: PLR0913
-        self,
-        expert_elicited_statistics: dict[str, tf.Tensor],
-        initializer: Initializer,
-        parameters: list[Parameter],
-        trainer: Trainer,
-        optimizer: dict[str, Any],
-        model: dict[str, Any],
-        targets: list[Target],
-        network: Optional[NFDict],
-        expert: ExpertDict,
-        seed: int,
-        progress: int,
-    ) -> InitResult:
-        """Build the prior model from the given values."""
-        prior_model = simulations.Priors(
-            ground_truth=False,
-            init_matrix_slice=initializer["hyperparams"],
-            trainer=trainer,
-            parameters=parameters,
-            network=None,
-            expert=expert,
-            seed=seed,
-        )
-        return InitResult(prior_model=prior_model)
-
-    def dry_run_slice(
-        self,
-        initializer: Initializer,
-        parameters: list[Parameter],
-        trainer: Trainer,
-    ) -> Any:
-        """Return a slice of the right shape for ``Elicit.__init__``."""
-        return initializer["hyperparams"]
-
-
-def _select_candidate(losses: list[Any], initializer: Initializer) -> int:
-    """Return the index of the candidate with minimum loss"""
-    values = np.asarray(losses, dtype=np.float64).reshape(-1)
-    finite = np.flatnonzero(np.isfinite(values))
-
-    if finite.size == 0:
-        dist = initializer["distribution"]
-        detail = (
-            f"The initialization distribution is centred at {dist['mean']} "
-            f"with radius {dist['radius']}, on the unconstrained scale. "
-            "Re-centre it on the expected hyperparameter values, or "
-            "reduce its radius."
-            if dist is not None
-            else "No initialization distribution is set."
-        )
-        msg = (
-            f"All {values.size} initialization candidates yield a "
-            f"non-finite loss, so no start value can be selected. {detail}"
-        )
-        raise ValueError(msg)
-
-    return int(finite[int(np.argmin(values[finite]))])
-
-
-def _check_box(initializer: Initializer) -> None:
-    """Reject a box method that has no box to draw from."""
-    for name in ("distribution", "iterations"):
-        if initializer[name] is None:
-            msg = f"If '{name}' is None, then 'method' must also be None."
-            raise ValueError(msg)
 
 
 class BoxSample:
@@ -268,195 +99,6 @@ class BoxSample:
         return {f"{key}": init_matrix[key][0] for key in init_matrix}
 
 
-for _sampler in ("sobol", "lhs", "random"):
-    _INIT_METHODS[_sampler] = BoxSample
-
-
-class _SearchStart:
-    """A start value that a derivative-free search picks out of the box."""
-
-    name: str
-    default_iterations: int
-
-    def check(self, initializer: Initializer) -> None:
-        """Reject an input this method cannot use."""
-        _check_box(initializer)
-
-    def skips_search(self, optimizer: dict[str, Any]) -> bool:
-        """Whether the training repeats this search, so it can be dropped."""
-        return False
-
-    def search(  # noqa: PLR0913
-        self,
-        expert_elicited_statistics: dict[str, tf.Tensor],
-        parameters: list[Parameter],
-        trainer: Trainer,
-        model: dict[str, Any],
-        targets: list[Target],
-        expert: ExpertDict,
-        distribution: dict[str, Any],
-        max_evals: int,
-        seed: int,
-    ) -> dict[str, Any]:
-        """Return one value per hyperparameter, on the unconstrained scale."""
-        raise NotImplementedError
-
-    def propose(  # noqa: PLR0913
-        self,
-        expert_elicited_statistics: dict[str, tf.Tensor],
-        initializer: Initializer,
-        parameters: list[Parameter],
-        trainer: Trainer,
-        optimizer: dict[str, Any],
-        model: dict[str, Any],
-        targets: list[Target],
-        network: Optional[NFDict],
-        expert: ExpertDict,
-        seed: int,
-        progress: int,
-    ) -> InitResult:
-        """Search for the start values, then build the prior model."""
-        distribution = initializer["distribution"]
-        iterations = initializer["iterations"]
-        if distribution is None or iterations is None:
-            # check() rejects this earlier; the guard narrows the type
-            msg = f"Method {self.name!r} needs 'distribution' and 'iterations'."
-            raise ValueError(msg)
-
-        # a derivative-free search needs no gradient, so it cannot diverge.
-        # The copy keeps the user's Elicit object unchanged.
-        initializer = dict(initializer)  # type: ignore [assignment]
-        if self.skips_search(optimizer):
-            logger.info(
-                f"{self.name}: the training runs the same search, so the "
-                "initialization only reads the box. 'iterations' is not used."
-            )
-            names = hyper_names(parameters)
-            centre = start_vector(dict(distribution), names)
-            initializer["hyperparams"] = dict(zip(names, centre))
-        else:
-            initializer["hyperparams"] = self.search(
-                expert_elicited_statistics=expert_elicited_statistics,
-                parameters=parameters,
-                trainer=trainer,
-                model=model,
-                targets=targets,
-                expert=expert,
-                # dict() satisfies the signature; a TypedDict is invariant
-                distribution=dict(distribution),
-                max_evals=iterations,
-                seed=seed,
-            )
-        return ExactValues().propose(
-            expert_elicited_statistics=expert_elicited_statistics,
-            initializer=initializer,
-            parameters=parameters,
-            trainer=trainer,
-            optimizer=optimizer,
-            model=model,
-            targets=targets,
-            network=network,
-            expert=expert,
-            seed=seed,
-            progress=progress,
-        )
-
-    def dry_run_slice(
-        self,
-        initializer: Initializer,
-        parameters: list[Parameter],
-        trainer: Trainer,
-    ) -> Any:
-        """Return a slice of the right shape for ``Elicit.__init__``."""
-        # the dry run only needs a slice of the right shape. The search
-        # looks for the real values during `fit`.
-        initializer = dict(initializer)  # type: ignore [assignment]
-        initializer["method"] = "random"
-        return BoxSample().dry_run_slice(initializer, parameters, trainer)
-
-
-class WarmStart(_SearchStart):
-    """Search for a start point with Nelder-Mead, from the box centre."""
-
-    name = "warmstart"
-    default_iterations = 100  # objective evaluations, not candidates
-
-    def search(  # noqa: PLR0913
-        self,
-        expert_elicited_statistics: dict[str, tf.Tensor],
-        parameters: list[Parameter],
-        trainer: Trainer,
-        model: dict[str, Any],
-        targets: list[Target],
-        expert: ExpertDict,
-        distribution: dict[str, Any],
-        max_evals: int,
-        seed: int,
-    ) -> dict[str, Any]:
-        """Return one value per hyperparameter, on the unconstrained scale."""
-        return warmstart.warm_start(
-            expert_elicited_statistics=expert_elicited_statistics,
-            parameters=parameters,
-            trainer=trainer,
-            model=model,
-            targets=targets,
-            expert=expert,
-            distribution=distribution,
-            max_evals=max_evals,
-            seed=seed,
-        )
-
-
-_INIT_METHODS[WarmStart.name] = WarmStart
-
-
-class CmaEs(_SearchStart):
-    """Search for a start point with CMA-ES, over the whole box."""
-
-    name = "cmaes"
-    # objective evaluations, not candidates. A global search needs more of
-    # them than the local warm start: it spends the first generations on
-    # where the good region is, not on the value inside it.
-    default_iterations = 500
-
-    def skips_search(self, optimizer: dict[str, Any]) -> bool:
-        """Whether the training repeats this search, so it can be dropped."""
-        # `optimizer="cmaes"` runs this search again, from the point that
-        # this search returns. The second run starts with a new covariance
-        # matrix, so it drops what the first one learned. One run over the
-        # whole budget is then better, and the box gives it its start point
-        # and its step size.
-        return bool(optimizer["optimizer"] == cmaes.CMAES)
-
-    def search(  # noqa: PLR0913
-        self,
-        expert_elicited_statistics: dict[str, tf.Tensor],
-        parameters: list[Parameter],
-        trainer: Trainer,
-        model: dict[str, Any],
-        targets: list[Target],
-        expert: ExpertDict,
-        distribution: dict[str, Any],
-        max_evals: int,
-        seed: int,
-    ) -> dict[str, Any]:
-        """Return one value per hyperparameter, on the unconstrained scale."""
-        return cmaes.cma_search(
-            expert_elicited_statistics=expert_elicited_statistics,
-            parameters=parameters,
-            trainer=trainer,
-            model=model,
-            targets=targets,
-            expert=expert,
-            distribution=distribution,
-            max_evals=max_evals,
-            seed=seed,
-        )
-
-
-_INIT_METHODS[CmaEs.name] = CmaEs
-
-
 def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     seed: int,
     hyppar: list[str],
@@ -472,7 +114,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     Parameters
     ----------
     seed
-        User-specified seed as defined in [`trainer`][elicito.elicit.trainer].
+        User-specified seed as defined in [`trainer`][elicito.specs.trainer].
 
     hyppar
         List of hyperparameter names (strings) declaring the order for the
@@ -500,7 +142,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     parameters
         List including dictionary with all information about the (hyper-)parameters.
         Can be retrieved as attribute from the initialized
-        [`Elicit`][elicito.Elicit] obj (i.e., `eliobj.parameters`)
+        [`Elicit`][elicito.elicit.Elicit] obj (i.e., `eliobj.parameters`)
 
     Raises
     ------
@@ -653,33 +295,33 @@ def init_runs(  # noqa: PLR0913
     Parameters
     ----------
     expert_elicited_statistics
-        User-specified expert data as provided by [`Elicit`][elicito.elicit.Expert].
+        User-specified expert data as provided by [`Elicit`][elicito.specs.Expert].
 
     initializer
-        User-input from [`initializer`][elicito.elicit.initializer].
+        User-input from [`initializer`][elicito.initializers.spec.initializer].
 
     parameters
-        User-input from [`parameter`][elicito.elicit.parameter].
+        User-input from [`parameter`][elicito.specs.parameter].
 
     trainer
-        User-input from [`trainer`][elicito.elicit.trainer].
+        User-input from [`trainer`][elicito.specs.trainer].
 
     optimizer
-        User-input from [`optimizer`][elicito.elicit.optimizer]. Used to run
+        User-input from [`optimizer`][elicito.specs.optimizer]. Used to run
         the warm-up epochs of a candidate.
 
     model
-        User-input from [`model`][elicito.elicit.model].
+        User-input from [`model`][elicito.specs.model].
 
     targets
-        User-input from [`target`][elicito.elicit.target].
+        User-input from [`target`][elicito.specs.target].
 
     network
         User-input from one of the methods implemented in the
-        [`networks`][elicito.networks] module.
+        [`networks`][elicito.parameters.networks] module.
 
     expert
-        User-input from [`Expert`][elicito.elicit.Expert].
+        User-input from [`Expert`][elicito.specs.Expert].
 
     seed
         internal seed for reproducible results
@@ -744,7 +386,7 @@ def init_runs(  # noqa: PLR0913
         # extract initial hyperparameter value for each run
         init_matrix_slice = {f"{key}": init_matrix[key][i] for key in init_matrix}
         # initialize prior distributions based on initial hyperparameters
-        prior_model = simulations.Priors(
+        prior_model = Priors(
             ground_truth=False,
             init_matrix_slice=init_matrix_slice,
             trainer=trainer,
@@ -762,7 +404,7 @@ def init_runs(  # noqa: PLR0913
             warmup_trainer["epochs"] = warmup_epochs
             warmup_trainer["progress"] = 0
 
-            history, _ = optimization.sgd_training(
+            history, _ = sgd.sgd_training(
                 expert_elicited_statistics=expert_elicited_statistics,
                 prior_model_init=prior_model,
                 trainer=warmup_trainer,
@@ -780,7 +422,7 @@ def init_runs(  # noqa: PLR0913
             # simulate from priors and generative model and compute the
             # elicited statistics corresponding to the initial hyperparameters
             (training_elicited_statistics, _, _, target_quantities) = (
-                simulations.one_forward_simulation(
+                models.one_forward_simulation(
                     prior_model=prior_model, model=model, targets=targets, seed=seed
                 )
             )
@@ -796,7 +438,7 @@ def init_runs(  # noqa: PLR0913
             # A quantile query hides an overflow: the 95% quantile of a sample
             # with a few infinite draws is still finite. A candidate that
             # overflows must not be selected, so mark it as failed here.
-            if not simulations.all_finite(target_quantities):
+            if not models.all_finite(target_quantities):
                 loss = tf.fill(tf.shape(loss), tf.constant(np.nan, loss.dtype))
         # save loss value, initial hyperparameter values and initialized prior
         # model for each run
@@ -818,100 +460,6 @@ def init_runs(  # noqa: PLR0913
         )
 
     return loss_list, init_var_list, init_matrix
-
-
-def init_prior(  # noqa: PLR0913
-    expert_elicited_statistics: dict[str, tf.Tensor],
-    initializer: Optional[Initializer],
-    parameters: list[Parameter],
-    trainer: Trainer,
-    optimizer: dict[str, Any],
-    model: dict[str, Any],
-    targets: list[Target],
-    network: Optional[NFDict],
-    expert: ExpertDict,
-    seed: int,
-    progress: int,
-) -> tuple[Any, Any, Any]:
-    """
-    Extract target loss and initialize prior model
-
-    Parameters
-    ----------
-    expert_elicited_statistics
-        Expert-elicited statistics
-
-    initializer
-        Initialization of hyperparameter values
-
-    parameters
-        Specification of model parameters
-
-    trainer
-        Specification of trainer settings for the optimization process
-
-    optimizer
-        User-input from [`optimizer`][elicito.elicit.optimizer]. Used to run
-        the warm-up epochs of a candidate.
-
-    model
-        Generative model
-
-    targets
-        Elicitation techniques and target quantities
-
-    network
-        Generative model for learning non-parametric priors
-
-    expert
-        Expert specification
-
-    seed
-        Internally used seed for reproducible results
-
-    progress
-        whether progress should be printed or muted
-
-    Returns
-    -------
-    init_prior_model :
-        initialized priors that will be used for the training phase.
-
-    loss_list :
-        list with all losses computed for each initialization run.
-
-    init_matrix :
-        dictionary with *keys* being the hyperparameter names and *values*
-        being the drawn initial values per run.
-
-    """
-    if initializer is None:
-        # check() allows no initializer for deep_prior only; it runs no search
-        prior_model = simulations.Priors(
-            ground_truth=False,
-            init_matrix_slice=None,
-            trainer=trainer,
-            parameters=parameters,
-            network=network,
-            expert=expert,
-            seed=seed,
-        )
-        return prior_model, None, None
-
-    result = resolve_init_method(initializer).propose(
-        expert_elicited_statistics=expert_elicited_statistics,
-        initializer=initializer,
-        parameters=parameters,
-        trainer=trainer,
-        optimizer=optimizer,
-        model=model,
-        targets=targets,
-        network=None,
-        expert=expert,
-        seed=seed,
-        progress=progress,
-    )
-    return result.prior_model, result.losses, result.candidates
 
 
 def uniform(
@@ -951,7 +499,7 @@ def uniform(
         The default is ``0.``.
 
     hyper
-        List of hyperparameter names as specified in [`hyper`][elicito.elicit.hyper].
+        List of hyperparameter names as specified in [`hyper`][elicito.specs.hyper].
         The values provided in **radius** and **mean** should follow the order
         of hyperparameters indicated in this list.
         If a float is passed to **radius** and **mean** this argument is not
