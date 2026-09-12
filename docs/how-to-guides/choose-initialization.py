@@ -155,7 +155,7 @@ def build(
     ----------
     initializer
         initialization method, as returned by
-        [`initializer`][elicito.elicit.initializer]
+        [`initializer`][elicito.specs.initializer]
 
     epochs
         number of training epochs
@@ -853,7 +853,7 @@ def build(initializer: Any, epochs: int = 100) -> el.Elicit:
     ----------
     initializer
         initialization method, as returned by
-        [`initializer`][elicito.elicit.initializer]
+        [`initializer`][elicito.specs.initializer]
 
     epochs
         number of training epochs

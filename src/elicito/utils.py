@@ -260,7 +260,7 @@ def add_derived(samples: Any, **derived: Callable[[Any], Any]) -> None:
     Parameters
     ----------
     samples
-        result of :func:`elicito.Elicit.sample`. The prior group is changed
+        result of :func:`elicito.elicit.Elicit.sample`. The prior group is changed
         in place.
 
     **derived
@@ -494,19 +494,19 @@ def dry_run(  # noqa: PLR0913
     Parameters
     ----------
     model
-        User-input from [`model`][elicito.elicit.model].
+        User-input from [`model`][elicito.specs.model].
 
     parameters
-        User-input from [`parameter`][elicito.elicit.parameter].
+        User-input from [`parameter`][elicito.specs.parameter].
 
     targets
-        User-input from [`target`][elicito.elicit.target].
+        User-input from [`target`][elicito.specs.target].
 
     trainer
-        User-input from [`trainer`][elicito.elicit.trainer].
+        User-input from [`trainer`][elicito.specs.trainer].
 
     initializer
-        User-input from [`initializer`][elicito.elicit.initializer].
+        User-input from [`initializer`][elicito.specs.initializer].
 
     network
         User-input from one of the methods implemented in the

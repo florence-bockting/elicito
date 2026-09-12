@@ -484,7 +484,7 @@ def prior_joint(
         names of the model parameters to plot, in the order of the rows and
         columns. If None, all model parameters are plotted.
     samples : xr.DataTree, optional
-        result of :func:`elicito.Elicit.sample`. If None, the plot runs one
+        result of :func:`elicito.elicit.Elicit.sample`. If None, the plot runs one
         forward simulation of its own.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
@@ -611,7 +611,7 @@ def prior_marginals(
         names of the model parameters to plot, in the order of the subplots.
         If None, all model parameters are plotted.
     samples : xr.DataTree, optional
-        result of :func:`elicito.Elicit.sample`. If None, the plot runs one
+        result of :func:`elicito.elicit.Elicit.sample`. If None, the plot runs one
         forward simulation of its own.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
@@ -695,7 +695,7 @@ def elicits(
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
     samples : xr.DataTree, optional
-        result of :func:`elicito.Elicit.sample`. If None, the plot runs one
+        result of :func:`elicito.elicit.Elicit.sample`. If None, the plot runs one
         forward simulation of its own.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
@@ -929,7 +929,7 @@ def priorpredictive(
     replication : int, optional
         index of the replication to be plotted. The default is ``0``.
     samples : xr.DataTree, optional
-        result of :func:`elicito.Elicit.sample`. If None, the plot runs one
+        result of :func:`elicito.elicit.Elicit.sample`. If None, the plot runs one
         forward simulation of its own.
     kwargs : any, optional
         additional keyword arguments that can be passed to specify
@@ -1021,7 +1021,7 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
     xlim_weights : float, optional
         limit of x-axis of weights plot
     samples : xr.DataTree, optional
-        result of :func:`elicito.Elicit.sample`. If None, the plot runs one
+        result of :func:`elicito.elicit.Elicit.sample`. If None, the plot runs one
         forward simulation of its own.
     kwargs : any, optional
         additional arguments passed to matplotlib

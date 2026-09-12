@@ -135,7 +135,7 @@ def init_prior(  # noqa: PLR0913
         Specification of trainer settings for the optimization process
 
     optimizer
-        User-input from [`optimizer`][elicito.elicit.optimizer]. Used to run
+        User-input from [`optimizer`][elicito.specs.optimizer]. Used to run
         the warm-up epochs of a candidate.
 
     model

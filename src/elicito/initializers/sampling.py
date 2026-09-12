@@ -114,7 +114,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     Parameters
     ----------
     seed
-        User-specified seed as defined in [`trainer`][elicito.elicit.trainer].
+        User-specified seed as defined in [`trainer`][elicito.specs.trainer].
 
     hyppar
         List of hyperparameter names (strings) declaring the order for the
@@ -142,7 +142,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     parameters
         List including dictionary with all information about the (hyper-)parameters.
         Can be retrieved as attribute from the initialized
-        [`Elicit`][elicito.Elicit] obj (i.e., `eliobj.parameters`)
+        [`Elicit`][elicito.elicit.Elicit] obj (i.e., `eliobj.parameters`)
 
     Raises
     ------
@@ -295,33 +295,33 @@ def init_runs(  # noqa: PLR0913
     Parameters
     ----------
     expert_elicited_statistics
-        User-specified expert data as provided by [`Elicit`][elicito.elicit.Expert].
+        User-specified expert data as provided by [`Elicit`][elicito.specs.Expert].
 
     initializer
-        User-input from [`initializer`][elicito.elicit.initializer].
+        User-input from [`initializer`][elicito.specs.initializer].
 
     parameters
-        User-input from [`parameter`][elicito.elicit.parameter].
+        User-input from [`parameter`][elicito.specs.parameter].
 
     trainer
-        User-input from [`trainer`][elicito.elicit.trainer].
+        User-input from [`trainer`][elicito.specs.trainer].
 
     optimizer
-        User-input from [`optimizer`][elicito.elicit.optimizer]. Used to run
+        User-input from [`optimizer`][elicito.specs.optimizer]. Used to run
         the warm-up epochs of a candidate.
 
     model
-        User-input from [`model`][elicito.elicit.model].
+        User-input from [`model`][elicito.specs.model].
 
     targets
-        User-input from [`target`][elicito.elicit.target].
+        User-input from [`target`][elicito.specs.target].
 
     network
         User-input from one of the methods implemented in the
         [`networks`][elicito.networks] module.
 
     expert
-        User-input from [`Expert`][elicito.elicit.Expert].
+        User-input from [`Expert`][elicito.specs.Expert].
 
     seed
         internal seed for reproducible results
@@ -499,7 +499,7 @@ def uniform(
         The default is ``0.``.
 
     hyper
-        List of hyperparameter names as specified in [`hyper`][elicito.elicit.hyper].
+        List of hyperparameter names as specified in [`hyper`][elicito.specs.hyper].
         The values provided in **radius** and **mean** should follow the order
         of hyperparameters indicated in this list.
         If a float is passed to **radius** and **mean** this argument is not

@@ -1,5 +1,5 @@
 """
-Unittests for elicit.py module
+Unittests for specs.py module
 """
 
 import pytest
@@ -7,13 +7,13 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 import elicito as el
-from elicito.elicit import Dtype, VariableType, hyper, parameter
 from elicito.parameters.bijections import (
     DoubleBound,
     LowerBound,
     UpperBound,
     identity,
 )
+from elicito.specs import Dtype, VariableType, hyper, parameter
 
 tfd = tfp.distributions
 
