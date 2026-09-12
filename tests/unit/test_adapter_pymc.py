@@ -86,3 +86,52 @@ def test_model_unsupported_op_raises():
         pm.Deterministic("e", pm.math.exp(b))
     with pytest.raises(NotImplementedError, match="Exp"):
         adapter_pymc.model(m)
+
+
+def _slice(i):
+    """target function that selects design point i of ypred"""
+
+    def target(ypred):
+        return ypred[:, :, i]
+
+    return target
+
+
+def test_set_hyperparameters_writes_the_learned_values(toy_model):
+    eliobj = el.Elicit(
+        model=el.model(obj=adapter_pymc.model(toy_model)),
+        parameters=adapter_pymc.parameters(toy_model),
+        targets=[
+            el.target(
+                name=f"y_X{i}",
+                query=el.queries.quantiles((0.25, 0.5, 0.75)),
+                loss=el.losses.MMD2(kernel="energy"),
+                target_method=_slice(i),
+            )
+            for i in range(3)
+        ],
+        expert=el.expert.simulator(
+            ground_truth={
+                "beta0": tfd.Normal(5.0, 1.0),
+                "beta1": tfd.Normal(2.0, 1.0),
+                "sigma": tfd.HalfNormal(7.0),
+            },
+            num_samples=1_000,
+        ),
+        optimizer=el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.1),
+        trainer=el.trainer(method="parametric_prior", seed=0, epochs=2, progress=0),
+        initializer=el.initializer(
+            method="sobol",
+            iterations=1,
+            distribution=el.initializers.uniform(radius=1.0, mean=0.0),
+        ),
+    )
+    eliobj.fit()
+    adapter_pymc.set_hyperparameters(toy_model, eliobj)
+
+    learned = eliobj.hyperparameters()
+    for name, value in learned.items():
+        np.testing.assert_allclose(toy_model[name].get_value(), value, rtol=1e-6)
+    # the PyMC prior now draws with the learned values
+    draws = pm.draw(toy_model["beta0"], draws=20_000, random_seed=1)
+    assert abs(draws.mean() - learned["mu0"]) < 5 * learned["sigma0"] / np.sqrt(20_000)

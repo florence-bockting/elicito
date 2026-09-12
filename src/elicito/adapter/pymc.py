@@ -206,3 +206,36 @@ def model(model: Any) -> type:
             return {name: values[out] for name, out in zip(names, outputs, strict=True)}
 
     return PyMCModel
+
+
+def set_hyperparameters(model: Any, eliobj: Any, replication: int = 0) -> None:
+    """
+    Write the learned hyperparameters into the PyMC model
+
+    Each learned value replaces the value of the `pm.Data` node with the
+    same name. The PyMC model then fits with the elicited priors.
+
+    Parameters
+    ----------
+    model
+        PyMC model that `parameters` read
+
+    eliobj
+        fitted Elicit object
+
+    replication
+        index of the replication
+
+    Raises
+    ------
+    MissingOptionalDependencyError
+        pymc is not installed
+    """
+    try:
+        import pymc as pm
+    except ImportError as exc:
+        raise MissingOptionalDependencyError(
+            "adapter.pymc", requirement="pymc"
+        ) from exc
+
+    pm.set_data(eliobj.hyperparameters(replication), model=model)
