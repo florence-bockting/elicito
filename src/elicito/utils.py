@@ -3,15 +3,10 @@ helper functions for setting up the Elicit object
 """
 
 import logging
-import os
-import pickle
 from typing import Any, Callable, Optional
 
-import cloudpickle  # type: ignore
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
-
-from elicito.initializers.methods import resolve_init_method
 
 # the names with noqa are re-exported, so that el.utils.<name> stays valid
 from elicito.models import (
@@ -23,7 +18,6 @@ from elicito.models import (
 from elicito.parameters.priors import Priors
 from elicito.types import (
     ExpertDict,
-    Initializer,
     NFDict,
     Parallel,
     Parameter,
@@ -37,31 +31,6 @@ logger = logging.getLogger(__name__)
 # Seed of the current run. Elicit sets it before a run, and
 # gumbel_softmax_trick reads it.
 SEED = 0
-
-
-def save_as_pkl(obj: Any, save_dir: str) -> None:
-    """
-    Save file as pickle.
-
-    Parameters
-    ----------
-    obj
-        Variable that needs to be saved.
-
-    save_dir
-        Path indicating the file location.
-
-    Examples
-    --------
-    >>> save_as_pkl(obj, "results/file.pkl")  # doctest: +SKIP
-
-    """
-    # if directory does not exist, create it
-    os.makedirs(os.path.dirname(save_dir), exist_ok=True)
-    # save obj to location as pickle
-    serialized_obj = cloudpickle.dumps(obj)
-    with open(save_dir, "wb") as file:
-        pickle.dump(serialized_obj, file=file)
 
 
 def get_expert_data(  # noqa: PLR0913
@@ -146,106 +115,6 @@ def get_expert_data(  # noqa: PLR0913
         # load expert data from file
         expert_data = expert["data"]
         return tuple((expert_data, None))
-
-
-def save(
-    eliobj: Any,
-    name: Optional[str] = None,
-    file: Optional[str] = None,
-    overwrite: bool = False,
-) -> None:
-    """
-    Save the eliobj as pickle.
-
-    Parameters
-    ----------
-    eliobj
-        Instance of the :func:`elicit.elicit.Elicit` class.
-
-    name
-        Name of the saved .pkl file.
-        File is saved as .results/{method}/{name}_{seed}.pkl
-
-    file
-        Path to file, including file name,
-        e.g. file="res" (saved as res.pkl) or
-        file="method1/res" (saved as method1/res.pkl)
-
-    overwrite
-        Whether to overwrite existing file.
-
-    Raises
-    ------
-    FileExistsError
-        The file exists and ``overwrite`` is ``False``.
-
-    """
-    # either name or file must be specified
-    if (name is not None) and (file is None):
-        if name.endswith(".pkl"):
-            name = name.removesuffix(".pkl")
-        # create saving path
-        path = f"./results/{eliobj.trainer['method']}/{name}_{eliobj.trainer['seed']}"
-    elif (file is not None) and (name is None):
-        # postprocess file to avoid file.pkl.pkl
-        if file.endswith(".pkl"):
-            file = file.removesuffix(".pkl")
-        path = "./" + file
-    else:
-        msg = (
-            "Name and file cannot be both None or both specified. "
-            "Either one has to be None."
-        )
-        raise AssertionError(msg)
-
-    if os.path.isfile(path + ".pkl") and not overwrite:
-        msg = (
-            f"The file '{path}.pkl' already exists. "
-            "Use overwrite=True to replace it."
-        )
-        raise FileExistsError(msg)
-
-    storage = dict()
-    # user inputs
-    storage["model"] = eliobj.model
-    storage["parameters"] = eliobj.parameters
-    storage["targets"] = eliobj.targets
-    storage["expert"] = eliobj.expert
-    storage["optimizer"] = eliobj.optimizer
-    storage["trainer"] = eliobj.trainer
-    storage["initializer"] = eliobj.initializer
-    storage["network"] = eliobj.network
-    # results
-    if hasattr(eliobj, "results"):
-        storage["results"] = eliobj.results
-    else:
-        storage["temp_results"] = []
-        storage["temp_history"] = []
-
-    save_as_pkl(storage, path + ".pkl")
-
-    print(f"saved in: {path}.pkl")
-
-
-def read_storage(file: str) -> dict[str, Any]:
-    """
-    Read the dictionary that [`save`][elicito.utils.save] stores
-
-    Parameters
-    ----------
-    file
-        path where ``eliobj`` object is saved.
-
-    Returns
-    -------
-    storage :
-        user inputs of the ``eliobj``, and its results if it was fitted.
-
-    """
-    with open(file, "rb") as f:
-        obj_pickled = pickle.load(f)  # noqa: S301
-    storage: dict[str, Any] = pickle.loads(obj_pickled)  # noqa: S301
-    return storage
 
 
 def add_derived(samples: Any, **derived: Callable[[Any], Any]) -> None:
@@ -478,77 +347,6 @@ def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6)
     # reparameterization/linear transformation
     ypred = tf.reduce_sum(tf.multiply(w, c), axis=-1)
     return ypred
-
-
-def dry_run(  # noqa: PLR0913
-    model: dict[str, Any],
-    parameters: list[Parameter],
-    targets: list[Target],
-    trainer: Trainer,
-    initializer: Initializer,
-    network: Optional[NFDict],
-) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any], Any]:
-    """
-    Run generative model in forward mode for a single epoch
-
-    Parameters
-    ----------
-    model
-        User-input from [`model`][elicito.specs.model].
-
-    parameters
-        User-input from [`parameter`][elicito.specs.parameter].
-
-    targets
-        User-input from [`target`][elicito.specs.target].
-
-    trainer
-        User-input from [`trainer`][elicito.specs.trainer].
-
-    initializer
-        User-input from [`initializer`][elicito.specs.initializer].
-
-    network
-        User-input from one of the methods implemented in the
-        [`networks`][elicito.networks] module.
-
-    Returns
-    -------
-    :
-        (elicited_statistics, prior_samples, model_simulations,
-        target_quantities, prior_model)
-    """
-    init_matrix_slice = (
-        None
-        if initializer is None
-        else resolve_init_method(initializer).dry_run_slice(
-            initializer, parameters, trainer
-        )
-    )
-
-    prior_model = Priors(
-        ground_truth=False,
-        init_matrix_slice=init_matrix_slice,
-        trainer=trainer,
-        parameters=parameters,
-        network=network,
-        expert=None,  # type: ignore
-        seed=trainer["seed"],
-    )
-
-    (elicited_statistics, prior_samples, model_simulations, target_quantities) = (
-        one_forward_simulation(
-            prior_model=prior_model, model=model, targets=targets, seed=trainer["seed"]
-        )
-    )
-
-    return (
-        elicited_statistics,
-        prior_samples,
-        model_simulations,
-        target_quantities,
-        prior_model,
-    )
 
 
 def compute_num_weights(num_NN_weights: list[tf.TensorShape]) -> int:

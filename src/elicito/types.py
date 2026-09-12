@@ -166,7 +166,7 @@ class NFDict(TypedDict):
     """
     Typed dictionary for specification of normalizing flow
 
-    See [`network`][elicito.networks.NF]
+    See [`network`][elicito.parameters.networks.NF]
 
     """
 

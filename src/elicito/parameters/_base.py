@@ -20,7 +20,7 @@ def numpy_seed(seed: int) -> Iterator[None]:
     Seed the numpy global generator for the duration of the block
 
     A network can draw from the numpy global generator while it is built.
-    `elicito.networks.Permutation` does, and `tf.random.set_seed` does not
+    `elicito.parameters.networks.Permutation` does, and `tf.random.set_seed` does not
     control that generator. Two networks built from the same seed then
     permute differently, and a fitted network cannot be rebuilt from its
     stored weights.

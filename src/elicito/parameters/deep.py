@@ -7,7 +7,7 @@ from typing import Any
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-from elicito import networks
+from elicito.parameters import networks
 from elicito.parameters._base import numpy_seed, seed_pair
 from elicito.types import (
     Initializer,

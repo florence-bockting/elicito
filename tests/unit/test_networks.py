@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from elicito.networks import (
+from elicito.parameters.networks import (
     ActNorm,
     AffineCoupling,
     CouplingLayer,

@@ -15,6 +15,7 @@ See https://oprypin.github.io/mkdocs-literate-nav/
     - [Choose an initialization method](how-to-guides/choose-initialization.py)
 - [Further background](further-background/index.md)
     - [Maximum Mean Discrepancy](further-background/maximum-mean-discrepancy.py)
+    - [Package architecture](further-background/architecture.py)
 - [Development](development.md)
 - [API reference](api/elicito/)
 - [Changelog](changelog.md)

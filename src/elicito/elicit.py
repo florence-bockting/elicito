@@ -18,6 +18,7 @@ from joblib.externals.loky.backend.context import (  # type: ignore [import-unty
 from elicito import (
     _checks,
     _outputs,
+    _storage,
     initializers,
     models,
     optimizers,
@@ -26,6 +27,7 @@ from elicito import (
     utils,
 )
 from elicito._progress import SeedTable, run_in_worker
+from elicito.parameters.priors import Priors
 from elicito.types import (
     ExpertDict,
     Initializer,
@@ -54,7 +56,78 @@ def _default_initializer(
             UserWarning,
             stacklevel=3,
         )
-    return specs.initializer(method=SamplingMethod.cmaes)
+    return initializers.initializer(method=SamplingMethod.cmaes)
+
+
+def dry_run(  # noqa: PLR0913
+    model: dict[str, Any],
+    parameters: list[Parameter],
+    targets: list[Target],
+    trainer: Trainer,
+    initializer: Initializer,
+    network: NFDict | None,
+) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any], Any]:
+    """
+    Run generative model in forward mode for a single epoch
+
+    Parameters
+    ----------
+    model
+        User-input from [`model`][elicito.specs.model].
+
+    parameters
+        User-input from [`parameter`][elicito.specs.parameter].
+
+    targets
+        User-input from [`target`][elicito.specs.target].
+
+    trainer
+        User-input from [`trainer`][elicito.specs.trainer].
+
+    initializer
+        User-input from [`initializer`][elicito.initializers.spec.initializer].
+
+    network
+        User-input from one of the methods implemented in the
+        [`networks`][elicito.parameters.networks] module.
+
+    Returns
+    -------
+    :
+        (elicited_statistics, prior_samples, model_simulations,
+        target_quantities, prior_model)
+    """
+    init_matrix_slice = (
+        None
+        if initializer is None
+        else initializers.methods.resolve_init_method(initializer).dry_run_slice(
+            initializer, parameters, trainer
+        )
+    )
+
+    prior_model = Priors(
+        ground_truth=False,
+        init_matrix_slice=init_matrix_slice,
+        trainer=trainer,
+        parameters=parameters,
+        network=network,
+        expert=None,  # type: ignore
+        seed=trainer["seed"],
+    )
+
+    (elicited_statistics, prior_samples, model_simulations, target_quantities) = (
+        models.one_forward_simulation(
+            prior_model=prior_model, model=model, targets=targets, seed=trainer["seed"]
+        )
+    )
+
+    return (
+        elicited_statistics,
+        prior_samples,
+        model_simulations,
+        target_quantities,
+        prior_model,
+    )
 
 
 class Elicit:
@@ -103,12 +176,12 @@ class Elicit:
 
         network
             specification of neural network using a method implemented in
-            [`networks`][elicito.networks].
+            [`networks`][elicito.parameters.networks].
             Only required for ``deep_prior`` method.
 
         initializer
             specification of initialization settings using
-            [`initializer`][elicito.specs.initializer].
+            [`initializer`][elicito.initializers.spec.initializer].
             Only required for ``parametric_prior`` method. With
             ``optimizer="cmaes"``, the initializer is ignored with a warning.
 
@@ -201,7 +274,7 @@ class Elicit:
                 self.dry_modelsims,
                 self.dry_targets,
                 self.dry_prior_model,
-            ) = utils.dry_run(
+            ) = dry_run(
                 self.model,
                 self.parameters,
                 self.targets,
@@ -558,7 +631,7 @@ class Elicit:
         >>> eliobj.save(file="res/toymodel", overwrite=True)  # doctest: +SKIP
 
         """
-        return utils.save(self, name=name, file=file, overwrite=overwrite)
+        return _storage.save(self, name=name, file=file, overwrite=overwrite)
 
     @classmethod
     def load(cls, file: str) -> "Elicit":
@@ -580,7 +653,7 @@ class Elicit:
         >>> eliobj = el.Elicit.load("res/toymodel.pkl")  # doctest: +SKIP
 
         """
-        storage = utils.read_storage(file)
+        storage = _storage.read_storage(file)
         eliobj = cls(
             model=storage["model"],
             parameters=storage["parameters"],

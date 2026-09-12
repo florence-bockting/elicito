@@ -10,7 +10,6 @@ from elicito import (
     initializers,
     losses,
     models,
-    networks,
     optimizers,
     parameters,
     plots,
@@ -20,10 +19,11 @@ from elicito import (
     utils,
 )
 from elicito.elicit import Elicit
+from elicito.initializers import initializer
+from elicito.parameters import networks
 from elicito.specs import (
     expert,
     hyper,
-    initializer,
     meta_settings,
     model,
     optimizer,

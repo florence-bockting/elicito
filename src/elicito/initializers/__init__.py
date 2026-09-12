@@ -2,7 +2,17 @@
 Initialization methods, which choose the start values of the hyperparameters
 """
 
-from elicito.initializers import cmaes, exact, methods, sampling, warmstart
+from elicito.initializers import cmaes, exact, methods, sampling, spec, warmstart
 from elicito.initializers.sampling import uniform
+from elicito.initializers.spec import initializer
 
-__all__ = ["cmaes", "exact", "methods", "sampling", "uniform", "warmstart"]
+__all__ = [
+    "cmaes",
+    "exact",
+    "initializer",
+    "methods",
+    "sampling",
+    "spec",
+    "uniform",
+    "warmstart",
+]

@@ -49,7 +49,7 @@ initializer = el.initializer(
 def test_dryrun():
     pytest.importorskip("scipy")
 
-    res_dry = el.utils.dry_run(
+    res_dry = el.elicit.dry_run(
         model, parameters, targets, trainer, initializer, network=None
     )
 

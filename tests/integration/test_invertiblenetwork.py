@@ -3,7 +3,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 import elicito as el
-from elicito.networks import InvertibleNetwork
+from elicito.parameters.networks import InvertibleNetwork
 
 tfd = tfp.distributions
 

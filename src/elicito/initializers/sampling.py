@@ -298,7 +298,7 @@ def init_runs(  # noqa: PLR0913
         User-specified expert data as provided by [`Elicit`][elicito.specs.Expert].
 
     initializer
-        User-input from [`initializer`][elicito.specs.initializer].
+        User-input from [`initializer`][elicito.initializers.spec.initializer].
 
     parameters
         User-input from [`parameter`][elicito.specs.parameter].
@@ -318,7 +318,7 @@ def init_runs(  # noqa: PLR0913
 
     network
         User-input from one of the methods implemented in the
-        [`networks`][elicito.networks] module.
+        [`networks`][elicito.parameters.networks] module.
 
     expert
         User-input from [`Expert`][elicito.specs.Expert].

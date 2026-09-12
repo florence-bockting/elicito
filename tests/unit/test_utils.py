@@ -14,13 +14,9 @@ import tensorflow_probability as tfp
 import xarray as xr
 
 import elicito as el
+from elicito._storage import save, save_as_pkl
 from elicito.parameters.bijections import DoubleBound, LowerBound, UpperBound
-from elicito.utils import (
-    gumbel_softmax_trick,
-    parallel,
-    save,
-    save_as_pkl,
-)
+from elicito.utils import gumbel_softmax_trick, parallel
 
 tfd = tfp.distributions
 
