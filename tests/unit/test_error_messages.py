@@ -4,7 +4,7 @@ import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from elicito.initialization import uniform_samples
+from elicito.initializers.sampling import uniform_samples
 from elicito.targets import computation_elicited_statistics
 from elicito.utils import gumbel_softmax_trick
 

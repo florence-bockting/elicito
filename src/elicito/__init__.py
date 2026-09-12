@@ -20,7 +20,7 @@ from elicito import (
     _checks,
     _outputs,
     elicit,
-    initialization,
+    initializers,
     losses,
     models,
     networks,
@@ -30,7 +30,6 @@ from elicito import (
     targets,
     types,
     utils,
-    warmstart,
 )
 from elicito._progress import SeedTable, run_in_worker
 from elicito.elicit import (
@@ -67,8 +66,8 @@ __all__ = [
     "Elicit",
     "expert",
     "hyper",
-    "initialization",
     "initializer",
+    "initializers",
     "losses",
     "meta_settings",
     "model",
@@ -85,7 +84,6 @@ __all__ = [
     "trainer",
     "types",
     "utils",
-    "warmstart",
 ]
 
 
@@ -776,7 +774,7 @@ class Elicit:
         )
 
         # initialization of hyperparameter
-        (init_prior_model, loss_list, init_matrix) = initialization.init_prior(
+        (init_prior_model, loss_list, init_matrix) = initializers.methods.init_prior(
             expert_elicits,
             self.initializer,
             self.parameters,
@@ -800,7 +798,7 @@ class Elicit:
             fit_method = optimizers.cmaes.cma_training
             if self.initializer is not None:
                 extra["default_sigma0"] = optimizers.cmaes.box_step_size(
-                    initialization.resolve_init_method(self.initializer),
+                    initializers.methods.resolve_init_method(self.initializer),
                     self.initializer,
                     self.parameters,
                 )

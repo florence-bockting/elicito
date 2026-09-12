@@ -126,7 +126,7 @@ class Uniform(TypedDict):
     """
     typed dictionary for specification of initialization distribution
 
-    See [`uniform`][elicito.initialization.uniform]
+    See [`uniform`][elicito.initializers.sampling.uniform]
 
     """
 

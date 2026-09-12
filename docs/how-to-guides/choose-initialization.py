@@ -490,7 +490,7 @@ landscape(
 # the training.
 #
 # #### Implementation
-# In `elicito` you specify the region with `el.initialization.uniform()`, which
+# In `elicito` you specify the region with `el.initializers.uniform()`, which
 # you pass to the `distribution` argument. It spans a uniform box around a center
 # point, with a given radius. The `method` argument sets how the candidates are
 # drawn from the box: `"sobol"`, `"lhs"` (Latin Hypercube Sampling), or
@@ -509,7 +509,7 @@ loss = fit_and_report(
     el.initializer(
         method="sobol",
         iterations=32,
-        distribution=el.initialization.uniform(radius=1, mean=0),
+        distribution=el.initializers.uniform(radius=1, mean=0),
     ),
 )
 
@@ -536,7 +536,7 @@ loss = fit_and_report(
     el.initializer(
         method="sobol",
         iterations=32,
-        distribution=el.initialization.uniform(radius=1, mean=-4),
+        distribution=el.initializers.uniform(radius=1, mean=-4),
     ),
     epochs=300,
 )
@@ -576,11 +576,11 @@ landscape(
 # In `elicito` you select the search with `method="warmstart"`. The `iterations`
 # argument is now the budget of the search, in objective evaluations, and not a
 # number of candidates. The center of `distribution` is the start point of the
-# search, so pass `el.initialization.uniform()` when you want to set that point
+# search, so pass `el.initializers.uniform()` when you want to set that point
 # yourself.
 #
 # If you pass no `distribution`, `elicito` uses
-# [`uniform`][elicito.initialization.uniform] with its defaults, `mean=0` and
+# [`uniform`][elicito.initializers.sampling.uniform] with its defaults, `mean=0` and
 # `radius=1`, on the unconstrained scale. This is what `el.initializer()` does
 # with no argument at all: `method="warmstart"`, the default `uniform` box, and
 # a budget of 100 evaluations.
@@ -641,7 +641,7 @@ loss = fit_and_report(
     el.initializer(
         method="warmstart",
         iterations=50,
-        distribution=el.initialization.uniform(radius=1, mean=-4),
+        distribution=el.initializers.uniform(radius=1, mean=-4),
     ),
 )
 
@@ -946,7 +946,7 @@ try:
         el.initializer(
             method="sobol",
             iterations=32,
-            distribution=el.initialization.uniform(radius=2, mean=-20),
+            distribution=el.initializers.uniform(radius=2, mean=-20),
         ),
     )
 except ValueError as error:
@@ -989,7 +989,7 @@ results.append(
         el.initializer(
             method="sobol",
             iterations=32,
-            distribution=el.initialization.uniform(radius=3, mean=2),
+            distribution=el.initializers.uniform(radius=3, mean=2),
         ),
     )
 )
@@ -1018,7 +1018,7 @@ results.append(
         el.initializer(
             method="warmstart",
             iterations=100,
-            distribution=el.initialization.uniform(radius=3, mean=2),
+            distribution=el.initializers.uniform(radius=3, mean=2),
         ),
     )
 )
@@ -1298,7 +1298,7 @@ long_run = build(
     el.initializer(
         method="warmstart",
         iterations=100,
-        distribution=el.initialization.uniform(radius=3, mean=2),
+        distribution=el.initializers.uniform(radius=3, mean=2),
     ),
     epochs=600,
 )

@@ -8,7 +8,7 @@ from typing import Any, Callable, Optional
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-from elicito import initialization
+from elicito import initializers
 from elicito.parameters.bijections import (
     DoubleBound,
     LowerBound,
@@ -789,7 +789,7 @@ def initializer(
 
     distribution
         Specification of initialization distribution.
-        The default is [`uniform`][elicito.initialization.uniform] with its
+        The default is [`uniform`][elicito.initializers.sampling.uniform] with its
         defaults, ``mean=0`` and ``radius=1``, on the unconstrained scale.
         Set a ``mean`` and a ``radius`` that match the scale of the
         hyperparameters. A box that is wrong by a factor of ten gives a bad
@@ -838,7 +838,7 @@ def initializer(
     >>> el.initializer(  # doctest: +SKIP
     >>>     method="lhs",  # doctest: +SKIP
     >>>     iterations=32,  # doctest: +SKIP
-    >>>     distribution=el.initialization.uniform(  # doctest: +SKIP
+    >>>     distribution=el.initializers.uniform(  # doctest: +SKIP
     >>>         radius=1,  # doctest: +SKIP
     >>>         mean=0   # doctest: +SKIP
     >>>         )  # doctest: +SKIP
@@ -874,9 +874,9 @@ def initializer(
 
     else:
         if distribution is None:
-            distribution = initialization.uniform()
+            distribution = initializers.uniform()
         if iterations is None:
-            iterations = initialization.get_init_method(method).default_iterations
+            iterations = initializers.methods.get_init_method(method).default_iterations
 
         # ensure that iterations is an integer
         if iterations is not None:
@@ -891,7 +891,7 @@ def initializer(
     )
 
     # each initialization method rejects the input it cannot use
-    initialization.resolve_init_method(init_dict).check(init_dict)
+    initializers.methods.resolve_init_method(init_dict).check(init_dict)
 
     return init_dict
 

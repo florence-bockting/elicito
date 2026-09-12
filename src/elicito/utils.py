@@ -11,7 +11,7 @@ import cloudpickle  # type: ignore
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-from elicito.initialization import resolve_init_method
+from elicito.initializers.methods import resolve_init_method
 
 # the names with noqa are re-exported, so that el.utils.<name> stays valid
 from elicito.models import (

@@ -40,7 +40,7 @@ def fitted_eliobj():
         initializer=el.initializer(
             method="sobol",
             iterations=1,
-            distribution=el.initialization.uniform(radius=1.0, mean=0.0),
+            distribution=el.initializers.uniform(radius=1.0, mean=0.0),
         ),
     )
     eliobj_copy.fit()
@@ -201,7 +201,7 @@ class DummyEliobj_empty:
         self.trainer = el.trainer(method="parametric_prior", seed=42, epochs=1)
         self.initializer = el.initializer(
             "sobol",
-            distribution=el.initialization.uniform(radius=1, mean=0),
+            distribution=el.initializers.uniform(radius=1, mean=0),
             iterations=1,
         )
         self.network = None
@@ -229,7 +229,7 @@ class DummyEliobj_fitted:
         self.trainer = el.trainer(method="parametric_prior", seed=42, epochs=1)
         self.initializer = el.initializer(
             "sobol",
-            distribution=el.initialization.uniform(radius=1, mean=0),
+            distribution=el.initializers.uniform(radius=1, mean=0),
             iterations=1,
         )
         self.network = None

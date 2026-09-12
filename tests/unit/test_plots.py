@@ -28,7 +28,7 @@ def fitted_eliobj():
         initializer=el.initializer(
             method="sobol",
             iterations=1,
-            distribution=el.initialization.uniform(radius=1.0, mean=0.0),
+            distribution=el.initializers.uniform(radius=1.0, mean=0.0),
         ),
     )
     eliobj_copy.fit()
@@ -40,7 +40,7 @@ def unfitted_eliobj():
     """Fixture providing an unfitted elicit object for testing."""
     from tests.utils import eliobj as base_eliobj
 
-    uniform_dist = el.initialization.uniform(radius=1.0, mean=0.0)
+    uniform_dist = el.initializers.uniform(radius=1.0, mean=0.0)
 
     eliobj_copy = el.Elicit(
         model=base_eliobj.model,
@@ -280,7 +280,7 @@ def test_plots_without_an_initialization_group():
 
     # the names come from the model, so the convergence plot still works
     fig, axes = el.plots.hyperparameter(eliobj)
-    names = el.initialization.hyper_names(eliobj.parameters)
+    names = el.optimizers.search.hyper_names(eliobj.parameters)
     assert [ax.get_title() for ax in axes] == names
     plt.close(fig)
 
@@ -295,7 +295,9 @@ def test_hyperparameter_plot_leaves_out_the_gradients(fitted_eliobj):
     assert any(name.startswith("grad_") for name in recorded)
 
     fig, axes = el.plots.hyperparameter(fitted_eliobj)
-    assert axes.shape == (len(el.initialization.hyper_names(fitted_eliobj.parameters)),)
+    assert axes.shape == (
+        len(el.optimizers.search.hyper_names(fitted_eliobj.parameters)),
+    )
     plt.close(fig)
 
 

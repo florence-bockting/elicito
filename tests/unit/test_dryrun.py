@@ -42,7 +42,7 @@ trainer = el.trainer(method="parametric_prior", seed=123, epochs=1)
 initializer = el.initializer(
     method="sobol",
     iterations=32,
-    distribution=el.initialization.uniform(radius=2.0, mean=0.0),
+    distribution=el.initializers.uniform(radius=2.0, mean=0.0),
 )
 
 

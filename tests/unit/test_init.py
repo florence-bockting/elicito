@@ -51,7 +51,7 @@ def eliobj():
         trainer=el.trainer(method="parametric_prior", seed=42, epochs=1),
         initializer=el.initializer(
             "random",
-            distribution=el.initialization.uniform(radius=1, mean=0),
+            distribution=el.initializers.uniform(radius=1, mean=0),
             iterations=1,
         ),
         network=None,
@@ -161,7 +161,7 @@ def test_initializer_network(eliobj, network):
         eliobj.update(
             initializer=el.initializer(
                 "random",
-                distribution=el.initialization.uniform(radius=1, mean=0),
+                distribution=el.initializers.uniform(radius=1, mean=0),
                 iterations=1,
             )
         )
@@ -481,7 +481,7 @@ def test_warmup_epochs_default():
     init = el.initializer(
         method="sobol",
         iterations=2,
-        distribution=el.initialization.uniform(radius=1, mean=0),
+        distribution=el.initializers.uniform(radius=1, mean=0),
     )
     assert init["warmup_epochs"] == 0
 
@@ -489,7 +489,7 @@ def test_warmup_epochs_default():
         method="sobol",
         iterations=2,
         warmup_epochs=3,
-        distribution=el.initialization.uniform(radius=1, mean=0),
+        distribution=el.initializers.uniform(radius=1, mean=0),
     )
     assert init["warmup_epochs"] == 3
 
@@ -540,7 +540,7 @@ def test_warmup_epochs_changes_candidate_loss():
                 method="sobol",
                 iterations=2,
                 warmup_epochs=warmup_epochs,
-                distribution=el.initialization.uniform(radius=1, mean=0),
+                distribution=el.initializers.uniform(radius=1, mean=0),
             ),
         )
 
@@ -566,17 +566,17 @@ def test_initializer_rejects_an_unknown_method_name():
         el.initializer(
             method="nelder",
             iterations=8,
-            distribution=el.initialization.uniform(radius=1, mean=0),
+            distribution=el.initializers.uniform(radius=1, mean=0),
         )
 
 
 def test_start_vector_reads_the_box():
     names = ["mu0", "sigma0"]
 
-    scalar_box = el.initialization.uniform(radius=1.0, mean=2.0)
+    scalar_box = el.initializers.uniform(radius=1.0, mean=2.0)
     assert start_vector(scalar_box, names) == [2.0, 2.0]
 
-    listed_box = el.initialization.uniform(
+    listed_box = el.initializers.uniform(
         radius=[1.0, 1.0], mean=[3.0, 4.0], hyper=["sigma0", "mu0"]
     )
     assert start_vector(listed_box, names) == [4.0, 3.0]
@@ -594,9 +594,9 @@ def test_uniform_samples_fills_the_box_in_every_dimension():
         )
         for i in range(3)
     ]
-    names = el.initialization.hyper_names(parameters)
+    names = el.optimizers.search.hyper_names(parameters)
 
-    samples = el.initialization.uniform_samples(
+    samples = el.initializers.sampling.uniform_samples(
         seed=0,
         hyppar=names,
         n_samples=256,
@@ -678,7 +678,7 @@ def _overflow_eliobj(overflow):
         initializer=el.initializer(
             method="sobol",
             iterations=4,
-            distribution=el.initialization.uniform(radius=1, mean=0),
+            distribution=el.initializers.uniform(radius=1, mean=0),
         ),
     )
 
@@ -711,14 +711,14 @@ def test_warm_start_spends_the_budget(monkeypatch):
 
     monkeypatch.setattr(el.optimizers.search, "compile_score", failing_scorer)
 
-    el.warmstart.warm_start(
+    el.initializers.warmstart.warm_start(
         expert_elicited_statistics={},
         parameters=base_eliobj.parameters,
         trainer=base_eliobj.trainer,
         model=base_eliobj.model,
         targets=base_eliobj.targets,
         expert=base_eliobj.expert,
-        distribution=el.initialization.uniform(radius=1, mean=2.0),
+        distribution=el.initializers.uniform(radius=1, mean=2.0),
         max_evals=120,
         seed=0,
     )
@@ -735,14 +735,14 @@ def test_warm_start_falls_back_when_every_point_fails(monkeypatch, caplog):
     )
 
     with caplog.at_level("WARNING"):
-        hyperparams = el.warmstart.warm_start(
+        hyperparams = el.initializers.warmstart.warm_start(
             expert_elicited_statistics={},
             parameters=base_eliobj.parameters,
             trainer=base_eliobj.trainer,
             model=base_eliobj.model,
             targets=base_eliobj.targets,
             expert=base_eliobj.expert,
-            distribution=el.initialization.uniform(radius=1, mean=2.0),
+            distribution=el.initializers.uniform(radius=1, mean=2.0),
             max_evals=30,
             seed=0,
         )
@@ -762,38 +762,38 @@ def test_warm_start_returns_one_value_per_hyperparameter():
         base_eliobj.trainer["seed"],
     )
 
-    hyperparams = el.warmstart.warm_start(
+    hyperparams = el.initializers.warmstart.warm_start(
         expert_elicited_statistics=expert_elicits,
         parameters=base_eliobj.parameters,
         trainer=base_eliobj.trainer,
         model=base_eliobj.model,
         targets=base_eliobj.targets,
         expert=base_eliobj.expert,
-        distribution=el.initialization.uniform(),
+        distribution=el.initializers.uniform(),
         max_evals=20,
         seed=0,
     )
 
-    assert list(hyperparams) == el.initialization.hyper_names(base_eliobj.parameters)
+    assert list(hyperparams) == el.optimizers.search.hyper_names(base_eliobj.parameters)
     assert all(np.isfinite(v) for v in hyperparams.values())
 
 
 def test_box_vector_reads_every_entry_of_the_box():
     names = ["mu0", "sigma0"]
 
-    scalar_box = el.initialization.uniform(radius=1.5, mean=2.0)
+    scalar_box = el.initializers.uniform(radius=1.5, mean=2.0)
     assert box_vector(scalar_box, names, "radius") == [1.5, 1.5]
 
-    listed_box = el.initialization.uniform(
+    listed_box = el.initializers.uniform(
         radius=[1.0, 2.0], mean=[3.0, 4.0], hyper=["sigma0", "mu0"]
     )
     assert box_vector(listed_box, names, "radius") == [2.0, 1.0]
 
 
 def test_cmaes_is_a_registered_initialization_method():
-    method = el.initialization.get_init_method("cmaes")
+    method = el.initializers.methods.get_init_method("cmaes")
 
-    assert isinstance(method, el.initialization.CmaEs)
+    assert isinstance(method, el.initializers.cmaes.CmaEs)
     assert method.default_iterations == 500
 
 
@@ -817,12 +817,12 @@ def test_cma_search_returns_one_value_per_hyperparameter():
         model=base_eliobj.model,
         targets=base_eliobj.targets,
         expert=base_eliobj.expert,
-        distribution=el.initialization.uniform(radius=1.0, mean=0.0),
+        distribution=el.initializers.uniform(radius=1.0, mean=0.0),
         max_evals=12,
         seed=0,
     )
 
-    assert list(hyperparams) == el.initialization.hyper_names(base_eliobj.parameters)
+    assert list(hyperparams) == el.optimizers.search.hyper_names(base_eliobj.parameters)
     assert all(np.isfinite(v) for v in hyperparams.values())
 
 
@@ -844,7 +844,7 @@ def test_cma_search_falls_back_when_every_point_fails(monkeypatch, caplog):
             model=base_eliobj.model,
             targets=base_eliobj.targets,
             expert=base_eliobj.expert,
-            distribution=el.initialization.uniform(radius=1.0, mean=2.0),
+            distribution=el.initializers.uniform(radius=1.0, mean=2.0),
             max_evals=12,
             seed=0,
         )
@@ -908,7 +908,7 @@ def test_cma_training_records_one_point_per_generation():
     hyper = eliobj.results["history_stats/hyperparameter"]
     # 12 evaluations, 4 candidates per generation
     assert loss.sizes["epoch"] == 3
-    for name in el.initialization.hyper_names(base_eliobj.parameters):
+    for name in el.optimizers.search.hyper_names(base_eliobj.parameters):
         assert hyper[name].sizes["epoch"] == 3
     assert np.all(np.isfinite(loss.values))
 
@@ -983,8 +983,8 @@ def test_cma_training_accepts_a_step_size_per_hyperparameter():
 
 
 def test_cmaes_init_drops_its_search_for_a_cmaes_training():
-    box = el.initialization.uniform(radius=1.0, mean=0.0)
-    method = el.initialization.resolve_init_method(
+    box = el.initializers.uniform(radius=1.0, mean=0.0)
+    method = el.initializers.methods.resolve_init_method(
         el.initializer(method="cmaes", distribution=box)
     )
 
@@ -995,22 +995,22 @@ def test_cmaes_init_drops_its_search_for_a_cmaes_training():
 
 
 def test_box_step_size_reads_the_radius_of_the_box():
-    box = el.initialization.uniform(radius=4.0, mean=0.0)
+    box = el.initializers.uniform(radius=4.0, mean=0.0)
 
     cmaes_init = el.initializer(method="cmaes", distribution=box)
     sigma0 = el.optimizers.cmaes.box_step_size(
-        el.initialization.resolve_init_method(cmaes_init),
+        el.initializers.methods.resolve_init_method(cmaes_init),
         cmaes_init,
         base_eliobj.parameters,
     )
 
-    names = el.initialization.hyper_names(base_eliobj.parameters)
+    names = el.optimizers.search.hyper_names(base_eliobj.parameters)
     assert sigma0 == {name: 2.0 for name in names}
 
     # a method that keeps its own search hands no box to the training
     sobol_init = el.initializer(method="sobol", distribution=box)
     other = el.optimizers.cmaes.box_step_size(
-        el.initialization.resolve_init_method(sobol_init),
+        el.initializers.methods.resolve_init_method(sobol_init),
         sobol_init,
         base_eliobj.parameters,
     )
@@ -1046,7 +1046,7 @@ def test_cmaes_optimizer_ignores_an_initializer():
             initializer=el.initializer(
                 method="sobol",
                 iterations=2,
-                distribution=el.initialization.uniform(radius=1.0, mean=0.0),
+                distribution=el.initializers.uniform(radius=1.0, mean=0.0),
             )
         )
     assert eliobj.initializer["method"] == "cmaes"

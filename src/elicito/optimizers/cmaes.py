@@ -25,7 +25,7 @@ from elicito.parameters import methods
 from elicito.types import ExpertDict, Parameter, Target, Trainer
 
 if TYPE_CHECKING:
-    from elicito.initialization import InitMethod
+    from elicito.initializers.methods import InitMethod
 
 logger = logging.getLogger(__name__)
 

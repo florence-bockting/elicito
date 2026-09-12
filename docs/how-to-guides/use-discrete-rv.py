@@ -209,7 +209,7 @@ eliobj = el.Elicit(
     initializer=el.initializer(
         method="sobol",
         iterations=32,
-        distribution=el.initialization.uniform(radius=1.0, mean=0.0),
+        distribution=el.initializers.uniform(radius=1.0, mean=0.0),
     ),
 )
 

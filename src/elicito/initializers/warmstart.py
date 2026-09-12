@@ -9,6 +9,7 @@ import numpy as np
 import tensorflow as tf
 
 from elicito.exceptions import MissingOptionalDependencyError
+from elicito.initializers._search import _SearchStart
 from elicito.optimizers import search
 from elicito.optimizers.search import (
     MIN_SEARCH_SAMPLES,
@@ -17,9 +18,46 @@ from elicito.optimizers.search import (
     hyper_names,
     start_vector,
 )
-from elicito.types import ExpertDict, Parameter, Target, Trainer
+from elicito.types import (
+    ExpertDict,
+    Parameter,
+    Target,
+    Trainer,
+)
 
 logger = logging.getLogger(__name__)
+
+
+class WarmStart(_SearchStart):
+    """Search for a start point with Nelder-Mead, from the box centre."""
+
+    name = "warmstart"
+    default_iterations = 100  # objective evaluations, not candidates
+
+    def search(  # noqa: PLR0913
+        self,
+        expert_elicited_statistics: dict[str, tf.Tensor],
+        parameters: list[Parameter],
+        trainer: Trainer,
+        model: dict[str, Any],
+        targets: list[Target],
+        expert: ExpertDict,
+        distribution: dict[str, Any],
+        max_evals: int,
+        seed: int,
+    ) -> dict[str, Any]:
+        """Return one value per hyperparameter, on the unconstrained scale."""
+        return warm_start(
+            expert_elicited_statistics=expert_elicited_statistics,
+            parameters=parameters,
+            trainer=trainer,
+            model=model,
+            targets=targets,
+            expert=expert,
+            distribution=distribution,
+            max_evals=max_evals,
+            seed=seed,
+        )
 
 
 def warm_start(  # noqa: PLR0913
