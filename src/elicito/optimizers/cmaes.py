@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import tensorflow as tf
 
-from elicito import methods
 from elicito._progress import ProgressTable
 from elicito.exceptions import MissingOptionalDependencyError
 from elicito.losses import spread_penalty
@@ -22,6 +21,7 @@ from elicito.optimizers.search import (
     hyper_names,
     variable_names,
 )
+from elicito.parameters import methods
 from elicito.types import ExpertDict, Parameter, Target, Trainer
 
 if TYPE_CHECKING:

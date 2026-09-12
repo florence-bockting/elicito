@@ -14,10 +14,8 @@ import tensorflow_probability as tfp
 import xarray as xr
 
 import elicito as el
+from elicito.parameters.bijections import DoubleBound, LowerBound, UpperBound
 from elicito.utils import (
-    DoubleBound,
-    LowerBound,
-    UpperBound,
     gumbel_softmax_trick,
     parallel,
     save,

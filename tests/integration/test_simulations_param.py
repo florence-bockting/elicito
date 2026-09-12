@@ -90,7 +90,7 @@ def test_initialize_priors_1(
 ):
     """Test the initialization of priors."""
     # Create a dictionary with initialized tf.Variables
-    init_prior = el.simulations.intialize_priors(
+    init_prior = el.parameters.priors.intialize_priors(
         init_matrix_slice=init_matrix_slice,
         method="parametric_prior",
         seed=0,
@@ -99,7 +99,7 @@ def test_initialize_priors_1(
     )
 
     # Re-run the function with the same seed
-    init_prior_copy = el.simulations.intialize_priors(
+    init_prior_copy = el.parameters.priors.intialize_priors(
         init_matrix_slice=init_matrix_slice,
         method="parametric_prior",
         seed=0,
@@ -163,7 +163,7 @@ def network():
 def test_initialize_priors_2(network, parameters):
     """Test the initialization of priors."""
     # Create a dictionary with initialized tf.Variables
-    init_prior = el.simulations.intialize_priors(
+    init_prior = el.parameters.priors.intialize_priors(
         init_matrix_slice=None,
         method="deep_prior",
         seed=0,
@@ -200,7 +200,7 @@ def parameters_deep():
 
 # check: parametric_prior, oracle
 def test_prior_samples_1(init_matrix_slice, parameters, expert):
-    initialized_priors = el.simulations.intialize_priors(
+    initialized_priors = el.parameters.priors.intialize_priors(
         init_matrix_slice=init_matrix_slice,
         method="parametric_prior",
         seed=0,
@@ -208,15 +208,15 @@ def test_prior_samples_1(init_matrix_slice, parameters, expert):
         network=None,
     )
 
-    prior_samples = el.simulations.sample_from_priors(
+    prior_samples = el.parameters.priors.sample_from_priors(
         initialized_priors, True, 10, 5, 0, "parametric_prior", parameters, None, expert
     )
 
-    prior_samples_copy = el.simulations.sample_from_priors(
+    prior_samples_copy = el.parameters.priors.sample_from_priors(
         initialized_priors, True, 10, 5, 0, "parametric_prior", parameters, None, expert
     )
 
-    prior_samples_copy2 = el.simulations.sample_from_priors(
+    prior_samples_copy2 = el.parameters.priors.sample_from_priors(
         initialized_priors, True, 10, 5, 1, "parametric_prior", parameters, None, expert
     )
 
@@ -241,7 +241,7 @@ def test_prior_samples_1(init_matrix_slice, parameters, expert):
 
 # check: parametric_prior, training
 def test_prior_samples_2(init_matrix_slice, parameters, expert):
-    initialized_priors = el.simulations.intialize_priors(
+    initialized_priors = el.parameters.priors.intialize_priors(
         init_matrix_slice=init_matrix_slice,
         method="parametric_prior",
         seed=0,
@@ -249,7 +249,7 @@ def test_prior_samples_2(init_matrix_slice, parameters, expert):
         network=None,
     )
 
-    prior_samples = el.simulations.sample_from_priors(
+    prior_samples = el.parameters.priors.sample_from_priors(
         initialized_priors,
         False,
         10,
@@ -261,7 +261,7 @@ def test_prior_samples_2(init_matrix_slice, parameters, expert):
         expert,
     )
 
-    prior_samples_copy = el.simulations.sample_from_priors(
+    prior_samples_copy = el.parameters.priors.sample_from_priors(
         initialized_priors,
         False,
         10,
@@ -273,7 +273,7 @@ def test_prior_samples_2(init_matrix_slice, parameters, expert):
         expert,
     )
 
-    prior_samples_copy2 = el.simulations.sample_from_priors(
+    prior_samples_copy2 = el.parameters.priors.sample_from_priors(
         initialized_priors,
         False,
         10,

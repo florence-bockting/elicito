@@ -2,8 +2,9 @@
 Check user input of Elicit object
 """
 
-from elicito import methods, utils
+from elicito import utils
 from elicito.optimizers import cmaes
+from elicito.parameters import methods
 
 
 def check_elicit(  # type: ignore  # noqa: PLR0913

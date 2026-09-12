@@ -17,6 +17,7 @@ from elicito.exceptions import MissingOptionalDependencyError
 from elicito.losses import total_loss
 from elicito.optimizers import cmaes, sgd
 from elicito.optimizers.search import hyper_names, start_vector
+from elicito.parameters.priors import Priors
 from elicito.types import (
     ExpertDict,
     Initializer,
@@ -148,7 +149,7 @@ class ExactValues:
         progress: int,
     ) -> InitResult:
         """Build the prior model from the given values."""
-        prior_model = simulations.Priors(
+        prior_model = Priors(
             ground_truth=False,
             init_matrix_slice=initializer["hyperparams"],
             trainer=trainer,
@@ -745,7 +746,7 @@ def init_runs(  # noqa: PLR0913
         # extract initial hyperparameter value for each run
         init_matrix_slice = {f"{key}": init_matrix[key][i] for key in init_matrix}
         # initialize prior distributions based on initial hyperparameters
-        prior_model = simulations.Priors(
+        prior_model = Priors(
             ground_truth=False,
             init_matrix_slice=init_matrix_slice,
             trainer=trainer,
@@ -888,7 +889,7 @@ def init_prior(  # noqa: PLR0913
     """
     if initializer is None:
         # check() allows no initializer for deep_prior only; it runs no search
-        prior_model = simulations.Priors(
+        prior_model = Priors(
             ground_truth=False,
             init_matrix_slice=None,
             trainer=trainer,

@@ -139,7 +139,7 @@ targets = [
 
 ground_truth = {"mu": tfd.Normal(loc=1.0, scale=2.0)}
 
-forward = el.utils.LowerBound(lower=0.0).forward
+forward = el.parameters.LowerBound(lower=0.0).forward
 # the true values, on the scale of the figures
 TRUTH = (1.0, float(forward(2.0)))
 
@@ -447,11 +447,11 @@ landscape("the loss surface")
 # unconstrained scale, `elicito` gives you these utilities:
 #
 #   + a lower-bounded hyperparameter:
-#     `el.utils.LowerBound(lower=0.0).forward(value)`
+#     `el.parameters.LowerBound(lower=0.0).forward(value)`
 #   + an upper-bounded hyperparameter:
-#     `el.utils.UpperBound(upper=1.0).forward(value)`
+#     `el.parameters.UpperBound(upper=1.0).forward(value)`
 #   + a double-bounded hyperparameter:
-#     `el.utils.DoubleBound(lower=0.0, upper=1.0).forward(value)`
+#     `el.parameters.DoubleBound(lower=0.0, upper=1.0).forward(value)`
 #
 # #### Visualization (Example)
 # The plot below shows the initialization and the training for this approach. The
@@ -464,7 +464,9 @@ landscape("the loss surface")
 loss = fit_and_report(
     "exact values",
     el.initializer(
-        hyperparams=dict(mu0=1.5, sigma0=el.utils.LowerBound(lower=0.0).forward(2.5))
+        hyperparams=dict(
+            mu0=1.5, sigma0=el.parameters.LowerBound(lower=0.0).forward(2.5)
+        )
     ),
 )
 
@@ -913,7 +915,7 @@ fits = {}
 # unconstrained scale, so they use `truth_unconstrained` below.
 truth = dict(mu0=1.0, sigma0=0.5, mu1=0.3, sigma1=0.2, k2=2.0, lambda2=5.0)
 
-forward = el.utils.LowerBound(lower=0.0).forward
+forward = el.parameters.LowerBound(lower=0.0).forward
 truth_unconstrained = dict(
     mu0=1.0,
     sigma0=float(forward(0.5)),
@@ -962,11 +964,11 @@ results.append(
         el.initializer(
             hyperparams=dict(
                 mu0=1.0,
-                sigma0=el.utils.LowerBound(lower=0.0).forward(0.5),
+                sigma0=el.parameters.LowerBound(lower=0.0).forward(0.5),
                 mu1=0.3,
-                sigma1=el.utils.LowerBound(lower=0.0).forward(0.2),
-                k2=el.utils.LowerBound(lower=0.0).forward(2.0),
-                lambda2=el.utils.LowerBound(lower=0.0).forward(5.0),
+                sigma1=el.parameters.LowerBound(lower=0.0).forward(0.2),
+                k2=el.parameters.LowerBound(lower=0.0).forward(2.0),
+                lambda2=el.parameters.LowerBound(lower=0.0).forward(5.0),
             )
         ),
     )

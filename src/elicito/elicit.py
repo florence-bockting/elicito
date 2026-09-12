@@ -9,6 +9,12 @@ import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
 from elicito import initialization
+from elicito.parameters.bijections import (
+    DoubleBound,
+    LowerBound,
+    UpperBound,
+    identity,
+)
 from elicito.types import (
     ExpertDict,
     Hyper,
@@ -23,12 +29,6 @@ from elicito.types import (
     Trainer,
     Uniform,
     VariableType,
-)
-from elicito.utils import (
-    DoubleBound,
-    LowerBound,
-    UpperBound,
-    identity,
 )
 
 tfd = tfp.distributions
@@ -812,9 +812,10 @@ def initializer(
     hyperparams
         Dictionary with specific initial values per hyperparameter.
         **Note:** Initial values are considered to be on the *unconstrained
-        scale*. Use  the ``forward`` method of [`LowerBound`][elicito.utils.LowerBound],
-        [`UpperBound`][elicito.utils.UpperBound] and
-        [`DoubleBound`][elicito.utils.DoubleBound]
+        scale*. Use the ``forward`` method of
+        [`LowerBound`][elicito.parameters.bijections.LowerBound],
+        [`UpperBound`][elicito.parameters.bijections.UpperBound] and
+        [`DoubleBound`][elicito.parameters.bijections.DoubleBound]
         for transforming a constrained hyperparameter into an
         unconstrained one. In hyperparams dictionary, *keys* refer to
         hyperparameter names, as specified in [`hyper`][elicito.elicit.hyper]
@@ -846,10 +847,10 @@ def initializer(
     >>> el.initializer(  # doctest: +SKIP
     >>>     hyperparams = dict(  # doctest: +SKIP
     >>>         mu0=0.,  # doctest: +SKIP
-    >>>         sigma0=el.utils.LowerBound(lower=0.).forward(0.3),  # doctest: +SKIP
+    >>>         sigma0=el.parameters.LowerBound(lower=0).forward(0.3),  # doctest: +SKIP
     >>>         mu1=1.,  # doctest: +SKIP
-    >>>         sigma1=el.utils.LowerBound(lower=0.).forward(0.5),  # doctest: +SKIP
-    >>>         sigma2=el.utils.LowerBound(lower=0.).forward(0.4)  # doctest: +SKIP
+    >>>         sigma1=el.parameters.LowerBound(lower=0).forward(0.5),  # doctest: +SKIP
+    >>>         sigma2=el.parameters.LowerBound(lower=0).forward(0.4)  # doctest: +SKIP
     >>>         )  # doctest: +SKIP
     >>>     )  # doctest: +SKIP
     """

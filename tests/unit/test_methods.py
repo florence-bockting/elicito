@@ -1,7 +1,7 @@
 import numpy as np
 
-from elicito.methods import numpy_seed
 from elicito.networks import InvertibleNetwork
+from elicito.parameters._base import numpy_seed
 
 
 def test_two_flows_from_one_seed_permute_alike():

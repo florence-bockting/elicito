@@ -7,8 +7,10 @@ from typing import Any
 import numpy as np
 import tensorflow as tf
 
-from elicito import methods, simulations
+from elicito import simulations
 from elicito.losses import total_loss
+from elicito.parameters import methods
+from elicito.parameters.priors import Priors
 from elicito.types import ExpertDict, Parameter, Target, Trainer
 
 # The search uses a quarter of the training draws. A noisier objective is
@@ -133,7 +135,7 @@ def score(  # noqa: PLR0913
         Total loss against the expert-elicited statistics.
 
     """
-    prior_model = simulations.Priors(
+    prior_model = Priors(
         ground_truth=False,
         init_matrix_slice={
             name: tf.constant(float(value), dtype=tf.float32)
@@ -381,7 +383,7 @@ def compile_score(  # noqa: PLR0913
 
     """
     names = hyper_names(parameters)
-    prior_model = simulations.Priors(
+    prior_model = Priors(
         ground_truth=False,
         init_matrix_slice=dict.fromkeys(names, tf.constant(0.0, dtype=tf.float32)),
         trainer=trainer,

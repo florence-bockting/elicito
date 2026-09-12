@@ -22,9 +22,9 @@ from elicito import (
     elicit,
     initialization,
     losses,
-    methods,
     networks,
     optimizers,
+    parameters,
     plots,
     simulations,
     targets,
@@ -76,6 +76,7 @@ __all__ = [
     "optimizer",
     "optimizers",
     "parameter",
+    "parameters",
     "plots",
     "queries",
     "simulations",
@@ -512,7 +513,7 @@ class Elicit:
 
         weights = self.results["learned_weights"].to_dataset()
         seeds = self.results.history_stats.seed_replication.values
-        method = methods.get_method(self.trainer["method"])
+        method = parameters.methods.get_method(self.trainer["method"])
 
         simulated = []
         for i, replication_seed in enumerate(seeds):
@@ -526,7 +527,7 @@ class Elicit:
 
             # the build step reads an initial value for every hyperparameter.
             # The learned values overwrite them below, so any number does.
-            prior_model = simulations.Priors(
+            prior_model = parameters.priors.Priors(
                 ground_truth=False,
                 init_matrix_slice=defaultdict(lambda: tf.constant(0.0)),
                 trainer=trainer,  # type: ignore [arg-type]

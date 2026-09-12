@@ -8,7 +8,7 @@ import tensorflow_probability as tfp
 
 import elicito as el
 from elicito.elicit import Dtype, VariableType, hyper, parameter
-from elicito.utils import (
+from elicito.parameters.bijections import (
     DoubleBound,
     LowerBound,
     UpperBound,
