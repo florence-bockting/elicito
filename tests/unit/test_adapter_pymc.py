@@ -1,11 +1,20 @@
 import numpy as np
 import pytest
+import tensorflow as tf
 import tensorflow_probability as tfp
 
+import elicito as el
 from elicito.adapter import pymc as adapter_pymc
 
 pm = pytest.importorskip("pymc")
 tfd = tfp.distributions
+
+SEED = tf.constant([1, 2], dtype=tf.int32)
+
+
+def _samples(beta0, beta1, sigma, n=5):
+    """prior samples of shape (1, n, 3) with fixed values"""
+    return tf.constant([[[beta0, beta1, sigma]] * n], dtype=tf.float32)
 
 
 @pytest.fixture
@@ -46,3 +55,34 @@ def test_constant_hyperparameter_raises():
         pm.Normal("b", mu=0.0, sigma=pm.Data("s", 1.0))
     with pytest.raises(TypeError, match="pm.Data"):
         adapter_pymc.parameters(m)
+
+
+def test_model_is_accepted_by_el_model(toy_model):
+    el.model(obj=adapter_pymc.model(toy_model))
+
+
+def test_model_computes_epred(toy_model):
+    out = adapter_pymc.model(toy_model)()(_samples(1.0, 2.0, 1.0), seed=SEED)
+    assert set(out) == {"ypred", "epred"}
+    assert out["epred"].shape == (1, 5, 3)
+    np.testing.assert_allclose(out["epred"][0, 0], [2.0, 3.0, 4.0])
+
+
+def test_model_same_seed_same_ypred(toy_model):
+    gen = adapter_pymc.model(toy_model)()
+    ps = _samples(1.0, 2.0, 1.0)
+    tf.debugging.assert_equal(gen(ps, seed=SEED)["ypred"], gen(ps, seed=SEED)["ypred"])
+
+
+def test_model_ypred_moments(toy_model):
+    out = adapter_pymc.model(toy_model)()(_samples(0.0, 0.0, 2.0, n=100_000), seed=SEED)
+    assert abs(float(tf.reduce_mean(out["ypred"]))) < 0.05
+    assert abs(float(tf.math.reduce_std(out["ypred"])) - 2.0) < 0.05
+
+
+def test_model_unsupported_op_raises():
+    with pm.Model() as m:
+        b = pm.Normal("b", pm.Data("mu", 0.0), pm.Data("s", 1.0))
+        pm.Deterministic("e", pm.math.exp(b))
+    with pytest.raises(NotImplementedError, match="Exp"):
+        adapter_pymc.model(m)
