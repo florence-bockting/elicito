@@ -57,6 +57,17 @@ def test_constant_hyperparameter_raises():
         adapter_pymc.parameters(m)
 
 
+def test_shared_hyperparameter():
+    with pm.Model() as m:
+        s = pm.Data("s", 1.0)
+        pm.Normal("b0", pm.Data("mu0", 0.0), s)
+        pm.Normal("b1", pm.Data("mu1", 0.0), s)
+    params = adapter_pymc.parameters(m)
+    assert params[0]["hyperparams"]["scale"]["shared"]
+    assert params[1]["hyperparams"]["scale"]["shared"]
+    assert not params[0]["hyperparams"]["loc"]["shared"]
+
+
 def test_model_is_accepted_by_el_model(toy_model):
     el.model(obj=adapter_pymc.model(toy_model))
 

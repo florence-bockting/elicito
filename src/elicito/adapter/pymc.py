@@ -3,6 +3,7 @@ Adapter for PyMC models
 """
 
 import functools
+from collections import Counter
 from collections.abc import Callable
 from typing import Any
 
@@ -66,6 +67,14 @@ def parameters(model: Any) -> list[Parameter]:
             "adapter.pymc", requirement="pymc"
         ) from exc
 
+    # a pm.Data node that feeds two priors is one shared hyperparameter
+    uses = Counter(
+        inp.name
+        for rv in model.free_RVs
+        for inp in rv.owner.op.dist_params(rv.owner)
+        if isinstance(inp, SharedVariable)
+    )
+
     params = []
     for rv in model.free_RVs:
         node = rv.owner
@@ -79,7 +88,9 @@ def parameters(model: Any) -> list[Parameter]:
         for entry, inp in zip(entries, node.op.dist_params(node), strict=True):
             if isinstance(entry, str) and isinstance(inp, SharedVariable) and inp.name:
                 lower = LOWER.get(entry, float("-inf"))
-                hyperparams[entry] = hyper(inp.name, lower=lower)
+                hyperparams[entry] = hyper(
+                    inp.name, lower=lower, shared=uses[inp.name] > 1
+                )
             elif isinstance(entry, float) and isinstance(inp, Constant):
                 if inp.data != entry:
                     msg = f"The prior of '{rv.name}' needs {entry}, not {inp.data}."
