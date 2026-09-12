@@ -41,14 +41,6 @@ def _halve_learning_rate(sgd_optimizer: Any) -> None:
         lr.assign(lr * 0.5)
 
 
-def _learning_rate(sgd_optimizer: Any) -> float:
-    """Return the current learning rate, also for a schedule"""
-    lr = sgd_optimizer.learning_rate
-    if callable(lr):
-        lr = lr(sgd_optimizer.iterations)
-    return float(lr)
-
-
 def sgd_training(  # noqa: PLR0913, PLR0915
     expert_elicited_statistics: dict[str, tf.Tensor],
     prior_model_init: Priors,
@@ -129,15 +121,12 @@ def sgd_training(  # noqa: PLR0913, PLR0915
 
     # start training loop
     epochs = tf.range(trainer["epochs"])
-    best_loss = float("inf")
     bar = ProgressTable(
         "Training",
         total=trainer["epochs"],
         disable=progress == 0,
         loss=float("nan"),
-        best=float("nan"),
         skipped=0,
-        lr=_learning_rate(sgd_optimizer),
     )
 
     # A single non-finite step must not end the run. The update is skipped and
@@ -234,13 +223,7 @@ def sgd_training(  # noqa: PLR0913, PLR0915
         component_losses.append(indiv_losses)
 
         loss_value = float(tf.squeeze(loss))
-        best_loss = min(best_loss, loss_value)
-        bar.update(
-            loss=loss_value,
-            best=best_loss,
-            skipped=n_skipped_total,
-            lr=_learning_rate(sgd_optimizer),
-        )
+        bar.update(loss=loss_value, skipped=n_skipped_total)
 
         # the run cannot recover; stop after the epoch has been recorded
         if n_skipped >= MAX_SKIPPED_STEPS:

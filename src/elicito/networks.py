@@ -236,7 +236,9 @@ class DenseCouplingNet(tf.keras.Model):  # type: ignore
             self.fc.add(Dense(dim_out, kernel_initializer="zeros"))
             self.residual_output = None  # type: ignore
 
-        # self.fc.build(input_shape=())
+    def build(self, input_shape: Any) -> None:
+        """Build the dense body from the shape of the first input."""
+        self.fc.build(input_shape=input_shape)
 
     def __call__(  # type: ignore
         self,
@@ -262,8 +264,8 @@ class DenseCouplingNet(tf.keras.Model):  # type: ignore
         out :
             residual output
         """
-        if not self.fc.built:
-            self.fc.build(input_shape=target.shape)
+        if not self.built:
+            self.build(target.shape)
         # Handle case no condition
         if condition is None:
             if self.residual_output is not None:

@@ -758,13 +758,11 @@ def init_runs(  # noqa: PLR0913
         )
 
     epochs = range(initializer["iterations"])  # type: ignore [arg-type]
-    best_loss = float("inf")
     bar = ProgressTable(
         "Initialization",
         total=initializer["iterations"],  # type: ignore [arg-type]
         disable=progress != 1,
         loss=float("nan"),
-        best=float("nan"),
     )
 
     # a candidate is scored by its loss after `warmup_epochs` training epochs.
@@ -836,9 +834,7 @@ def init_runs(  # noqa: PLR0913
         init_var_list.append(prior_model)
         save_prior.append(prior_model.trainable_variables)
         loss_list.append(loss.numpy())
-        loss_value = float(tf.squeeze(loss))
-        best_loss = min(best_loss, loss_value)
-        bar.update(loss=loss_value, best=best_loss)
+        bar.update(loss=float(tf.squeeze(loss)))
     bar.close()
 
     # A candidate with a non-finite loss cannot be used as a start value. It
@@ -1149,7 +1145,7 @@ def from_elicits(factor: float = 2.0) -> Uniform:
     Derive the initialization box from the expert data
 
     The box cannot be built before ``fit``, because the expert statistics
-    of [`expert.simulator`][elicito.elicit.expert] do not exist yet. This
+    of [`expert.simulator`][elicito.elicit.Expert.simulator] do not exist yet. This
     function only records the request. [`init_prior`]
     [elicito.initialization.init_prior] builds the box.
 

@@ -436,7 +436,6 @@ def cma_training(  # noqa: PLR0913, PLR0915
         total=budget,
         disable=progress == 0,
         loss=float("nan"),
-        best=float("nan"),
     )
 
     strategy = cma.CMAEvolutionStrategy(start, sigma0, options)
@@ -478,7 +477,6 @@ def cma_training(  # noqa: PLR0913, PLR0915
         bar.update(
             advance=len(candidates),
             loss=float(leader["value"]),
-            best=float(best["value"]),
         )
 
     bar.close()

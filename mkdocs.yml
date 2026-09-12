@@ -54,6 +54,9 @@ plugins:
       # Toggle off for faster builds
       # execute: false
       allow_errors: false
+      # Remove cells with this tag from the rendered page
+      remove_tag_config:
+        remove_cell_tags: ["hide"]
       # theme: dark
       include_source: True
       ignore: ["*.ipynb", "*.md", "docs/gen_doc_stubs.py"]

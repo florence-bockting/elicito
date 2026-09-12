@@ -665,8 +665,8 @@ landscape(
 # could not escape. The center of that box is the start point of the search. The
 # budget is 50 evaluations, because we search only two hyperparameters here. The
 # search itself is not stored, so the figure below records it: we wrap
-# [`score`][elicito.warmstart.score], the function that the search calls, for the
-# time of the fit.
+# [`compile_score`][elicito.warmstart.compile_score], the function that builds
+# the scorer of the search, for the time of the fit.
 #
 # The white path is the search, the black dot is the start value that it returns,
 # and the red line is the training. The search leaves the box, and it also leaves
@@ -692,18 +692,23 @@ surface_wide = np.vstack([loss_grid(mu0_grid, sigma0_low), surface])
 # %% tags=["remove_input"]
 visited: list[Any] = []
 scored: list[float] = []
-original_score = el.warmstart.score
+original_compile = el.warmstart.compile_score
 
 
-def recording_score(**kwargs: Any) -> float:
-    """Record one evaluation of the search, then score it as usual"""
-    value = original_score(**kwargs)
-    visited.append(list(kwargs["hyperparams"].values()))
-    scored.append(value)
-    return value
+def recording_compile(*args: Any, **kwargs: Any) -> Any:
+    """Build the scorer as usual, then record each evaluation of the search"""
+    scorer = original_compile(*args, **kwargs)
+
+    def recording(hyperparams: dict[str, Any]) -> float:
+        value = float(scorer(hyperparams))
+        visited.append(list(hyperparams.values()))
+        scored.append(value)
+        return value
+
+    return recording
 
 
-el.warmstart.score = recording_score
+el.warmstart.compile_score = recording_compile
 
 # %%
 loss = fit_and_report(
@@ -716,7 +721,7 @@ loss = fit_and_report(
 )
 
 # %% tags=["remove_input"]
-el.warmstart.score = original_score
+el.warmstart.compile_score = original_compile
 
 path = training_path("warmstart")
 landscape(
@@ -1093,12 +1098,12 @@ results.append(
 # short: at 50 evaluations it stops at a start value of loss 9.9, and the
 # training then needs 140 epochs to recover.
 #
-# The `score` wrapper of part 1 records the path again.
+# The `compile_score` wrapper of part 1 records the path again.
 
 # %% tags=["remove_input"]
 visited = []
 scored = []
-el.warmstart.score = recording_score
+el.warmstart.compile_score = recording_compile
 
 # %%
 results.append(
@@ -1113,7 +1118,7 @@ results.append(
 )
 
 # %% tags=["remove_input"]
-el.warmstart.score = original_score
+el.warmstart.compile_score = original_compile
 
 # %% [markdown]
 # ### Comparison
