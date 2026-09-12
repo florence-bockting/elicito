@@ -22,11 +22,11 @@ from elicito import (
     elicit,
     initialization,
     losses,
+    models,
     networks,
     optimizers,
     parameters,
     plots,
-    simulations,
     targets,
     types,
     utils,
@@ -72,6 +72,7 @@ __all__ = [
     "losses",
     "meta_settings",
     "model",
+    "models",
     "networks",
     "optimizer",
     "optimizers",
@@ -79,7 +80,6 @@ __all__ = [
     "parameters",
     "plots",
     "queries",
-    "simulations",
     "target",
     "targets",
     "trainer",
@@ -548,13 +548,11 @@ class Elicit:
                 variable.assign(weights[f"weight_{j}"].sel(replication=i).values)
 
             tf.random.set_seed(run_seed)
-            (elicits, prior_sim, model_sim, target_quants) = (
-                simulations.simulate_and_elicit(
-                    prior_model=prior_model,
-                    model=self.model,
-                    targets=self.targets,
-                    seed=run_seed,
-                )
+            (elicits, prior_sim, model_sim, target_quants) = models.simulate_and_elicit(
+                prior_model=prior_model,
+                model=self.model,
+                targets=self.targets,
+                seed=run_seed,
             )
             simulated.append(
                 dict(

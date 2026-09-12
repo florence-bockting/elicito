@@ -1,5 +1,5 @@
 """
-Simulations from prior and model
+Generative model, and the forward pass from prior samples to elicited statistics
 """
 
 import inspect
@@ -124,7 +124,7 @@ def one_forward_simulation(
     Run one forward simulation from prior samples to elicited statistics.
 
     The seed is set here. The simulation itself is done by
-    [`simulate_and_elicit`][elicito.simulations.simulate_and_elicit].
+    [`simulate_and_elicit`][elicito.models.simulate_and_elicit].
 
     Parameters
     ----------

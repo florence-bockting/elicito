@@ -12,15 +12,15 @@ import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
 from elicito.initialization import resolve_init_method
-from elicito.parameters.priors import Priors
 
 # the names with noqa are re-exported, so that el.utils.<name> stays valid
-from elicito.simulations import (
+from elicito.models import (
     all_finite,  # noqa: F401
     nonfinite_fraction,  # noqa: F401
     one_forward_simulation,
     simulate_and_elicit,  # noqa: F401
 )
+from elicito.parameters.priors import Priors
 from elicito.types import (
     ExpertDict,
     Initializer,

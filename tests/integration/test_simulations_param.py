@@ -343,7 +343,7 @@ def model(predictor):
 
 
 def test_model_samples(prior_samples, model):
-    model_sim = el.simulations.simulate_from_generator(prior_samples, 0, model)
+    model_sim = el.models.simulate_from_generator(prior_samples, 0, model)
 
     # check whether required output format is correct
     for key in ["ypred", "epred", "likelihood", "prior_samples"]:
