@@ -54,11 +54,15 @@ scipy = [
 cma = [
     "cma>=3.4.0"
 ]
+pymc = [
+    "pymc>=6.3.2; python_version >= '3.12'"
+]
 
 full = [
     "elicito[plots]",
     "elicito[scipy]",
     "elicito[cma]",
+    "elicito[pymc]",
 ]
 
 [dependency-groups]
@@ -317,6 +321,10 @@ follow_imports = "normal"
 exclude = [
     "^networks\\.py$",
 ]
+
+[[tool.mypy.overrides]]
+module = ["pymc", "pymc.*", "pytensor", "pytensor.*"]
+ignore_missing_imports = true
 
 [tool.jupytext]
 formats = "ipynb,py:percent"
