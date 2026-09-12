@@ -14,16 +14,9 @@ import tensorflow_probability as tfp
 import xarray as xr
 
 import elicito as el
-from elicito.utils import (
-    DoubleBound,
-    LowerBound,
-    UpperBound,
-    gumbel_softmax_trick,
-    load,
-    parallel,
-    save,
-    save_as_pkl,
-)
+from elicito._storage import save, save_as_pkl
+from elicito.parameters.bijections import DoubleBound, LowerBound, UpperBound
+from elicito.utils import gumbel_softmax_trick, parallel
 
 tfd = tfp.distributions
 
@@ -43,7 +36,7 @@ def fitted_eliobj():
         initializer=el.initializer(
             method="sobol",
             iterations=1,
-            distribution=el.initialization.uniform(radius=1.0, mean=0.0),
+            distribution=el.initializers.uniform(radius=1.0, mean=0.0),
         ),
     )
     eliobj_copy.fit()
@@ -204,7 +197,7 @@ class DummyEliobj_empty:
         self.trainer = el.trainer(method="parametric_prior", seed=42, epochs=1)
         self.initializer = el.initializer(
             "sobol",
-            distribution=el.initialization.uniform(radius=1, mean=0),
+            distribution=el.initializers.uniform(radius=1, mean=0),
             iterations=1,
         )
         self.network = None
@@ -232,7 +225,7 @@ class DummyEliobj_fitted:
         self.trainer = el.trainer(method="parametric_prior", seed=42, epochs=1)
         self.initializer = el.initializer(
             "sobol",
-            distribution=el.initialization.uniform(radius=1, mean=0),
+            distribution=el.initializers.uniform(radius=1, mean=0),
             iterations=1,
         )
         self.network = None
@@ -271,7 +264,7 @@ def test_save_and_load_path(monkeypatch, eliobj, fit, test_path, overwrite):
     assert os.path.isfile(expected_file)
 
     # Check that loading object works
-    loaded_eliobj = load(expected_file)
+    loaded_eliobj = el.Elicit.load(expected_file)
 
     assert loaded_eliobj.model["obj"] == TestModel
     assert loaded_eliobj.parameters[0]["name"] == "b0"
@@ -301,7 +294,7 @@ def test_save_and_load_name(eliobj, fit, test_file):
 
     assert os.path.exists(expected_path)
 
-    loaded_eliobj = load(expected_path)
+    loaded_eliobj = el.Elicit.load(expected_path)
 
     # Check that loaded object is correct
     assert loaded_eliobj.model["obj"] == TestModel

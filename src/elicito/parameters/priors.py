@@ -1,17 +1,15 @@
 """
-Simulations from prior and model
+Trainable prior model, and sampling from it
 """
 
-import inspect
 from typing import Any, Callable, Optional, Union
 
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-from elicito.methods import get_method, seed_pair
+from elicito.parameters._base import seed_pair
+from elicito.parameters.methods import get_method
 from elicito.types import ExpertDict, NFDict, Parameter, Trainer
-
-tfd = tfp.distributions
 
 
 # initalize generator model
@@ -232,48 +230,3 @@ def sample_from_priors(  # noqa: PLR0913
     return get_method(method).sample(
         initialized_priors, parameters, network, B, num_samples, seed
     )
-
-
-def simulate_from_generator(
-    prior_samples: tf.Tensor,
-    seed: int,
-    model: dict[str, Any],  # shape=[B,num_samples,num_params]
-) -> Any:
-    """
-    Simulate data from the specified generative model.
-
-    Parameters
-    ----------
-    prior_samples
-        Samples from prior distributions.
-
-    seed
-        Seed used for learning. Specification in :func:`elicit.elicit.trainer`.
-
-    model
-        Specification of generative model using :func:`elicit.elicit.model`.
-
-    Returns
-    -------
-    model_simulations :
-        simulated data from generative model.
-
-    """
-    # get model and initialize generative model
-    GenerativeModel = model["obj"]
-    generative_model = GenerativeModel()
-    # get model specific arguments (that are not prior samples)
-    add_model_args = model.copy()
-    add_model_args.pop("obj")
-    signature = inspect.signature(generative_model.__call__)
-    if "seed" in signature.parameters and "seed" not in add_model_args:
-        add_model_args["seed"] = tfp.random.split_seed(
-            seed_pair(seed), n=1, salt="model"
-        )[0]
-    # simulate from generator
-    if len(add_model_args) < 1:
-        model_simulations = generative_model(prior_samples)
-    else:
-        model_simulations = generative_model(prior_samples, **add_model_args)
-
-    return model_simulations

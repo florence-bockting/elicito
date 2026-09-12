@@ -392,7 +392,7 @@ expert = el.expert.simulator(
 # `cmaes` needs the optional dependency `cma`: `pip install "elicito[cma]"`.
 
 # %%
-BOX = el.initialization.uniform(mean=0.0, radius=6.0)
+BOX = el.initializers.uniform(mean=0.0, radius=6.0)
 
 # %% [markdown]
 # ## Training

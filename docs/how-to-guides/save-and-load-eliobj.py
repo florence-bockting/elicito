@@ -192,7 +192,7 @@ trainer = el.trainer(method="parametric_prior", seed=0, epochs=4, progress=0)
 initializer = el.initializer(
     method="sobol",
     iterations=32,
-    distribution=el.initialization.uniform(radius=1, mean=0),
+    distribution=el.initializers.uniform(radius=1, mean=0),
 )
 
 eliobj = el.Elicit(
@@ -228,7 +228,7 @@ eliobj.save(file="results/m1_1")
 
 # %%
 # load the eliobj
-eliobj_m1 = el.utils.load("results/m1_1.pkl")
+eliobj_m1 = el.Elicit.load("results/m1_1.pkl")
 
 # fit the eliobj
 eliobj_m1.fit()
@@ -260,7 +260,7 @@ list(eliobj_m1.results.groups)
 eliobj_m1.save(name="m2")
 
 # load the fitted object
-eliobj_m1_reload = el.utils.load("./results/parametric_prior/m2_0.pkl")
+eliobj_m1_reload = el.Elicit.load("./results/parametric_prior/m2_0.pkl")
 eliobj_m1_reload.results
 
 # %% [markdown]

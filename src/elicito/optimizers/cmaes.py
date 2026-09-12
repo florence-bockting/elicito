@@ -4,15 +4,28 @@ Global search for the hyperparameters of a parametric prior, with CMA-ES
 
 import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import tensorflow as tf
 
-import elicito as el
 from elicito._progress import ProgressTable
 from elicito.exceptions import MissingOptionalDependencyError
+from elicito.losses import spread_penalty
+from elicito.optimizers import search
+from elicito.optimizers.search import (
+    MIN_SEARCH_SAMPLES,
+    PENALTY,
+    SEARCH_FRACTION,
+    box_vector,
+    hyper_names,
+    variable_names,
+)
+from elicito.parameters import methods
 from elicito.types import ExpertDict, Parameter, Target, Trainer
+
+if TYPE_CHECKING:
+    from elicito.initializers.methods import InitMethod
 
 logger = logging.getLogger(__name__)
 
@@ -103,19 +116,15 @@ def cma_search(  # noqa: PLR0913
     except ImportError as exc:
         raise MissingOptionalDependencyError("cma_search", requirement="cma") from exc
 
-    names = el.initialization.hyper_names(parameters)
+    names = hyper_names(parameters)
     search_trainer = dict(trainer)
     search_trainer["num_samples"] = max(
-        el.warmstart.MIN_SEARCH_SAMPLES,
-        trainer["num_samples"] // el.warmstart.SEARCH_FRACTION,
+        MIN_SEARCH_SAMPLES,
+        trainer["num_samples"] // SEARCH_FRACTION,
     )
 
-    centre = np.asarray(
-        el.warmstart._box_vector(distribution, names, "mean"), dtype=np.float64
-    )
-    radius = np.asarray(
-        el.warmstart._box_vector(distribution, names, "radius"), dtype=np.float64
-    )
+    centre = np.asarray(box_vector(distribution, names, "mean"), dtype=np.float64)
+    radius = np.asarray(box_vector(distribution, names, "radius"), dtype=np.float64)
 
     options = {
         "CMA_stds": radius,
@@ -129,9 +138,9 @@ def cma_search(  # noqa: PLR0913
 
     # A failed point is scored as a large finite number, so the last generation
     # can be worse than a point seen before. Keep the best usable point.
-    best: dict[str, Any] = {"value": el.warmstart.PENALTY, "values": None}
+    best: dict[str, Any] = {"value": PENALTY, "values": None}
 
-    scorer = el.warmstart.compile_score(
+    scorer = search.compile_score(
         expert_elicited_statistics=expert_elicited_statistics,
         parameters=parameters,
         trainer=search_trainer,  # type: ignore [arg-type]
@@ -171,6 +180,7 @@ def cma_search(  # noqa: PLR0913
 
 
 def box_step_size(
+    init_method: "InitMethod",
     initializer: Any,
     parameters: list[Parameter],
 ) -> Any:
@@ -183,6 +193,9 @@ def box_step_size(
 
     Parameters
     ----------
+    init_method
+        Initialization method that ``initializer`` selects.
+
     initializer
         Specification of the initialization method.
 
@@ -197,14 +210,11 @@ def box_step_size(
         initialization method does not hand its box to the training.
 
     """
-    method = el.initialization.resolve_init_method(initializer)
-    if not method.skips_search(dict(optimizer=CMAES)):
+    if not init_method.skips_search(dict(optimizer=CMAES)):
         return DEFAULT_SIGMA0
 
-    names = el.initialization.hyper_names(parameters)
-    radius = el.warmstart._box_vector(
-        dict(initializer["distribution"]), names, "radius"
-    )
+    names = hyper_names(parameters)
+    radius = box_vector(dict(initializer["distribution"]), names, "radius")
     return {name: value / SIGMA_FRACTION for name, value in zip(names, radius)}
 
 
@@ -282,7 +292,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
     Fit the hyperparameters of a parametric prior with CMA-ES
 
     The search replaces the gradient descent of
-    [`sgd_training`][elicito.optimization.sgd_training]. It needs no gradient,
+    [`sgd_training`][elicito.optimizers.sgd.sgd_training]. It needs no gradient,
     so it cannot diverge through an exploding gradient, and it can leave a
     local basin that a gradient step cannot leave. It costs more forward
     simulations for the same number of history points, because one generation
@@ -330,7 +340,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
 
     default_sigma0
         First step size, used if ``optimizer`` does not give ``sigma0``. See
-        [`box_step_size`][elicito.cmaes.box_step_size].
+        [`box_step_size`][elicito.optimizers.cmaes.box_step_size].
 
     Raises
     ------
@@ -354,7 +364,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
     tf.random.set_seed(seed)
 
     prior_model = prior_model_init
-    method = el.methods.get_method(trainer["method"])
+    method = methods.get_method(trainer["method"])
     res_dict = method.new_history(prior_model, parameters)
     # the same objects during the whole run, so an assignment reaches the
     # prior model
@@ -377,7 +387,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
     # name, so a partial `sigma0` overrides the box one coordinate at a time
     sigma0, stds = _step_size(
         optimizer.get("sigma0", default_sigma0),
-        el.warmstart._variable_names(variables),
+        variable_names(variables),
         default_sigma0,
     )
     if stds is not None:
@@ -389,7 +399,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
 
     # traced once, then re-used. The graph reads the variables, so `assign`
     # reaches the next simulation.
-    run = el.warmstart.compile_evaluate(
+    run = search.compile_evaluate(
         prior_model, model, targets, expert_elicited_statistics, seed
     )
 
@@ -397,7 +407,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
 
     def objective(values: Any) -> tuple[float, dict[str, Any]]:
         assign(values)
-        value, output = el.warmstart.evaluate(
+        value, output = search.evaluate(
             prior_model=prior_model,
             expert_elicited_statistics=expert_elicited_statistics,
             model=model,
@@ -408,8 +418,8 @@ def cma_training(  # noqa: PLR0913, PLR0915
         # the penalty enters the score of the search, not the recorded loss.
         # A failed point already carries the PENALTY sentinel, and must keep
         # its order against the usable points.
-        if kappa and value < el.warmstart.PENALTY:
-            value += kappa * float(el.losses.spread_penalty(output["prior_samples"]))
+        if kappa and value < PENALTY:
+            value += kappa * float(spread_penalty(output["prior_samples"]))
         return value, output
 
     total_losses = []
@@ -419,7 +429,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
 
     # A failed point is scored as a large finite number, so a later point can
     # be worse than a point seen before. Keep the best usable point.
-    best: dict[str, Any] = {"value": el.warmstart.PENALTY, "values": None}
+    best: dict[str, Any] = {"value": PENALTY, "values": None}
 
     bar = ProgressTable(
         "Training",
@@ -461,7 +471,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
         # and would else read as progress.
         total_losses.append(tf.cast(leader["value"], leader["output"]["loss"].dtype))
         component_losses.append(leader["output"]["loss_component"])
-        penalties.append(el.losses.spread_penalty(leader["output"]["prior_samples"]))
+        penalties.append(spread_penalty(leader["output"]["prior_samples"]))
         time_per_epoch.append(time.time() - generation_time_start)
 
         bar.update(

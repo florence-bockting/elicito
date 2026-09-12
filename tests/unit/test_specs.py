@@ -1,5 +1,5 @@
 """
-Unittests for elicit.py module
+Unittests for specs.py module
 """
 
 import pytest
@@ -7,13 +7,13 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 import elicito as el
-from elicito.elicit import Dtype, VariableType, hyper, parameter
-from elicito.utils import (
+from elicito.parameters.bijections import (
     DoubleBound,
     LowerBound,
     UpperBound,
     identity,
 )
+from elicito.specs import Dtype, VariableType, hyper, parameter
 
 tfd = tfp.distributions
 
@@ -148,14 +148,14 @@ def test_initializer_defaults():
     init = el.initializer()
     assert init["method"] == "warmstart"
     assert init["iterations"] == 100
-    assert init["distribution"] == el.initialization.uniform()
+    assert init["distribution"] == el.initializers.uniform()
 
 
 def test_initializer():
     msg = "If method is None, 'distribution' must also be None."
     with pytest.raises(ValueError, match=msg):
         el.initializer(
-            method=None, distribution=el.initialization.uniform(radius=1, mean=0)
+            method=None, distribution=el.initializers.uniform(radius=1, mean=0)
         )
 
     msg = "If method is None, 'iterations' must also be None."
@@ -180,7 +180,7 @@ def test_initializer():
     with pytest.raises(ValueError, match=msg):
         el.initializer(
             method="something",
-            distribution=el.initialization.uniform(radius=1, mean=0),
+            distribution=el.initializers.uniform(radius=1, mean=0),
             iterations=32,
         )
 

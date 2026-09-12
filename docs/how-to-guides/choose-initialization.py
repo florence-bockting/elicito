@@ -139,7 +139,7 @@ targets = [
 
 ground_truth = {"mu": tfd.Normal(loc=1.0, scale=2.0)}
 
-forward = el.utils.LowerBound(lower=0.0).forward
+forward = el.parameters.LowerBound(lower=0.0).forward
 # the true values, on the scale of the figures
 TRUTH = (1.0, float(forward(2.0)))
 
@@ -155,7 +155,7 @@ def build(
     ----------
     initializer
         initialization method, as returned by
-        [`initializer`][elicito.elicit.initializer]
+        [`initializer`][elicito.initializers.spec.initializer]
 
     epochs
         number of training epochs
@@ -279,7 +279,7 @@ def loss_grid(mu0_values: Any, sigma0_values: Any) -> Any:
     grid = np.empty((len(sigma0_values), len(mu0_values)))
     for i, sigma0_value in enumerate(sigma0_values):
         for j, mu0_value in enumerate(mu0_values):
-            grid[i, j] = el.warmstart.score(
+            grid[i, j] = el.optimizers.search.score(
                 hyperparams=dict(mu0=mu0_value, sigma0=sigma0_value),
                 expert_elicited_statistics=expert_elicits,
                 parameters=eliobj.parameters,
@@ -447,11 +447,11 @@ landscape("the loss surface")
 # unconstrained scale, `elicito` gives you these utilities:
 #
 #   + a lower-bounded hyperparameter:
-#     `el.utils.LowerBound(lower=0.0).forward(value)`
+#     `el.parameters.LowerBound(lower=0.0).forward(value)`
 #   + an upper-bounded hyperparameter:
-#     `el.utils.UpperBound(upper=1.0).forward(value)`
+#     `el.parameters.UpperBound(upper=1.0).forward(value)`
 #   + a double-bounded hyperparameter:
-#     `el.utils.DoubleBound(lower=0.0, upper=1.0).forward(value)`
+#     `el.parameters.DoubleBound(lower=0.0, upper=1.0).forward(value)`
 #
 # #### Visualization (Example)
 # The plot below shows the initialization and the training for this approach. The
@@ -464,7 +464,9 @@ landscape("the loss surface")
 loss = fit_and_report(
     "exact values",
     el.initializer(
-        hyperparams=dict(mu0=1.5, sigma0=el.utils.LowerBound(lower=0.0).forward(2.5))
+        hyperparams=dict(
+            mu0=1.5, sigma0=el.parameters.LowerBound(lower=0.0).forward(2.5)
+        )
     ),
 )
 
@@ -488,7 +490,7 @@ landscape(
 # the training.
 #
 # #### Implementation
-# In `elicito` you specify the region with `el.initialization.uniform()`, which
+# In `elicito` you specify the region with `el.initializers.uniform()`, which
 # you pass to the `distribution` argument. It spans a uniform box around a center
 # point, with a given radius. The `method` argument sets how the candidates are
 # drawn from the box: `"sobol"`, `"lhs"` (Latin Hypercube Sampling), or
@@ -507,7 +509,7 @@ loss = fit_and_report(
     el.initializer(
         method="sobol",
         iterations=32,
-        distribution=el.initialization.uniform(radius=1, mean=0),
+        distribution=el.initializers.uniform(radius=1, mean=0),
     ),
 )
 
@@ -534,7 +536,7 @@ loss = fit_and_report(
     el.initializer(
         method="sobol",
         iterations=32,
-        distribution=el.initialization.uniform(radius=1, mean=-4),
+        distribution=el.initializers.uniform(radius=1, mean=-4),
     ),
     epochs=300,
 )
@@ -574,11 +576,11 @@ landscape(
 # In `elicito` you select the search with `method="warmstart"`. The `iterations`
 # argument is now the budget of the search, in objective evaluations, and not a
 # number of candidates. The center of `distribution` is the start point of the
-# search, so pass `el.initialization.uniform()` when you want to set that point
+# search, so pass `el.initializers.uniform()` when you want to set that point
 # yourself.
 #
 # If you pass no `distribution`, `elicito` uses
-# [`uniform`][elicito.initialization.uniform] with its defaults, `mean=0` and
+# [`uniform`][elicito.initializers.sampling.uniform] with its defaults, `mean=0` and
 # `radius=1`, on the unconstrained scale. This is what `el.initializer()` does
 # with no argument at all: `method="warmstart"`, the default `uniform` box, and
 # a budget of 100 evaluations.
@@ -587,7 +589,7 @@ landscape(
 # We give the search the far box of option 2. The center of that box is the start
 # point of the search. The budget is 50 evaluations, because we search only two
 # hyperparameters here. The search itself is not stored, so the figure below
-# records it: we wrap [`compile_score`][elicito.warmstart.compile_score], the
+# records it: we wrap [`compile_score`][elicito.optimizers.search.compile_score], the
 # function that builds the scorer of the search, for the time of the fit.
 #
 # The white path is the search, the black dot is the start value that it returns,
@@ -615,7 +617,7 @@ surface_wide = np.vstack([loss_grid(mu0_grid, sigma0_low), surface])
 # %% tags=["remove_input"]
 visited: list[Any] = []
 scored: list[float] = []
-original_compile = el.warmstart.compile_score
+original_compile = el.optimizers.search.compile_score
 
 
 def recording_compile(*args: Any, **kwargs: Any) -> Any:
@@ -631,7 +633,7 @@ def recording_compile(*args: Any, **kwargs: Any) -> Any:
     return recording
 
 
-el.warmstart.compile_score = recording_compile
+el.optimizers.search.compile_score = recording_compile
 
 # %%
 loss = fit_and_report(
@@ -639,12 +641,12 @@ loss = fit_and_report(
     el.initializer(
         method="warmstart",
         iterations=50,
-        distribution=el.initialization.uniform(radius=1, mean=-4),
+        distribution=el.initializers.uniform(radius=1, mean=-4),
     ),
 )
 
 # %% tags=["remove_input"]
-el.warmstart.compile_score = original_compile
+el.optimizers.search.compile_score = original_compile
 
 path = training_path("warmstart")
 landscape(
@@ -851,7 +853,7 @@ def build(initializer: Any, epochs: int = 100) -> el.Elicit:
     ----------
     initializer
         initialization method, as returned by
-        [`initializer`][elicito.elicit.initializer]
+        [`initializer`][elicito.initializers.spec.initializer]
 
     epochs
         number of training epochs
@@ -913,7 +915,7 @@ fits = {}
 # unconstrained scale, so they use `truth_unconstrained` below.
 truth = dict(mu0=1.0, sigma0=0.5, mu1=0.3, sigma1=0.2, k2=2.0, lambda2=5.0)
 
-forward = el.utils.LowerBound(lower=0.0).forward
+forward = el.parameters.LowerBound(lower=0.0).forward
 truth_unconstrained = dict(
     mu0=1.0,
     sigma0=float(forward(0.5)),
@@ -944,7 +946,7 @@ try:
         el.initializer(
             method="sobol",
             iterations=32,
-            distribution=el.initialization.uniform(radius=2, mean=-20),
+            distribution=el.initializers.uniform(radius=2, mean=-20),
         ),
     )
 except ValueError as error:
@@ -962,11 +964,11 @@ results.append(
         el.initializer(
             hyperparams=dict(
                 mu0=1.0,
-                sigma0=el.utils.LowerBound(lower=0.0).forward(0.5),
+                sigma0=el.parameters.LowerBound(lower=0.0).forward(0.5),
                 mu1=0.3,
-                sigma1=el.utils.LowerBound(lower=0.0).forward(0.2),
-                k2=el.utils.LowerBound(lower=0.0).forward(2.0),
-                lambda2=el.utils.LowerBound(lower=0.0).forward(5.0),
+                sigma1=el.parameters.LowerBound(lower=0.0).forward(0.2),
+                k2=el.parameters.LowerBound(lower=0.0).forward(2.0),
+                lambda2=el.parameters.LowerBound(lower=0.0).forward(5.0),
             )
         ),
     )
@@ -987,7 +989,7 @@ results.append(
         el.initializer(
             method="sobol",
             iterations=32,
-            distribution=el.initialization.uniform(radius=3, mean=2),
+            distribution=el.initializers.uniform(radius=3, mean=2),
         ),
     )
 )
@@ -1007,7 +1009,7 @@ results.append(
 # %% tags=["remove_input"]
 visited = []
 scored = []
-el.warmstart.compile_score = recording_compile
+el.optimizers.search.compile_score = recording_compile
 
 # %%
 results.append(
@@ -1016,13 +1018,13 @@ results.append(
         el.initializer(
             method="warmstart",
             iterations=100,
-            distribution=el.initialization.uniform(radius=3, mean=2),
+            distribution=el.initializers.uniform(radius=3, mean=2),
         ),
     )
 )
 
 # %% tags=["remove_input"]
-el.warmstart.compile_score = original_compile
+el.optimizers.search.compile_score = original_compile
 
 # %% [markdown]
 # ### Comparison
@@ -1061,7 +1063,7 @@ failed = ~np.isfinite(losses)
 
 search_path = np.asarray(visited)
 scores = np.asarray(scored)
-overflowed = scores >= el.warmstart.PENALTY
+overflowed = scores >= el.optimizers.search.PENALTY
 
 # `score` needs the expert data of this model
 eliobj = build(el.initializer(hyperparams=truth_unconstrained))
@@ -1132,7 +1134,7 @@ def slice_of(pair: tuple[str, str]) -> Any:
         for j, x_value in enumerate(axes_of[x_name]):
             values[x_name] = float(x_value)
             values[y_name] = float(y_value)
-            grid[i, j] = el.warmstart.score(
+            grid[i, j] = el.optimizers.search.score(
                 hyperparams=values,
                 expert_elicited_statistics=expert_elicits,
                 parameters=eliobj.parameters,
@@ -1142,7 +1144,7 @@ def slice_of(pair: tuple[str, str]) -> Any:
                 expert=eliobj.expert,
                 seed=0,
             )
-    return np.where(grid >= el.warmstart.PENALTY, np.nan, grid)
+    return np.where(grid >= el.optimizers.search.PENALTY, np.nan, grid)
 
 
 axes_of = {name: axis_of(name) for pair in projections for name in pair}
@@ -1296,7 +1298,7 @@ long_run = build(
     el.initializer(
         method="warmstart",
         iterations=100,
-        distribution=el.initialization.uniform(radius=3, mean=2),
+        distribution=el.initializers.uniform(radius=3, mean=2),
     ),
     epochs=600,
 )
