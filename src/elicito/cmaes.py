@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import tensorflow as tf
 
-import elicito as el
+from elicito import methods, warmstart
 from elicito._initialization_box import (
     MIN_SEARCH_SAMPLES,
     PENALTY,
@@ -20,6 +20,7 @@ from elicito._initialization_box import (
 )
 from elicito._progress import ProgressTable
 from elicito.exceptions import MissingOptionalDependencyError
+from elicito.losses import spread_penalty
 from elicito.types import ExpertDict, Parameter, Target, Trainer
 
 if TYPE_CHECKING:
@@ -138,7 +139,7 @@ def cma_search(  # noqa: PLR0913
     # can be worse than a point seen before. Keep the best usable point.
     best: dict[str, Any] = {"value": PENALTY, "values": None}
 
-    scorer = el.warmstart.compile_score(
+    scorer = warmstart.compile_score(
         expert_elicited_statistics=expert_elicited_statistics,
         parameters=parameters,
         trainer=search_trainer,  # type: ignore [arg-type]
@@ -362,7 +363,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
     tf.random.set_seed(seed)
 
     prior_model = prior_model_init
-    method = el.methods.get_method(trainer["method"])
+    method = methods.get_method(trainer["method"])
     res_dict = method.new_history(prior_model, parameters)
     # the same objects during the whole run, so an assignment reaches the
     # prior model
@@ -397,7 +398,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
 
     # traced once, then re-used. The graph reads the variables, so `assign`
     # reaches the next simulation.
-    run = el.warmstart.compile_evaluate(
+    run = warmstart.compile_evaluate(
         prior_model, model, targets, expert_elicited_statistics, seed
     )
 
@@ -405,7 +406,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
 
     def objective(values: Any) -> tuple[float, dict[str, Any]]:
         assign(values)
-        value, output = el.warmstart.evaluate(
+        value, output = warmstart.evaluate(
             prior_model=prior_model,
             expert_elicited_statistics=expert_elicited_statistics,
             model=model,
@@ -417,7 +418,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
         # A failed point already carries the PENALTY sentinel, and must keep
         # its order against the usable points.
         if kappa and value < PENALTY:
-            value += kappa * float(el.losses.spread_penalty(output["prior_samples"]))
+            value += kappa * float(spread_penalty(output["prior_samples"]))
         return value, output
 
     total_losses = []
@@ -469,7 +470,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
         # and would else read as progress.
         total_losses.append(tf.cast(leader["value"], leader["output"]["loss"].dtype))
         component_losses.append(leader["output"]["loss_component"])
-        penalties.append(el.losses.spread_penalty(leader["output"]["prior_samples"]))
+        penalties.append(spread_penalty(leader["output"]["prior_samples"]))
         time_per_epoch.append(time.time() - generation_time_start)
 
         bar.update(

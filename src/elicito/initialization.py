@@ -11,10 +11,11 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-import elicito as el
+from elicito import cmaes, optimization, simulations, warmstart
 from elicito._initialization_box import hyper_names, start_vector
 from elicito._progress import ProgressTable
 from elicito.exceptions import MissingOptionalDependencyError
+from elicito.losses import total_loss
 from elicito.types import (
     ExpertDict,
     Initializer,
@@ -146,7 +147,7 @@ class ExactValues:
         progress: int,
     ) -> InitResult:
         """Build the prior model from the given values."""
-        prior_model = el.simulations.Priors(
+        prior_model = simulations.Priors(
             ground_truth=False,
             init_matrix_slice=initializer["hyperparams"],
             trainer=trainer,
@@ -393,7 +394,7 @@ class WarmStart(_SearchStart):
         seed: int,
     ) -> dict[str, Any]:
         """Return one value per hyperparameter, on the unconstrained scale."""
-        return el.warmstart.warm_start(
+        return warmstart.warm_start(
             expert_elicited_statistics=expert_elicited_statistics,
             parameters=parameters,
             trainer=trainer,
@@ -425,7 +426,7 @@ class CmaEs(_SearchStart):
         # matrix, so it drops what the first one learned. One run over the
         # whole budget is then better, and the box gives it its start point
         # and its step size.
-        return bool(optimizer["optimizer"] == el.cmaes.CMAES)
+        return bool(optimizer["optimizer"] == cmaes.CMAES)
 
     def search(  # noqa: PLR0913
         self,
@@ -440,7 +441,7 @@ class CmaEs(_SearchStart):
         seed: int,
     ) -> dict[str, Any]:
         """Return one value per hyperparameter, on the unconstrained scale."""
-        return el.cmaes.cma_search(
+        return cmaes.cma_search(
             expert_elicited_statistics=expert_elicited_statistics,
             parameters=parameters,
             trainer=trainer,
@@ -743,7 +744,7 @@ def init_runs(  # noqa: PLR0913
         # extract initial hyperparameter value for each run
         init_matrix_slice = {f"{key}": init_matrix[key][i] for key in init_matrix}
         # initialize prior distributions based on initial hyperparameters
-        prior_model = el.simulations.Priors(
+        prior_model = simulations.Priors(
             ground_truth=False,
             init_matrix_slice=init_matrix_slice,
             trainer=trainer,
@@ -761,7 +762,7 @@ def init_runs(  # noqa: PLR0913
             warmup_trainer["epochs"] = warmup_epochs
             warmup_trainer["progress"] = 0
 
-            history, _ = el.optimization.sgd_training(
+            history, _ = optimization.sgd_training(
                 expert_elicited_statistics=expert_elicited_statistics,
                 prior_model_init=prior_model,
                 trainer=warmup_trainer,
@@ -779,14 +780,14 @@ def init_runs(  # noqa: PLR0913
             # simulate from priors and generative model and compute the
             # elicited statistics corresponding to the initial hyperparameters
             (training_elicited_statistics, _, _, target_quantities) = (
-                el.simulations.one_forward_simulation(
+                simulations.one_forward_simulation(
                     prior_model=prior_model, model=model, targets=targets, seed=seed
                 )
             )
 
             # compute discrepancy between expert elicited statistics and
             # simulated data corresponding to initial hyperparameter values
-            (loss, *_) = el.losses.total_loss(
+            (loss, *_) = total_loss(
                 elicit_training=training_elicited_statistics,
                 elicit_expert=expert_elicited_statistics,
                 targets=targets,
@@ -795,7 +796,7 @@ def init_runs(  # noqa: PLR0913
             # A quantile query hides an overflow: the 95% quantile of a sample
             # with a few infinite draws is still finite. A candidate that
             # overflows must not be selected, so mark it as failed here.
-            if not el.simulations.all_finite(target_quantities):
+            if not simulations.all_finite(target_quantities):
                 loss = tf.fill(tf.shape(loss), tf.constant(np.nan, loss.dtype))
         # save loss value, initial hyperparameter values and initialized prior
         # model for each run
@@ -884,7 +885,20 @@ def init_prior(  # noqa: PLR0913
         being the drawn initial values per run.
 
     """
-    return el.methods.get_method(trainer["method"]).initialize(
+    if initializer is None:
+        # check() allows no initializer for deep_prior only; it runs no search
+        prior_model = simulations.Priors(
+            ground_truth=False,
+            init_matrix_slice=None,
+            trainer=trainer,
+            parameters=parameters,
+            network=network,
+            expert=expert,
+            seed=seed,
+        )
+        return prior_model, None, None
+
+    result = resolve_init_method(initializer).propose(
         expert_elicited_statistics=expert_elicited_statistics,
         initializer=initializer,
         parameters=parameters,
@@ -892,11 +906,12 @@ def init_prior(  # noqa: PLR0913
         optimizer=optimizer,
         model=model,
         targets=targets,
-        network=network,
+        network=None,
         expert=expert,
         seed=seed,
         progress=progress,
     )
+    return result.prior_model, result.losses, result.candidates
 
 
 def uniform(

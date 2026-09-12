@@ -89,10 +89,6 @@ __all__ = [
     "warmstart",
 ]
 
-# global variable (gets overwritten by user-defined
-# seed in Elicit object)
-SEED = 0
-
 
 def _default_initializer(
     optimizer: dict[str, Any], initializer: Initializer | None
@@ -242,10 +238,10 @@ class Elicit:
         # helper for subsequent checks
         self.dry_run = self.meta_settings["dry_run"]
         # overwrite global seed
-        globals()["SEED"] = self.trainer["seed"]
+        utils.SEED = self.trainer["seed"]
 
         # set seed
-        tf.random.set_seed(SEED)
+        tf.random.set_seed(utils.SEED)
 
         if self.dry_run:
             (
@@ -615,6 +611,47 @@ class Elicit:
         """
         return utils.save(self, name=name, file=file, overwrite=overwrite)
 
+    @classmethod
+    def load(cls, file: str) -> "Elicit":
+        """
+        Load a saved ``eliobj`` from specified path
+
+        Parameters
+        ----------
+        file
+            path where ``eliobj`` object is saved.
+
+        Returns
+        -------
+        eliobj :
+            loaded ``eliobj`` object.
+
+        Examples
+        --------
+        >>> eliobj = el.Elicit.load("res/toymodel.pkl")  # doctest: +SKIP
+
+        """
+        storage = utils.read_storage(file)
+        eliobj = cls(
+            model=storage["model"],
+            parameters=storage["parameters"],
+            targets=storage["targets"],
+            expert=storage["expert"],
+            optimizer=storage["optimizer"],
+            trainer=storage["trainer"],
+            initializer=storage["initializer"],
+            network=storage["network"],
+        )
+
+        # add results if already fitted
+        if "results" in storage:
+            eliobj.results = storage["results"]
+        else:
+            eliobj.temp_history = storage["temp_history"]
+            eliobj.temp_results = storage["temp_results"]
+
+        return eliobj
+
     def update(self, **kwargs: dict[Any, Any]) -> None:
         """
         Update attributes of Elicit object
@@ -724,7 +761,7 @@ class Elicit:
         """
         # overwrite global seed
         # TODO test correct seed usage for parallel processing
-        globals()["SEED"] = seed
+        utils.SEED = seed
 
         # get expert data; use trainer seed
         # (and not seed from list)

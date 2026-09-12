@@ -19,7 +19,6 @@ from elicito.utils import (
     LowerBound,
     UpperBound,
     gumbel_softmax_trick,
-    load,
     parallel,
     save,
     save_as_pkl,
@@ -271,7 +270,7 @@ def test_save_and_load_path(monkeypatch, eliobj, fit, test_path, overwrite):
     assert os.path.isfile(expected_file)
 
     # Check that loading object works
-    loaded_eliobj = load(expected_file)
+    loaded_eliobj = el.Elicit.load(expected_file)
 
     assert loaded_eliobj.model["obj"] == TestModel
     assert loaded_eliobj.parameters[0]["name"] == "b0"
@@ -301,7 +300,7 @@ def test_save_and_load_name(eliobj, fit, test_file):
 
     assert os.path.exists(expected_path)
 
-    loaded_eliobj = load(expected_path)
+    loaded_eliobj = el.Elicit.load(expected_path)
 
     # Check that loaded object is correct
     assert loaded_eliobj.model["obj"] == TestModel

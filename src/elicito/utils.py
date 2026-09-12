@@ -11,7 +11,7 @@ import cloudpickle  # type: ignore
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-import elicito as el
+from elicito.initialization import resolve_init_method
 
 # the names with noqa are re-exported, so that el.utils.<name> stays valid
 from elicito.simulations import (
@@ -33,6 +33,10 @@ from elicito.types import (
 
 tfd = tfp.distributions
 logger = logging.getLogger(__name__)
+
+# Seed of the current run. Elicit sets it before a run, and
+# gumbel_softmax_trick reads it.
+SEED = 0
 
 
 def save_as_pkl(obj: Any, save_dir: str) -> None:
@@ -531,9 +535,9 @@ def save(
     print(f"saved in: {path}.pkl")
 
 
-def load(file: str) -> Any:
+def read_storage(file: str) -> dict[str, Any]:
     """
-    Load a saved ``eliobj`` from specified path.
+    Read the dictionary that [`save`][elicito.utils.save] stores
 
     Parameters
     ----------
@@ -542,33 +546,14 @@ def load(file: str) -> Any:
 
     Returns
     -------
-    eliobj :
-        loaded ``eliobj`` object.
+    storage :
+        user inputs of the ``eliobj``, and its results if it was fitted.
 
     """
     with open(file, "rb") as f:
         obj_pickled = pickle.load(f)  # noqa: S301
-    obj = pickle.loads(obj_pickled)  # noqa: S301
-
-    eliobj = el.Elicit(
-        model=obj["model"],
-        parameters=obj["parameters"],
-        targets=obj["targets"],
-        expert=obj["expert"],
-        optimizer=obj["optimizer"],
-        trainer=obj["trainer"],
-        initializer=obj["initializer"],
-        network=obj["network"],
-    )
-
-    # add results if already fitted
-    if "results" in obj:
-        eliobj.results = obj["results"]
-    else:
-        eliobj.temp_history = obj["temp_history"]
-        eliobj.temp_results = obj["temp_results"]
-
-    return eliobj
+    storage: dict[str, Any] = pickle.loads(obj_pickled)  # noqa: S301
+    return storage
 
 
 def add_derived(samples: Any, **derived: Callable[[Any], Any]) -> None:
@@ -775,7 +760,7 @@ def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6)
         raise ValueError(msg)
 
     # set seed
-    tf.random.set_seed(el.SEED)
+    tf.random.set_seed(SEED)
     # get batch size, num_samples, num_observations
     B, S, number_obs, _ = likelihood.batch_shape
     # constant outcome vector (including zero outcome)
@@ -841,10 +826,12 @@ def dry_run(  # noqa: PLR0913
         (elicited_statistics, prior_samples, model_simulations,
         target_quantities, prior_model)
     """
-    init_matrix_slice = el.methods.get_method(trainer["method"]).init_matrix_slice(
-        initializer=initializer,
-        parameters=parameters,
-        trainer=trainer,
+    init_matrix_slice = (
+        None
+        if initializer is None
+        else resolve_init_method(initializer).dry_run_slice(
+            initializer, parameters, trainer
+        )
     )
 
     prior_model = Priors(

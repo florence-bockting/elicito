@@ -8,7 +8,7 @@ from typing import Any, Callable, Optional
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-import elicito as el
+from elicito import initialization
 from elicito.types import (
     ExpertDict,
     Hyper,
@@ -873,9 +873,9 @@ def initializer(
 
     else:
         if distribution is None:
-            distribution = el.initialization.uniform()
+            distribution = initialization.uniform()
         if iterations is None:
-            iterations = el.initialization.get_init_method(method).default_iterations
+            iterations = initialization.get_init_method(method).default_iterations
 
         # ensure that iterations is an integer
         if iterations is not None:
@@ -890,7 +890,7 @@ def initializer(
     )
 
     # each initialization method rejects the input it cannot use
-    el.initialization.resolve_init_method(init_dict).check(init_dict)
+    initialization.resolve_init_method(init_dict).check(init_dict)
 
     return init_dict
 

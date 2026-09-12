@@ -10,16 +10,12 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-import elicito as el
 from elicito import networks
 from elicito.types import (
-    ExpertDict,
     Initializer,
     NFDict,
     Parameter,
     PriorMethods,
-    Target,
-    Trainer,
 )
 
 
@@ -156,32 +152,6 @@ class PriorMethod(Protocol):
         initializer: Initializer | None,
     ) -> None:
         """Raise if the sections are not valid for this method."""
-        ...
-
-    def initialize(  # noqa: PLR0913
-        self,
-        expert_elicited_statistics: dict[str, tf.Tensor],
-        initializer: Initializer | None,
-        parameters: list[Parameter],
-        trainer: Trainer,
-        optimizer: dict[str, Any],
-        model: dict[str, Any],
-        targets: list[Target],
-        network: NFDict | None,
-        expert: ExpertDict,
-        seed: int,
-        progress: int,
-    ) -> tuple[Any, Any, Any]:
-        """Build the prior model used to start the training."""
-        ...
-
-    def init_matrix_slice(
-        self,
-        initializer: Initializer,
-        parameters: list[Parameter],
-        trainer: Trainer,
-    ) -> Any:
-        """Return the initial hyperparameter slice for a dry run."""
         ...
 
 
@@ -414,51 +384,6 @@ class ParametricPrior:
             )
             raise ValueError(msg)
 
-    def initialize(  # noqa: PLR0913
-        self,
-        expert_elicited_statistics: dict[str, tf.Tensor],
-        initializer: Initializer | None,
-        parameters: list[Parameter],
-        trainer: Trainer,
-        optimizer: dict[str, Any],
-        model: dict[str, Any],
-        targets: list[Target],
-        network: NFDict | None,
-        expert: ExpertDict,
-        seed: int,
-        progress: int,
-    ) -> tuple[Any, Any, Any]:
-        """Build the prior model used to start the training."""
-        if initializer is None:
-            # check() rejects this earlier; the guard narrows the type
-            msg = "If method is 'parametric_prior', 'initializer' can't be None."
-            raise ValueError(msg)
-
-        result = el.initialization.resolve_init_method(initializer).propose(
-            expert_elicited_statistics=expert_elicited_statistics,
-            initializer=initializer,
-            parameters=parameters,
-            trainer=trainer,
-            optimizer=optimizer,
-            model=model,
-            targets=targets,
-            network=None,
-            expert=expert,
-            seed=seed,
-            progress=progress,
-        )
-        return result.prior_model, result.losses, result.candidates
-
-    def init_matrix_slice(  # noqa: D102
-        self,
-        initializer: Initializer,
-        parameters: list[Parameter],
-        trainer: Trainer,
-    ) -> Any:
-        return el.initialization.resolve_init_method(initializer).dry_run_slice(
-            initializer, parameters, trainer
-        )
-
 
 class DeepPrior:
     """Joint non-parametric prior via a normalizing flow."""
@@ -591,42 +516,6 @@ class DeepPrior:
                 "See GitHub issue #35."
             )
             raise NotImplementedError(msg)
-
-    def initialize(  # noqa: PLR0913
-        self,
-        expert_elicited_statistics: dict[str, tf.Tensor],
-        initializer: Initializer | None,
-        parameters: list[Parameter],
-        trainer: Trainer,
-        optimizer: dict[str, Any],
-        model: dict[str, Any],
-        targets: list[Target],
-        network: NFDict | None,
-        expert: ExpertDict,
-        seed: int,
-        progress: int,
-    ) -> tuple[Any, Any, Any]:
-        """Build the prior model used to start the training."""
-        # prepare generative model
-        init_prior_model = el.simulations.Priors(
-            ground_truth=False,
-            init_matrix_slice=None,
-            trainer=trainer,
-            parameters=parameters,
-            network=network,
-            expert=expert,
-            seed=seed,
-        )
-        # loss_list and init_matrix stay empty for this method
-        return init_prior_model, None, None
-
-    def init_matrix_slice(  # noqa: D102
-        self,
-        initializer: Initializer,
-        parameters: list[Parameter],
-        trainer: Trainer,
-    ) -> Any:
-        return None
 
 
 _METHODS: dict[str, type[PriorMethod]] = {

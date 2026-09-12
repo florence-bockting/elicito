@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import tensorflow as tf
 
-import elicito as el
+from elicito import methods, simulations
 from elicito._initialization_box import (
     MIN_SEARCH_SAMPLES,
     PENALTY,
@@ -18,6 +18,7 @@ from elicito._initialization_box import (
     variable_names,
 )
 from elicito.exceptions import MissingOptionalDependencyError
+from elicito.losses import total_loss
 from elicito.types import ExpertDict, Parameter, Target, Trainer
 
 logger = logging.getLogger(__name__)
@@ -73,7 +74,7 @@ def score(  # noqa: PLR0913
         Total loss against the expert-elicited statistics.
 
     """
-    prior_model = el.simulations.Priors(
+    prior_model = simulations.Priors(
         ground_truth=False,
         init_matrix_slice={
             name: tf.constant(float(value), dtype=tf.float32)
@@ -146,12 +147,12 @@ def evaluate(  # noqa: PLR0913
     """
     if run is None:
         (elicited, prior_sim, model_sim, target_quantities) = (
-            el.simulations.one_forward_simulation(
+            simulations.one_forward_simulation(
                 prior_model=prior_model, model=model, targets=targets, seed=seed
             )
         )
         (loss, indiv_losses, loss_components_expert, loss_components_training) = (
-            el.losses.total_loss(
+            total_loss(
                 elicit_training=elicited,
                 elicit_expert=expert_elicited_statistics,
                 targets=targets,
@@ -175,7 +176,7 @@ def evaluate(  # noqa: PLR0913
     # One flat failure value would give the search nothing to follow, so
     # grade the penalty by the share of draws that overflow. The search can
     # then walk out of the bad region.
-    bad = el.simulations.nonfinite_fraction(target_quantities)
+    bad = simulations.nonfinite_fraction(target_quantities)
     if bad > 0.0:
         value = PENALTY * (1.0 + bad)
     # A derivative-free search cannot use a non-finite value. Steer it away.
@@ -248,10 +249,10 @@ def compile_evaluate(
     @tf.function(reduce_retracing=True)  # type: ignore [misc]
     def run() -> Any:
         (elicited, prior_sim, model_sim, target_quantities) = (
-            el.simulations.simulate_and_elicit(prior_model, model, targets, seed)
+            simulations.simulate_and_elicit(prior_model, model, targets, seed)
         )
         (loss, indiv_losses, loss_components_expert, loss_components_training) = (
-            el.losses.total_loss(
+            total_loss(
                 elicit_training=elicited,
                 elicit_expert=expert_elicited_statistics,
                 targets=targets,
@@ -321,7 +322,7 @@ def compile_score(  # noqa: PLR0913
 
     """
     names = hyper_names(parameters)
-    prior_model = el.simulations.Priors(
+    prior_model = simulations.Priors(
         ground_truth=False,
         init_matrix_slice=dict.fromkeys(names, tf.constant(0.0, dtype=tf.float32)),
         trainer=trainer,
@@ -330,9 +331,7 @@ def compile_score(  # noqa: PLR0913
         expert=expert,
         seed=seed,
     )
-    variables = el.methods.get_method(trainer["method"]).trainable_variables(
-        prior_model
-    )
+    variables = methods.get_method(trainer["method"]).trainable_variables(prior_model)
     var_names = variable_names(variables)
     run = compile_evaluate(
         prior_model, model, targets, expert_elicited_statistics, seed
