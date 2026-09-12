@@ -13,6 +13,7 @@ See https://oprypin.github.io/mkdocs-literate-nav/
     - [Discrete likelihood](how-to-guides/use-discrete-rv.py)
     - [Specify the generative model](how-to-guides/define-generative-model.md)
     - [Choose an initialization method](how-to-guides/choose-initialization.py)
+    - [Use a PyMC model](how-to-guides/use-pymc-model.py)
 - [Further background](further-background/index.md)
     - [Maximum Mean Discrepancy](further-background/maximum-mean-discrepancy.py)
     - [Package architecture](further-background/architecture.py)
