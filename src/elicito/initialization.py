@@ -11,11 +11,12 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-from elicito import cmaes, optimization, simulations, warmstart
-from elicito._initialization_box import hyper_names, start_vector
+from elicito import simulations, warmstart
 from elicito._progress import ProgressTable
 from elicito.exceptions import MissingOptionalDependencyError
 from elicito.losses import total_loss
+from elicito.optimizers import cmaes, sgd
+from elicito.optimizers.search import hyper_names, start_vector
 from elicito.types import (
     ExpertDict,
     Initializer,
@@ -762,7 +763,7 @@ def init_runs(  # noqa: PLR0913
             warmup_trainer["epochs"] = warmup_epochs
             warmup_trainer["progress"] = 0
 
-            history, _ = optimization.sgd_training(
+            history, _ = sgd.sgd_training(
                 expert_elicited_statistics=expert_elicited_statistics,
                 prior_model_init=prior_model,
                 trainer=warmup_trainer,

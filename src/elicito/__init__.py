@@ -19,13 +19,12 @@ from joblib.externals.loky.backend.context import (  # type: ignore [import-unty
 from elicito import (
     _checks,
     _outputs,
-    cmaes,
     elicit,
     initialization,
     losses,
     methods,
     networks,
-    optimization,
+    optimizers,
     plots,
     simulations,
     targets,
@@ -66,7 +65,6 @@ __version__ = importlib.metadata.version("elicito")
 
 __all__ = [
     "Elicit",
-    "cmaes",
     "expert",
     "hyper",
     "initialization",
@@ -75,8 +73,8 @@ __all__ = [
     "meta_settings",
     "model",
     "networks",
-    "optimization",
     "optimizer",
+    "optimizers",
     "parameter",
     "plots",
     "queries",
@@ -94,12 +92,12 @@ def _default_initializer(
     optimizer: dict[str, Any], initializer: Initializer | None
 ) -> Initializer | None:
     """Use the default box of CMA-ES, and ignore a user initializer for it"""
-    if optimizer["optimizer"] != cmaes.CMAES:
+    if optimizer["optimizer"] != optimizers.cmaes.CMAES:
         return initializer
     if initializer is not None:
         warnings.warn(
-            f"optimizer='{cmaes.CMAES}' ignores the initializer. Set the step "
-            "size with el.optimizer(sigma0=...).",
+            f"optimizer='{optimizers.cmaes.CMAES}' ignores the initializer. "
+            "Set the step size with el.optimizer(sigma0=...).",
             UserWarning,
             stacklevel=3,
         )
@@ -291,12 +289,12 @@ class Elicit:
         else:
             targets_str = names_str
 
-        if self.optimizer["optimizer"] == cmaes.CMAES:
-            sigma0 = self.optimizer.get("sigma0", cmaes.DEFAULT_SIGMA0)
+        if self.optimizer["optimizer"] == optimizers.cmaes.CMAES:
+            sigma0 = self.optimizer.get("sigma0", optimizers.cmaes.DEFAULT_SIGMA0)
             if isinstance(sigma0, dict):
                 # a step size per hyperparameter is too long for one line
                 sigma0 = f"{len(sigma0)} values"
-            opt_str = f"{cmaes.CMAES}(sigma0={sigma0})"
+            opt_str = f"{optimizers.cmaes.CMAES}(sigma0={sigma0})"
         else:
             opt_name = self.optimizer["optimizer"].__name__
             opt_lr = self.optimizer["learning_rate"]
@@ -711,7 +709,10 @@ class Elicit:
         for key, value in kwargs.items():
             setattr(test, key, value)
 
-        if "initializer" not in kwargs and test.optimizer["optimizer"] == cmaes.CMAES:
+        if (
+            "initializer" not in kwargs
+            and test.optimizer["optimizer"] == optimizers.cmaes.CMAES
+        ):
             test.initializer = None
         test.initializer = _default_initializer(test.optimizer, test.initializer)
 
@@ -796,16 +797,16 @@ class Elicit:
         # derivative-free search
         extra: dict[str, Any] = {}
         fit_method: Callable[..., tuple[dict[Any, Any], dict[Any, Any]]]
-        if self.optimizer["optimizer"] == cmaes.CMAES:
-            fit_method = cmaes.cma_training
+        if self.optimizer["optimizer"] == optimizers.cmaes.CMAES:
+            fit_method = optimizers.cmaes.cma_training
             if self.initializer is not None:
-                extra["default_sigma0"] = cmaes.box_step_size(
+                extra["default_sigma0"] = optimizers.cmaes.box_step_size(
                     initialization.resolve_init_method(self.initializer),
                     self.initializer,
                     self.parameters,
                 )
         else:
-            fit_method = optimization.sgd_training
+            fit_method = optimizers.sgd.sgd_training
 
         history, results = fit_method(
             expert_elicits,

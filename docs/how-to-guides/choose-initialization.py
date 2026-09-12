@@ -279,7 +279,7 @@ def loss_grid(mu0_values: Any, sigma0_values: Any) -> Any:
     grid = np.empty((len(sigma0_values), len(mu0_values)))
     for i, sigma0_value in enumerate(sigma0_values):
         for j, mu0_value in enumerate(mu0_values):
-            grid[i, j] = el.warmstart.score(
+            grid[i, j] = el.optimizers.search.score(
                 hyperparams=dict(mu0=mu0_value, sigma0=sigma0_value),
                 expert_elicited_statistics=expert_elicits,
                 parameters=eliobj.parameters,
@@ -587,7 +587,7 @@ landscape(
 # We give the search the far box of option 2. The center of that box is the start
 # point of the search. The budget is 50 evaluations, because we search only two
 # hyperparameters here. The search itself is not stored, so the figure below
-# records it: we wrap [`compile_score`][elicito.warmstart.compile_score], the
+# records it: we wrap [`compile_score`][elicito.optimizers.search.compile_score], the
 # function that builds the scorer of the search, for the time of the fit.
 #
 # The white path is the search, the black dot is the start value that it returns,
@@ -615,7 +615,7 @@ surface_wide = np.vstack([loss_grid(mu0_grid, sigma0_low), surface])
 # %% tags=["remove_input"]
 visited: list[Any] = []
 scored: list[float] = []
-original_compile = el.warmstart.compile_score
+original_compile = el.optimizers.search.compile_score
 
 
 def recording_compile(*args: Any, **kwargs: Any) -> Any:
@@ -631,7 +631,7 @@ def recording_compile(*args: Any, **kwargs: Any) -> Any:
     return recording
 
 
-el.warmstart.compile_score = recording_compile
+el.optimizers.search.compile_score = recording_compile
 
 # %%
 loss = fit_and_report(
@@ -644,7 +644,7 @@ loss = fit_and_report(
 )
 
 # %% tags=["remove_input"]
-el.warmstart.compile_score = original_compile
+el.optimizers.search.compile_score = original_compile
 
 path = training_path("warmstart")
 landscape(
@@ -1007,7 +1007,7 @@ results.append(
 # %% tags=["remove_input"]
 visited = []
 scored = []
-el.warmstart.compile_score = recording_compile
+el.optimizers.search.compile_score = recording_compile
 
 # %%
 results.append(
@@ -1022,7 +1022,7 @@ results.append(
 )
 
 # %% tags=["remove_input"]
-el.warmstart.compile_score = original_compile
+el.optimizers.search.compile_score = original_compile
 
 # %% [markdown]
 # ### Comparison
@@ -1061,7 +1061,7 @@ failed = ~np.isfinite(losses)
 
 search_path = np.asarray(visited)
 scores = np.asarray(scored)
-overflowed = scores >= el.warmstart.PENALTY
+overflowed = scores >= el.optimizers.search.PENALTY
 
 # `score` needs the expert data of this model
 eliobj = build(el.initializer(hyperparams=truth_unconstrained))
@@ -1132,7 +1132,7 @@ def slice_of(pair: tuple[str, str]) -> Any:
         for j, x_value in enumerate(axes_of[x_name]):
             values[x_name] = float(x_value)
             values[y_name] = float(y_value)
-            grid[i, j] = el.warmstart.score(
+            grid[i, j] = el.optimizers.search.score(
                 hyperparams=values,
                 expert_elicited_statistics=expert_elicits,
                 parameters=eliobj.parameters,
@@ -1142,7 +1142,7 @@ def slice_of(pair: tuple[str, str]) -> Any:
                 expert=eliobj.expert,
                 seed=0,
             )
-    return np.where(grid >= el.warmstart.PENALTY, np.nan, grid)
+    return np.where(grid >= el.optimizers.search.PENALTY, np.nan, grid)
 
 
 axes_of = {name: axis_of(name) for pair in projections for name in pair}

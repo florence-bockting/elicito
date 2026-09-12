@@ -16,7 +16,7 @@ from tests.utils import eliobj as base_eliobj
 
 import elicito as el
 from elicito import Elicit
-from elicito._initialization_box import box_vector, start_vector
+from elicito.optimizers.search import box_vector, start_vector
 from elicito.utils import get_expert_datformat
 
 tfd = tfp.distributions
@@ -705,11 +705,11 @@ def test_warm_start_spends_the_budget(monkeypatch):
     def failing_scorer(**kwargs):
         def scorer(hyperparams):
             calls["n"] += 1
-            return el.warmstart.PENALTY * 1.5
+            return el.optimizers.search.PENALTY * 1.5
 
         return scorer
 
-    monkeypatch.setattr(el.warmstart, "compile_score", failing_scorer)
+    monkeypatch.setattr(el.optimizers.search, "compile_score", failing_scorer)
 
     el.warmstart.warm_start(
         expert_elicited_statistics={},
@@ -729,9 +729,9 @@ def test_warm_start_spends_the_budget(monkeypatch):
 def test_warm_start_falls_back_when_every_point_fails(monkeypatch, caplog):
     """a point that failed is never returned as a start value"""
     monkeypatch.setattr(
-        el.warmstart,
+        el.optimizers.search,
         "compile_score",
-        lambda **kwargs: lambda hyperparams: el.warmstart.PENALTY * 1.5,
+        lambda **kwargs: lambda hyperparams: el.optimizers.search.PENALTY * 1.5,
     )
 
     with caplog.at_level("WARNING"):
@@ -810,7 +810,7 @@ def test_cma_search_returns_one_value_per_hyperparameter():
         base_eliobj.trainer["seed"],
     )
 
-    hyperparams = el.cmaes.cma_search(
+    hyperparams = el.optimizers.cmaes.cma_search(
         expert_elicited_statistics=expert_elicits,
         parameters=base_eliobj.parameters,
         trainer=base_eliobj.trainer,
@@ -831,13 +831,13 @@ def test_cma_search_falls_back_when_every_point_fails(monkeypatch, caplog):
     pytest.importorskip("cma")
 
     monkeypatch.setattr(
-        el.warmstart,
+        el.optimizers.search,
         "compile_score",
-        lambda **kwargs: lambda hyperparams: el.warmstart.PENALTY * 1.5,
+        lambda **kwargs: lambda hyperparams: el.optimizers.search.PENALTY * 1.5,
     )
 
     with caplog.at_level("WARNING"):
-        hyperparams = el.cmaes.cma_search(
+        hyperparams = el.optimizers.cmaes.cma_search(
             expert_elicited_statistics={},
             parameters=base_eliobj.parameters,
             trainer=base_eliobj.trainer,
@@ -866,14 +866,14 @@ def _cmaes_eliobj(
         targets=base_eliobj.targets,
         expert=base_eliobj.expert,
         optimizer=el.optimizer(
-            optimizer=el.cmaes.CMAES, sigma0=sigma0, popsize=popsize
+            optimizer=el.optimizers.cmaes.CMAES, sigma0=sigma0, popsize=popsize
         ),
         trainer=el.trainer(method=method, seed=0, epochs=epochs, progress=0),
     )
 
 
 def test_cmaes_fills_a_missing_initializer(eliobj):
-    cma = el.optimizer(optimizer=el.cmaes.CMAES)
+    cma = el.optimizer(optimizer=el.optimizers.cmaes.CMAES)
     new = Elicit(
         model=base_eliobj.model,
         parameters=base_eliobj.parameters,
@@ -890,7 +890,7 @@ def test_cmaes_fills_a_missing_initializer(eliobj):
 
 def test_cmaes_update_replaces_the_stored_initializer(eliobj):
     """an initializer stored before the switch is not a choice of the user"""
-    cma = el.optimizer(optimizer=el.cmaes.CMAES)
+    cma = el.optimizer(optimizer=el.optimizers.cmaes.CMAES)
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         eliobj.update(optimizer=cma)
@@ -917,13 +917,13 @@ def test_cma_training_spends_the_budget(monkeypatch):
     pytest.importorskip("cma")
 
     calls = []
-    original = el.warmstart.evaluate
+    original = el.optimizers.search.evaluate
 
     def counted(**kwargs):
         calls.append(1)
         return original(**kwargs)
 
-    monkeypatch.setattr(el.warmstart, "evaluate", counted)
+    monkeypatch.setattr(el.optimizers.search, "evaluate", counted)
 
     eliobj = _cmaes_eliobj(epochs=12)
     eliobj.fit()
@@ -943,24 +943,24 @@ def test_cma_training_improves_the_loss():
 
 
 def test_step_size_reads_a_number():
-    assert el.cmaes._step_size(0.3, ["mu0", "sigma0"]) == (0.3, None)
+    assert el.optimizers.cmaes._step_size(0.3, ["mu0", "sigma0"]) == (0.3, None)
 
 
 def test_step_size_orders_a_dict_like_the_variables():
     names = ["mu0", "sigma0", "mu1"]
-    sigma0, stds = el.cmaes._step_size(dict(mu1=0.1, mu0=0.2), names)
+    sigma0, stds = el.optimizers.cmaes._step_size(dict(mu1=0.1, mu0=0.2), names)
 
     # the scalar is 1.0, so `CMA_stds` alone sets the step size
     assert sigma0 == 1.0
     # `sigma0` is not given, so it gets the default
-    assert stds == [0.2, el.cmaes.DEFAULT_SIGMA0, 0.1]
+    assert stds == [0.2, el.optimizers.cmaes.DEFAULT_SIGMA0, 0.1]
 
 
 def test_step_size_fills_a_missing_name_from_the_default():
     names = ["mu0", "sigma0", "mu1"]
     box = dict(mu0=3.5, sigma0=3.5, mu1=3.5)
 
-    _, stds = el.cmaes._step_size(dict(mu1=0.1), names, box)
+    _, stds = el.optimizers.cmaes._step_size(dict(mu1=0.1), names, box)
 
     # `mu1` is given, the other two keep the value of the box
     assert stds == [3.5, 3.5, 0.1]
@@ -968,7 +968,7 @@ def test_step_size_fills_a_missing_name_from_the_default():
 
 def test_step_size_rejects_an_unknown_hyperparameter():
     with pytest.raises(ValueError, match="mu2"):
-        el.cmaes._step_size(dict(mu2=0.1), ["mu0", "sigma0"])
+        el.optimizers.cmaes._step_size(dict(mu2=0.1), ["mu0", "sigma0"])
 
 
 def test_cma_training_accepts_a_step_size_per_hyperparameter():
@@ -989,7 +989,7 @@ def test_cmaes_init_drops_its_search_for_a_cmaes_training():
     )
 
     # the training runs the same search, so one search is enough
-    assert method.skips_search(dict(optimizer=el.cmaes.CMAES))
+    assert method.skips_search(dict(optimizer=el.optimizers.cmaes.CMAES))
     # a gradient training is a different search, so the start value is needed
     assert not method.skips_search(dict(optimizer=tf.keras.optimizers.Adam))
 
@@ -998,7 +998,7 @@ def test_box_step_size_reads_the_radius_of_the_box():
     box = el.initialization.uniform(radius=4.0, mean=0.0)
 
     cmaes_init = el.initializer(method="cmaes", distribution=box)
-    sigma0 = el.cmaes.box_step_size(
+    sigma0 = el.optimizers.cmaes.box_step_size(
         el.initialization.resolve_init_method(cmaes_init),
         cmaes_init,
         base_eliobj.parameters,
@@ -1009,19 +1009,21 @@ def test_box_step_size_reads_the_radius_of_the_box():
 
     # a method that keeps its own search hands no box to the training
     sobol_init = el.initializer(method="sobol", distribution=box)
-    other = el.cmaes.box_step_size(
+    other = el.optimizers.cmaes.box_step_size(
         el.initialization.resolve_init_method(sobol_init),
         sobol_init,
         base_eliobj.parameters,
     )
-    assert other == el.cmaes.DEFAULT_SIGMA0
+    assert other == el.optimizers.cmaes.DEFAULT_SIGMA0
 
 
 def test_cma_training_runs_no_search_before_it(monkeypatch):
     pytest.importorskip("cma")
 
     calls = []
-    monkeypatch.setattr(el.cmaes, "cma_search", lambda **kwargs: calls.append(1) or {})
+    monkeypatch.setattr(
+        el.optimizers.cmaes, "cma_search", lambda **kwargs: calls.append(1) or {}
+    )
 
     eliobj = _cmaes_eliobj(epochs=12, sigma0=None)
     eliobj.optimizer.pop("sigma0")

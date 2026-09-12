@@ -701,7 +701,7 @@ def optimizer(
         or the string ``"cmaes"``.
 
         ``"cmaes"`` replaces the gradient descent by a CMA-ES search
-        ([`cma_training`][elicito.cmaes.cma_training]). It needs no gradient,
+        ([`cma_training`][elicito.optimizers.cmaes.cma_training]). It needs no gradient,
         and it can leave a local basin. It is available for
         ``method="parametric_prior"`` only, and it needs the optional
         ``cma`` dependency. Its settings are ``sigma0``, the first step size

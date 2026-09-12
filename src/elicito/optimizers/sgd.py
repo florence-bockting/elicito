@@ -1,5 +1,5 @@
 """
-Defines the optimization algorithm
+Training of the prior with a gradient-based optimizer
 """
 
 import logging

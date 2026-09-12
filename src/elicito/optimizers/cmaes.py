@@ -9,8 +9,12 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import tensorflow as tf
 
-from elicito import methods, warmstart
-from elicito._initialization_box import (
+from elicito import methods
+from elicito._progress import ProgressTable
+from elicito.exceptions import MissingOptionalDependencyError
+from elicito.losses import spread_penalty
+from elicito.optimizers import search
+from elicito.optimizers.search import (
     MIN_SEARCH_SAMPLES,
     PENALTY,
     SEARCH_FRACTION,
@@ -18,9 +22,6 @@ from elicito._initialization_box import (
     hyper_names,
     variable_names,
 )
-from elicito._progress import ProgressTable
-from elicito.exceptions import MissingOptionalDependencyError
-from elicito.losses import spread_penalty
 from elicito.types import ExpertDict, Parameter, Target, Trainer
 
 if TYPE_CHECKING:
@@ -139,7 +140,7 @@ def cma_search(  # noqa: PLR0913
     # can be worse than a point seen before. Keep the best usable point.
     best: dict[str, Any] = {"value": PENALTY, "values": None}
 
-    scorer = warmstart.compile_score(
+    scorer = search.compile_score(
         expert_elicited_statistics=expert_elicited_statistics,
         parameters=parameters,
         trainer=search_trainer,  # type: ignore [arg-type]
@@ -291,7 +292,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
     Fit the hyperparameters of a parametric prior with CMA-ES
 
     The search replaces the gradient descent of
-    [`sgd_training`][elicito.optimization.sgd_training]. It needs no gradient,
+    [`sgd_training`][elicito.optimizers.sgd.sgd_training]. It needs no gradient,
     so it cannot diverge through an exploding gradient, and it can leave a
     local basin that a gradient step cannot leave. It costs more forward
     simulations for the same number of history points, because one generation
@@ -339,7 +340,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
 
     default_sigma0
         First step size, used if ``optimizer`` does not give ``sigma0``. See
-        [`box_step_size`][elicito.cmaes.box_step_size].
+        [`box_step_size`][elicito.optimizers.cmaes.box_step_size].
 
     Raises
     ------
@@ -398,7 +399,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
 
     # traced once, then re-used. The graph reads the variables, so `assign`
     # reaches the next simulation.
-    run = warmstart.compile_evaluate(
+    run = search.compile_evaluate(
         prior_model, model, targets, expert_elicited_statistics, seed
     )
 
@@ -406,7 +407,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
 
     def objective(values: Any) -> tuple[float, dict[str, Any]]:
         assign(values)
-        value, output = warmstart.evaluate(
+        value, output = search.evaluate(
             prior_model=prior_model,
             expert_elicited_statistics=expert_elicited_statistics,
             model=model,

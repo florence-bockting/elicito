@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 import tensorflow as tf
 
-from elicito._initialization_box import hyper_names
-from elicito.cmaes import CMAES
 from elicito.exceptions import MissingOptionalDependencyError
+from elicito.optimizers.cmaes import CMAES
+from elicito.optimizers.search import hyper_names
 
 if TYPE_CHECKING:
     import matplotlib.axes

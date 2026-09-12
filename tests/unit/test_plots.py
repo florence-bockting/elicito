@@ -270,7 +270,9 @@ def test_plots_without_an_initialization_group():
         parameters=base.parameters,
         targets=base.targets,
         expert=base.expert,
-        optimizer=el.optimizer(optimizer=el.cmaes.CMAES, sigma0=0.5, popsize=4),
+        optimizer=el.optimizer(
+            optimizer=el.optimizers.cmaes.CMAES, sigma0=0.5, popsize=4
+        ),
         trainer=el.trainer(method="parametric_prior", seed=0, epochs=8, progress=0),
     )
     eliobj.fit()
@@ -307,7 +309,9 @@ def test_plots_accept_a_cmaes_fit():
         parameters=base.parameters,
         targets=base.targets,
         expert=base.expert,
-        optimizer=el.optimizer(optimizer=el.cmaes.CMAES, sigma0=0.5, popsize=4),
+        optimizer=el.optimizer(
+            optimizer=el.optimizers.cmaes.CMAES, sigma0=0.5, popsize=4
+        ),
         trainer=el.trainer(method="parametric_prior", seed=0, epochs=12, progress=0),
     )
     eliobj.fit()
