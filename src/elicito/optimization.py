@@ -8,8 +8,8 @@ from typing import Any
 
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
-from tqdm import tqdm
 
+from elicito._progress import ProgressTable
 from elicito.losses import spread_penalty, total_loss
 from elicito.methods import get_method
 from elicito.simulations import Priors
@@ -120,11 +120,14 @@ def sgd_training(  # noqa: PLR0913, PLR0915
     sgd_optimizer = init_sgd_optimizer(**optimizer_copy)
 
     # start training loop
-    if progress == 0:
-        epochs = tf.range(trainer["epochs"])
-    else:
-        print("Training")
-        epochs = tqdm(tf.range(trainer["epochs"]))
+    epochs = tf.range(trainer["epochs"])
+    bar = ProgressTable(
+        "Training",
+        total=trainer["epochs"],
+        disable=progress == 0,
+        loss=float("nan"),
+        skipped=0,
+    )
 
     # A single non-finite step must not end the run. The update is skipped and
     # the learning rate is halved, which often lets the run recover. Training
@@ -219,6 +222,9 @@ def sgd_training(  # noqa: PLR0913, PLR0915
         penalties.append(tf.squeeze(penalty))
         component_losses.append(indiv_losses)
 
+        loss_value = float(tf.squeeze(loss))
+        bar.update(loss=loss_value, skipped=n_skipped_total)
+
         # the run cannot recover; stop after the epoch has been recorded
         if n_skipped >= MAX_SKIPPED_STEPS:
             msg = (
@@ -232,6 +238,8 @@ def sgd_training(  # noqa: PLR0913, PLR0915
             else:
                 logger.info(msg)
             break
+
+    bar.close()
 
     if n_skipped_total > 0:
         logger.info(

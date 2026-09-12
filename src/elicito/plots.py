@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     import matplotlib.figure
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
 def _plot_density(ax: Any, values: Any, name: str, **line_kwargs: Any) -> None:
@@ -250,7 +249,8 @@ def loss(
         )
         for i in success
     ]
-    # plot loss per component
+    # plot loss per component. All replications of a component share one
+    # colour, and only the first replication gets a legend label.
     for i, name in enumerate(names_losses):
         for j in success:
             # preprocess loss_component results
@@ -260,13 +260,14 @@ def loss(
                 .to_array()
                 .values
             )
-            if j == 0:
-                axes[1].plot(
-                    indiv_losses[i, :] * weights[i], label=name, lw=2, alpha=0.5
-                )
-            else:
-                axes[1].plot(indiv_losses[i, :] * weights[i], lw=2, alpha=0.5)
-        axes[1].legend(fontsize="small", handlelength=0.4, frameon=False)
+            axes[1].plot(
+                indiv_losses[i, :] * weights[i],
+                color=f"C{i}",
+                label=name if j == success[0] else None,
+                lw=2,
+                alpha=0.5,
+            )
+    axes[1].legend(fontsize="small", handlelength=0.4, frameon=False)
     [
         axes[i].set_title(t, fontsize="small")
         for i, t in enumerate(["total loss", in_title + "individual losses"])
@@ -978,7 +979,6 @@ def priorpredictive(
             color=f"{shade}",
             alpha=0.5,
         )
-    axes[0].legend(fontsize="small", handlelength=0.9, frameon=False)
     axes[0].set_title(f"prior predictive distribution of {target}", fontsize="small")
     axes[0].spines[["right", "top"]].set_visible(False)
     axes[0].tick_params(axis="y", labelsize="x-small")

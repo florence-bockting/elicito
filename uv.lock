@@ -585,10 +585,10 @@ dependencies = [
     { name = "joblib" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "rich" },
     { name = "tensorflow" },
     { name = "tensorflow-probability" },
     { name = "tf-keras" },
-    { name = "tqdm" },
     { name = "xarray" },
 ]
 
@@ -750,7 +750,6 @@ all-dev = [
     { name = "traitlets" },
     { name = "types-python-dateutil" },
     { name = "types-tensorflow" },
-    { name = "types-tqdm" },
     { name = "typing-extensions" },
     { name = "uri-template" },
     { name = "urllib3" },
@@ -787,7 +786,6 @@ dev = [
     { name = "toml" },
     { name = "towncrier" },
     { name = "types-tensorflow" },
-    { name = "types-tqdm" },
     { name = "typing-extensions" },
     { name = "virtualenv" },
 ]
@@ -947,11 +945,11 @@ requires-dist = [
     { name = "joblib", specifier = ">=1.4.2" },
     { name = "matplotlib", marker = "extra == 'plots'", specifier = ">=3.7.1" },
     { name = "numpy", specifier = ">=1.24" },
+    { name = "rich", specifier = ">=13.0" },
     { name = "scipy", marker = "extra == 'scipy'", specifier = ">=1.14.0" },
     { name = "tensorflow", specifier = ">=2.16.0" },
     { name = "tensorflow-probability", specifier = ">=0.24.0" },
     { name = "tf-keras", specifier = ">=2.16.0" },
-    { name = "tqdm", specifier = ">=4.38" },
     { name = "xarray", specifier = ">=2025.9.0" },
 ]
 provides-extras = ["plots", "scipy", "cma", "full"]
@@ -1093,7 +1091,6 @@ all-dev = [
     { name = "traitlets", specifier = "==5.14.3" },
     { name = "types-python-dateutil", specifier = "==2.9.0.20241206" },
     { name = "types-tensorflow", specifier = ">=2.18.0" },
-    { name = "types-tqdm", specifier = ">=4.67.0" },
     { name = "typing-extensions", specifier = "==4.12.2" },
     { name = "uri-template", specifier = "==1.3.0" },
     { name = "urllib3", specifier = "==2.3.0" },
@@ -1130,7 +1127,6 @@ dev = [
     { name = "toml", specifier = "==0.10.2" },
     { name = "towncrier", specifier = "==24.8.0" },
     { name = "types-tensorflow", specifier = ">=2.18.0" },
-    { name = "types-tqdm", specifier = ">=4.67.0" },
     { name = "typing-extensions", specifier = "==4.12.2" },
     { name = "virtualenv", specifier = "==20.28.1" },
 ]
@@ -3855,18 +3851,6 @@ wheels = [
 ]
 
 [[package]]
-name = "tqdm"
-version = "4.70.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/21/3b/6c24bec5be5e743ffd99576daa5cc077722fc7d5bbc00bd133fa0c698dc6/tqdm-4.70.0.tar.gz", hash = "sha256:55b0b0dbd97462d06ebee91e4dac24ed4d4702be82b24f07e6c1d27e08cea220", size = 795438, upload-time = "2026-07-27T11:33:15.271Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f9/1c/01bfd571a64e7f270e6bab5e33777debe0edc56759233ce84f27dec92d14/tqdm-4.70.0-py3-none-any.whl", hash = "sha256:7f585706bfddbdebf89daac705b2dfcc16890130727d3197ca62c732b4310953", size = 80184, upload-time = "2026-07-27T11:33:13.167Z" },
-]
-
-[[package]]
 name = "traitlets"
 version = "5.14.3"
 source = { registry = "https://pypi.org/simple" }
@@ -3918,15 +3902,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/6f/3e/f872359eac9daf4f6d1cb9249026b9ca9d050ad861f12e3a43670ab38801/types_tensorflow-2.18.0.20260518.tar.gz", hash = "sha256:fefb88ab3d3a7120f36dc0b9632d36f3b966c2f599fe0a70bf1025ba55090fcc", size = 259247, upload-time = "2026-05-18T06:08:12.126Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/aa/78/536142dd53f73e64f9cc7c02571571ce244658c5a39c80a444d01dc3711d/types_tensorflow-2.18.0.20260518-py3-none-any.whl", hash = "sha256:233d96c98465a6ea211d25a8543e1811132a74b7a4796a13d627c0849a3d96e3", size = 329755, upload-time = "2026-05-18T06:08:11.073Z" },
-]
-
-[[package]]
-name = "types-tqdm"
-version = "4.70.0.20260906"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fe/92/517d71d5a399cd2f8ead3b4328d987262478f22fbbe7f8312360d4c321d0/types_tqdm-4.70.0.20260906.tar.gz", hash = "sha256:6581dc996152a87d51ce2ea169169187ffc0a96dacdb8adbdef29cbee8c1e631", size = 19309, upload-time = "2026-09-06T06:35:31.916Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/ea/d12697988ab2c672877796ecaea69666e2379ee7b40f01f4540250d5a97b/types_tqdm-4.70.0.20260906-py3-none-any.whl", hash = "sha256:c3b88c694928515d601f73fa6646aa43adc0ef735bedbeebf0cc543f6a201ae8", size = 25181, upload-time = "2026-09-06T06:35:30.931Z" },
 ]
 
 [[package]]

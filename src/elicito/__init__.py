@@ -11,6 +11,9 @@ from typing import Any
 import joblib
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
+from joblib.externals.loky.backend.context import (  # type: ignore [import-untyped]
+    get_context,
+)
 
 from elicito import (
     _checks,
@@ -29,6 +32,7 @@ from elicito import (
     utils,
     warmstart,
 )
+from elicito._progress import SeedTable, run_in_worker
 from elicito.elicit import (
     expert,
     hyper,
@@ -420,10 +424,21 @@ class Elicit:
             else:
                 seeds = parallel["seeds"]
 
-            # run training simultaneously for multiple seeds
-            (*res,) = joblib.Parallel(n_jobs=parallel["cores"])(
-                joblib.delayed(self.workflow)(seed) for seed in seeds
-            )
+            # run training simultaneously for multiple seeds. Live tables from
+            # several processes overwrite each other, so the workers send
+            # their tables to the parent. It shows one row for each seed.
+            # The loky context starts the queue server without fork, which
+            # can deadlock in a multi-threaded process.
+            with get_context("loky").Manager() as manager:
+                queue = manager.Queue()
+                table = SeedTable(seeds, queue, disable=self.trainer["progress"] == 0)
+                try:
+                    res = joblib.Parallel(n_jobs=parallel["cores"])(
+                        joblib.delayed(run_in_worker)(self.workflow, seed, row, queue)
+                        for row, seed in enumerate(seeds)
+                    )
+                finally:
+                    table.close()
 
             for i, seed in enumerate(seeds):
                 self.temp_results.append(res[i][0])
