@@ -27,6 +27,7 @@ from elicito import (
     utils,
 )
 from elicito._progress import SeedTable, run_in_worker
+from elicito.parameters._base import _constraints
 from elicito.parameters.priors import Priors
 from elicito.types import (
     ExpertDict,
@@ -536,9 +537,7 @@ class Elicit:
             msg = "No results found. Run 'eliobj.fit()' before 'eliobj.sample()'."
             raise AttributeError(msg)
 
-        weights = self.results["learned_weights"].to_dataset()
         seeds = self.results.history_stats.seed_replication.values
-        method = parameters.methods.get_method(self.trainer["method"])
 
         simulated = []
         for i, replication_seed in enumerate(seeds):
@@ -550,27 +549,7 @@ class Elicit:
             if B is not None:
                 trainer["B"] = B
 
-            # the build step reads an initial value for every hyperparameter.
-            # The learned values overwrite them below, so any number does.
-            prior_model = parameters.priors.Priors(
-                ground_truth=False,
-                init_matrix_slice=defaultdict(lambda: tf.constant(0.0)),
-                trainer=trainer,  # type: ignore [arg-type]
-                parameters=self.parameters,
-                network=self.network,
-                expert=self.expert,
-                seed=run_seed,
-            )
-            variables = method.trainable_variables(prior_model)
-            if len(variables) != len(weights.data_vars):
-                msg = (
-                    f"The model has {len(variables)} trainable variables but"
-                    f" {len(weights.data_vars)} are stored in the results."
-                    " The results belong to a different model specification."
-                )
-                raise ValueError(msg)
-            for j, variable in enumerate(variables):
-                variable.assign(weights[f"weight_{j}"].sel(replication=i).values)
+            prior_model = self._learned_prior_model(i, trainer, run_seed)
 
             tf.random.set_seed(run_seed)
             (elicits, prior_sim, model_sim, target_quants) = models.simulate_and_elicit(
@@ -589,6 +568,84 @@ class Elicit:
             )
 
         return _outputs.create_sample_tree(simulated, self.parameters)
+
+    def _learned_prior_model(
+        self, replication: int, trainer: dict[str, Any], seed: int
+    ) -> Any:
+        """Rebuild the prior model of one replication with its learned weights"""
+        weights = self.results["learned_weights"].to_dataset()
+        method = parameters.methods.get_method(self.trainer["method"])
+
+        # the build step reads an initial value for every hyperparameter.
+        # The learned values overwrite them below, so any number does.
+        prior_model = parameters.priors.Priors(
+            ground_truth=False,
+            init_matrix_slice=defaultdict(lambda: tf.constant(0.0)),
+            trainer=trainer,  # type: ignore [arg-type]
+            parameters=self.parameters,
+            network=self.network,
+            expert=self.expert,
+            seed=seed,
+        )
+        variables = method.trainable_variables(prior_model)
+        if len(variables) != len(weights.data_vars):
+            msg = (
+                f"The model has {len(variables)} trainable variables but"
+                f" {len(weights.data_vars)} are stored in the results."
+                " The results belong to a different model specification."
+            )
+            raise ValueError(msg)
+        for j, variable in enumerate(variables):
+            variable.assign(weights[f"weight_{j}"].sel(replication=replication).values)
+        return prior_model
+
+    def hyperparameters(self, replication: int = 0) -> dict[str, float]:
+        """
+        Return the learned hyperparameter values
+
+        The values belong to the prior that the fit returns, on the scale of
+        the prior family.
+
+        Parameters
+        ----------
+        replication
+            index of the replication
+
+        Returns
+        -------
+        :
+            learned value of each hyperparameter, by name
+
+        Raises
+        ------
+        AttributeError
+            eliobj has not been fitted yet.
+
+        ValueError
+            The method is not ``"parametric_prior"``.
+
+        Examples
+        --------
+        >>> eliobj.hyperparameters()  # doctest: +SKIP
+        """
+        if not hasattr(self, "results"):
+            msg = (
+                "No results found. Run 'eliobj.fit()' before"
+                " 'eliobj.hyperparameters()'."
+            )
+            raise AttributeError(msg)
+        if self.trainer["method"] != "parametric_prior":
+            msg = "Only method='parametric_prior' has hyperparameters."
+            raise ValueError(msg)
+
+        seed = int(self.results.history_stats.seed_replication.values[replication])
+        prior_model = self._learned_prior_model(replication, dict(self.trainer), seed)
+        constraints = _constraints(self.parameters)
+        values = {}
+        for var in prior_model.trainable_variables:
+            name = var.name[:-2].split(".")[1]
+            values[name] = float(constraints[name](var.numpy()))
+        return values
 
     def save(
         self,

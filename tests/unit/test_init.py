@@ -92,6 +92,21 @@ def test_eliobj_attributes(eliobj):
     assert "temp_history" not in dir(base_eliobj)
 
 
+def test_hyperparameters_match_the_last_sgd_epoch():
+    # SGD records the values after the update, so the last epoch is the result
+    values = base_eliobj.hyperparameters()
+    history = base_eliobj.results.history_stats.hyperparameter
+    assert set(values) == {"mu0", "sigma0", "mu1", "sigma1", "sigma2"}
+    for name, value in values.items():
+        last = history[name].sel(replication=0).isel(epoch=-1).values
+        np.testing.assert_allclose(value, last, rtol=1e-6)
+
+
+def test_hyperparameters_before_fit_raises(eliobj):
+    with pytest.raises(AttributeError, match="fit"):
+        eliobj.hyperparameters()
+
+
 def test_expert_input(eliobj):
     # test correct format
     dat_format = eliobj.expert
