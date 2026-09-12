@@ -3,6 +3,7 @@ Unittest for init.py module
 """
 
 import re
+import warnings
 from copy import deepcopy
 
 import numpy as np
@@ -559,79 +560,6 @@ def test_warmup_epochs_changes_candidate_loss():
     assert warm.trainer["epochs"] == 1
 
 
-def _one_param():
-    return [
-        el.parameter(
-            name="b0",
-            family=tfd.Normal,
-            hyperparams=dict(loc=el.hyper("mu0"), scale=el.hyper("sigma0", lower=0)),
-        )
-    ]
-
-
-def _one_shape_param():
-    return [
-        el.parameter(
-            name="k",
-            family=tfd.Weibull,
-            hyperparams=dict(
-                concentration=el.hyper("k0", lower=0),
-                scale=el.hyper("lambda0", lower=0),
-            ),
-        )
-    ]
-
-
-def test_from_elicits_box():
-    # quantiles 0, 2, 4, 6, 8 -> median 4, IQR 4, spread 4 / 1.35, q95 7.6
-    expert = {"quantiles_y": tf.constant([[0.0, 2.0, 4.0, 6.0, 8.0]])}
-    box = el.initialization._from_elicits_box(expert, _one_param(), factor=2.0)
-    spread = 4.0 / 1.35
-
-    assert box["hyper"] == ["mu0", "sigma0"]
-    # a location follows the pooled median
-    npt.assert_allclose(box["mean"][0], 4.0, rtol=1e-6)
-    npt.assert_allclose(box["radius"][0], 2.0 * spread, rtol=1e-6)
-    # a magnitude spans from spread / 100 up to the pooled 95% quantile
-    forward = el.utils.LowerBound(0.0).forward
-    low = float(forward(spread / 100.0))
-    high = float(forward(7.6))
-    npt.assert_allclose(box["mean"][1], (low + high) / 2.0, rtol=1e-5)
-    npt.assert_allclose(box["radius"][1], (high - low) / 2.0, rtol=1e-5)
-
-
-def test_from_elicits_box_ignores_the_data_scale_for_a_shape():
-    # a shape does not live on the scale of the data, so the box covers the
-    # natural range 1 to 5, whatever the elicited values are
-    expert = {"quantiles_y": tf.constant([[100.0, 200.0, 400.0, 600.0, 800.0]])}
-    box = el.initialization._from_elicits_box(expert, _one_shape_param())
-
-    assert box["hyper"] == ["k0", "lambda0"]
-    forward = el.utils.LowerBound(0.0).forward
-    low = float(forward(el.initialization.SHAPE_LOW))
-    high = float(forward(el.initialization.SHAPE_HIGH))
-    npt.assert_allclose(box["mean"][0], (low + high) / 2.0, rtol=1e-5)
-    npt.assert_allclose(box["radius"][0], (high - low) / 2.0, rtol=1e-5)
-    # the scale of the same family stays a magnitude, and follows the data
-    assert box["mean"][1] > box["mean"][0]
-
-
-def test_from_elicits_uses_spread_floor():
-    expert = {"quantiles_y": tf.constant([[3.0, 3.0, 3.0]])}
-    box = el.initialization._from_elicits_box(expert, _one_param())
-
-    npt.assert_allclose(box["radius"][0], 2.0e-3, rtol=1e-6)
-    npt.assert_allclose(box["mean"][0], 3.0, rtol=1e-6)
-
-
-def test_from_elicits_marks_the_box_as_deferred():
-    box = el.initialization.from_elicits(factor=3.0)
-
-    assert box["from_elicits"] is True
-    assert box["factor"] == 3.0
-    assert box["hyper"] is None
-
-
 def test_initializer_rejects_an_unknown_method_name():
     with pytest.raises(ValueError, match="warmstart"):
         el.initializer(
@@ -840,7 +768,7 @@ def test_warm_start_returns_one_value_per_hyperparameter():
         model=base_eliobj.model,
         targets=base_eliobj.targets,
         expert=base_eliobj.expert,
-        distribution=el.initialization.from_elicits(),
+        distribution=el.initialization.uniform(),
         max_evals=20,
         seed=0,
     )
@@ -929,7 +857,6 @@ def _cmaes_eliobj(
     sigma0=0.5,
     popsize=4,
     method="parametric_prior",
-    init_method="sobol",
 ):
     """an eliobj that is fitted with the CMA-ES search instead of a gradient"""
     return Elicit(
@@ -941,11 +868,6 @@ def _cmaes_eliobj(
             optimizer=el.cmaes.CMAES, sigma0=sigma0, popsize=popsize
         ),
         trainer=el.trainer(method=method, seed=0, epochs=epochs, progress=0),
-        initializer=el.initializer(
-            method=init_method,
-            iterations=2,
-            distribution=el.initialization.uniform(radius=1.0, mean=0.0),
-        ),
     )
 
 
@@ -962,6 +884,16 @@ def test_cmaes_fills_a_missing_initializer(eliobj):
     assert new.initializer["method"] == "cmaes"
 
     eliobj.update(optimizer=cma, initializer=None)
+    assert eliobj.initializer["method"] == "cmaes"
+
+
+def test_cmaes_update_replaces_the_stored_initializer(eliobj):
+    """an initializer stored before the switch is not a choice of the user"""
+    cma = el.optimizer(optimizer=el.cmaes.CMAES)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        eliobj.update(optimizer=cma)
+        eliobj.update(trainer=el.trainer(method="parametric_prior", seed=1, epochs=2))
     assert eliobj.initializer["method"] == "cmaes"
 
 
@@ -1061,30 +993,11 @@ def test_cmaes_init_drops_its_search_for_a_cmaes_training():
     assert not method.skips_search(dict(optimizer=tf.keras.optimizers.Adam))
 
 
-def test_warmstart_init_keeps_its_search_for_a_cmaes_training():
-    box = el.initialization.uniform(radius=1.0, mean=0.0)
-    method = el.initialization.resolve_init_method(
-        el.initializer(method="warmstart", distribution=box)
-    )
-
-    assert not method.skips_search(dict(optimizer=el.cmaes.CMAES))
-
-
 def test_box_step_size_reads_the_radius_of_the_box():
-    expert_elicits, _ = el.utils.get_expert_data(
-        base_eliobj.trainer,
-        base_eliobj.model,
-        base_eliobj.targets,
-        base_eliobj.expert,
-        base_eliobj.parameters,
-        base_eliobj.network,
-        base_eliobj.trainer["seed"],
-    )
     box = el.initialization.uniform(radius=4.0, mean=0.0)
 
     sigma0 = el.cmaes.box_step_size(
         el.initializer(method="cmaes", distribution=box),
-        expert_elicits,
         base_eliobj.parameters,
     )
 
@@ -1094,7 +1007,6 @@ def test_box_step_size_reads_the_radius_of_the_box():
     # a method that keeps its own search hands no box to the training
     other = el.cmaes.box_step_size(
         el.initializer(method="sobol", distribution=box),
-        expert_elicits,
         base_eliobj.parameters,
     )
     assert other == el.cmaes.DEFAULT_SIGMA0
@@ -1106,7 +1018,7 @@ def test_cma_training_runs_no_search_before_it(monkeypatch):
     calls = []
     monkeypatch.setattr(el.cmaes, "cma_search", lambda **kwargs: calls.append(1) or {})
 
-    eliobj = _cmaes_eliobj(epochs=12, sigma0=None, init_method="cmaes")
+    eliobj = _cmaes_eliobj(epochs=12, sigma0=None)
     eliobj.optimizer.pop("sigma0")
     eliobj.fit()
 
@@ -1120,20 +1032,14 @@ def test_cmaes_optimizer_rejects_the_deep_prior_method():
         _cmaes_eliobj(epochs=12, method="deep_prior")
 
 
-def test_cmaes_optimizer_rejects_a_warmup():
+def test_cmaes_optimizer_ignores_an_initializer():
     eliobj = _cmaes_eliobj(epochs=12)
-    with pytest.raises(ValueError, match="warmup_epochs"):
-        Elicit(
-            model=eliobj.model,
-            parameters=eliobj.parameters,
-            targets=eliobj.targets,
-            expert=eliobj.expert,
-            optimizer=eliobj.optimizer,
-            trainer=eliobj.trainer,
+    with pytest.warns(UserWarning, match="ignores the initializer"):
+        eliobj.update(
             initializer=el.initializer(
                 method="sobol",
                 iterations=2,
-                warmup_epochs=2,
                 distribution=el.initialization.uniform(radius=1.0, mean=0.0),
-            ),
+            )
         )
+    assert eliobj.initializer["method"] == "cmaes"

@@ -3,6 +3,7 @@ A Python package for learning prior distributions based on expert knowledge
 """
 
 import importlib.metadata
+import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from types import SimpleNamespace
@@ -96,10 +97,17 @@ SEED = 0
 def _default_initializer(
     optimizer: dict[str, Any], initializer: Initializer | None
 ) -> Initializer | None:
-    """Use the default box of CMA-ES if no initializer is given"""
-    if initializer is None and optimizer["optimizer"] == cmaes.CMAES:
-        return elicit.initializer(method=SamplingMethod.cmaes)
-    return initializer
+    """Use the default box of CMA-ES, and ignore a user initializer for it"""
+    if optimizer["optimizer"] != cmaes.CMAES:
+        return initializer
+    if initializer is not None:
+        warnings.warn(
+            f"optimizer='{cmaes.CMAES}' ignores the initializer. Set the step "
+            "size with el.optimizer(sigma0=...).",
+            UserWarning,
+            stacklevel=3,
+        )
+    return elicit.initializer(method=SamplingMethod.cmaes)
 
 
 class Elicit:
@@ -155,7 +163,7 @@ class Elicit:
             specification of initialization settings using
             [`initializer`][elicito.elicit.initializer].
             Only required for ``parametric_prior`` method. With
-            ``optimizer="cmaes"``, ``None`` means ``initializer(method="cmaes")``.
+            ``optimizer="cmaes"``, the initializer is ignored with a warning.
 
         meta_settings
             dictionary of meta settings for the elicitation workflow. See
@@ -664,6 +672,8 @@ class Elicit:
         for key, value in kwargs.items():
             setattr(test, key, value)
 
+        if "initializer" not in kwargs and test.optimizer["optimizer"] == cmaes.CMAES:
+            test.initializer = None
         test.initializer = _default_initializer(test.optimizer, test.initializer)
 
         _checks.check_elicit(
@@ -749,11 +759,8 @@ class Elicit:
         fit_method: Callable[..., tuple[dict[Any, Any], dict[Any, Any]]]
         if self.optimizer["optimizer"] == cmaes.CMAES:
             fit_method = cmaes.cma_training
-            # the search starts where the initialization stopped. If the
-            # initialization only read the box, the box also sets the first
-            # step size of each coordinate.
             extra["default_sigma0"] = cmaes.box_step_size(
-                self.initializer, expert_elicits, self.parameters
+                self.initializer, self.parameters
             )
         else:
             fit_method = optimization.sgd_training

@@ -33,13 +33,22 @@
 # 6. check the result with the diagnostic plots.
 
 # %% [markdown]
-# ## Imports
 
-# %%
+
+# %% tags=["hide"]
 import os
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
+import tensorflow as tf
+
+tf.constant(0.0)
+
+# %% [markdown]
+# ## Imports
+
+# %%
 from typing import Any
 
 import numpy as np

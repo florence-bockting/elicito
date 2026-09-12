@@ -789,13 +789,11 @@ def initializer(
 
     distribution
         Specification of initialization distribution.
-        The default is [`from_elicits`][elicito.initialization.from_elicits],
-        which derives the box from the expert data during ``fit``, so the user
-        supplies no number.
-        [`uniform`][elicito.initialization.uniform] needs a ``mean`` and a
-        ``radius`` that match the scale of the hyperparameters. A box that is
-        wrong by a factor of ten gives a bad start value, and for some prior
-        families a non-finite loss.
+        The default is [`uniform`][elicito.initialization.uniform] with its
+        defaults, ``mean=0`` and ``radius=1``, on the unconstrained scale.
+        Set a ``mean`` and a ``radius`` that match the scale of the
+        hyperparameters. A box that is wrong by a factor of ten gives a bad
+        start value, and for some prior families a non-finite loss.
 
     iterations
         Number of samples drawn from the initialization distribution.
@@ -831,8 +829,6 @@ def initializer(
     ------
     ValueError
         ``method`` can only take the values "random", "sobol", or "lhs"
-
-        ``loss_quantile`` must be a probability ranging between 0 and 1.
 
         Either ``method`` or ``hyperparams`` has to be specified.
 
@@ -875,28 +871,12 @@ def initializer(
             )
             raise ValueError(msg)
 
-        # hardcode loss_quantile as it was rather meant for experimental purposes
-        # however results suggest that loss_quantile different from zero are not
-        # really reasonable
-        loss_quantile = 0.0
-
-        quantile_perc = loss_quantile
-
     else:
-        # the default method needs no user-supplied number: the box comes from
-        # the expert data, the budget from the method itself
         if distribution is None:
-            distribution = el.initialization.from_elicits()
+            distribution = el.initialization.uniform()
         if iterations is None:
             iterations = el.initialization.get_init_method(method).default_iterations
 
-        # hardcode loss_quantile as it was rather meant for experimental purposes
-        # however results suggest that loss_quantile different from zero are not
-        # really reasonable
-        loss_quantile = 0.0
-
-        # compute percentage from probability
-        quantile_perc = int(loss_quantile * 100)
         # ensure that iterations is an integer
         if iterations is not None:
             iterations = int(iterations)
@@ -904,7 +884,6 @@ def initializer(
     init_dict: Initializer = dict(
         method=method,
         distribution=distribution,
-        loss_quantile=quantile_perc,
         iterations=iterations,
         warmup_epochs=int(warmup_epochs),
         hyperparams=hyperparams,

@@ -34,7 +34,7 @@
 # numerical instability, and NAN values that stop the run altogether.
 #
 # We therefore need a systematic way to choose initial values. This guide
-# presents four such methods, and explains when each one is appropriate.
+# presents three such methods, and explains when each one is appropriate.
 #
 # In part 1 we use a simple normal model with known variance, and a prior on the
 # location parameter $\mu$. This leaves two hyperparameters: the prior location
@@ -549,81 +549,17 @@ landscape(
 )
 
 # %% [markdown]
-# The training starts on a flat floor. It first learns $\mu_0$, which has a
-# gradient, and it leaves $\sigma_0$ where it was. We might think that this case
-# simply needs more epochs. So let us train the model for 600 epochs, instead of
-# 300.
-
-# %%
-loss = fit_and_report(
-    "far box, 600 epochs",
-    el.initializer(
-        method="sobol",
-        iterations=32,
-        distribution=el.initialization.uniform(radius=1, mean=-4),
-    ),
-    epochs=600,
-)
-
-# %% tags=["remove_input"]
-drawn, start = candidates_of("far box, 600 epochs")
-landscape(
-    f"far box, 600 epochs: final loss {loss:.3f}",
-    candidates=drawn,
-    start=start,
-    path=training_path("far box, 600 epochs"),
-)
-
-# %% [markdown]
-# The result looks exactly the same as with 300 epochs. This is not a bug in the
-# figure. Both hyperparameters move less than one pixel over the extra 300
-# epochs: $\mu_0$ moves 0.0003 and $\sigma_0$ moves 0.0135, while one pixel is
-# about 0.02.
+# The training starts on a flat floor, at $\sigma_0 = -3.9$. It first learns
+# $\mu_0$, which has a clear gradient: $\mu_0$ crosses zero at about epoch 33.
+# Then it leaves the floor. The loss is within 5% of its final value at epoch 86,
+# and the run ends at the same loss as the box near the minimum.
 #
-# But why does the algorithm fail to move $\sigma_0$? The gradient in $\sigma_0$
-# exists, but it is smaller than the error of the loss estimate:
-#
-# + Move $\sigma_0$ a full unit on the floor, from $-4.5$ to $-3.5$. The loss
-#   changes by about $4 \cdot 10^{-4}$.
-# + One sample of `B=128` and `num_samples=200` estimates that loss with an
-#   error of about $2.5 \cdot 10^{-3}$.
-#
-# The error is six times the signal, so the estimate says almost nothing about
-# where $\sigma_0$ should go. Two effects make the signal small. The predictive
-# standard deviation is $\sqrt{\text{scale}^2 + 1}$, so a scale of $0.011$
+# On the floor, the gradient in $\sigma_0$ is small. Two effects cause this. The
+# predictive standard deviation is $\sqrt{\text{scale}^2 + 1}$, so a small scale
 # disappears behind the noise of 1. And the softplus saturates, so
-# $d\,\text{scale} / d\sigma_0 = \text{sigmoid}(-4.5) = 0.011$ as well.
-#
-# We can raise the sample size to lower the error of the loss estimate. The error
-# falls as $1 / \sqrt{B \cdot \text{num\_samples}}$. Let us raise `B` from 128 to
-# 512, and `num_samples` from 200 to 800, and keep the 600 epochs.
-
-# %%
-loss = fit_and_report(
-    "far box, more draws",
-    el.initializer(
-        method="sobol",
-        iterations=32,
-        distribution=el.initialization.uniform(radius=1, mean=-4),
-    ),
-    epochs=600,
-    B=512,
-    num_samples=800,
-)
-
-# %% tags=["remove_input"]
-drawn, start = candidates_of("far box, more draws")
-landscape(
-    f"far box, B=512 and num_samples=800: final loss {loss:.3f}",
-    candidates=drawn,
-    start=start,
-    path=training_path("far box, more draws"),
-)
-
-# %% [markdown]
-# The larger sample lets the training leave the floor and reach the true
-# $\sigma_0$. The cost of this is high. We need an option that does not ask us to
-# place the plausible region close to the global minimum in the first place.
+# $d\,\text{scale} / d\sigma_0 = \text{sigmoid}(\sigma_0)$ is small as well. The
+# training learns $\sigma_0$ only while this effect is larger than the error of
+# the loss estimate. A box on the floor therefore costs epochs.
 #
 # ### Option 3: Search for a start value (default)
 # #### Intuition
@@ -642,44 +578,31 @@ landscape(
 # yourself.
 #
 # If you pass no `distribution`, `elicito` uses
-# [`from_elicits`][elicito.initialization.from_elicits]. This box asks nothing of
-# you. `elicito` derives it from the expert data during `fit`, and the role of a
-# hyperparameter decides its range:
-#
-#   + an unbounded hyperparameter is a location. Its box is centered at the
-#     median of the elicited statistics, with a radius of twice their spread.
-#   + a lower-bounded hyperparameter whose name is a shape, such as
-#     `concentration`, gets the natural range 1 to 5. A shape has no relation to
-#     the scale of the data.
-#   + any other lower-bounded hyperparameter is a magnitude. Its box spans from a
-#     hundredth of the spread up to the 95% quantile of the data, because it can
-#     be a small prior scale, or a scale as large as the elicited data.
-#
-# The box is correct in order of magnitude only. That is enough to avoid a start
-# value that is wrong by a factor of ten. This is what `el.initializer()` does
-# with no argument at all: `method="warmstart"`, a `from_elicits` box, and a
-# budget of 100 evaluations.
+# [`uniform`][elicito.initialization.uniform] with its defaults, `mean=0` and
+# `radius=1`, on the unconstrained scale. This is what `el.initializer()` does
+# with no argument at all: `method="warmstart"`, the default `uniform` box, and
+# a budget of 100 evaluations.
 #
 # #### Visualization (Example)
-# We give the search the far box of option 2, the box that the sampling methods
-# could not escape. The center of that box is the start point of the search. The
-# budget is 50 evaluations, because we search only two hyperparameters here. The
-# search itself is not stored, so the figure below records it: we wrap
-# [`compile_score`][elicito.warmstart.compile_score], the function that builds
-# the scorer of the search, for the time of the fit.
+# We give the search the far box of option 2. The center of that box is the start
+# point of the search. The budget is 50 evaluations, because we search only two
+# hyperparameters here. The search itself is not stored, so the figure below
+# records it: we wrap [`compile_score`][elicito.warmstart.compile_score], the
+# function that builds the scorer of the search, for the time of the fit.
 #
 # The white path is the search, the black dot is the start value that it returns,
 # and the red line is the training. The search leaves the box, and it also leaves
-# the frame of the figures above: it reaches $\sigma_0 = -10.2$, while the
-# surface above stops at $-6$. This figure therefore measures the loss down to
-# about $-11$, on the same grid. The floor continues, as we expect.
+# the frame of the figures above: it reaches $\sigma_0 = -6.7$, while the surface
+# above stops at $-6$. This figure therefore extends the loss downwards, on the
+# same grid.
 #
-# The start value that the search returns is $\mu_0 = 0.88$, close to the true 1,
-# and $\sigma_0 = -8.28$, deep on the flat floor. On that floor the loss hardly
-# responds to $\sigma_0$, so the search has no reason to keep it. The training
-# then leaves the floor: $\sigma_0$ passes zero at about epoch 80, and the run
-# reaches the same 0.079 as every other method of part 1, in 300 epochs. Sampling
-# from the same box did not get there in 600.
+# The start value that the search returns is $\mu_0 = 1.08$, close to the true 1,
+# and $\sigma_0 \approx -5.8$, deeper on the flat floor than the box. On that
+# floor the loss hardly responds to $\sigma_0$, so the search has no reason to
+# leave it. The training then stays on the floor: the loss is near 0.49 until
+# about epoch 200. The run reaches the same 0.088 as every other method of part
+# 1, but only after about 230 epochs. Sampling from the same box got there at
+# epoch 86.
 
 # %% tags=["remove_input"]
 # the search leaves the frame of the figures above, so extend the surface
@@ -735,15 +658,13 @@ landscape(
 # %% [markdown]
 # ### What part 1 showed
 #
-# Every method except the sampled far box reaches the same loss. On a surface
-# with one minimum, and with a signal that stands above the sampling error where
-# the box sits, the start value only decides how many epochs the training needs.
-# The far box is the one case where the start value decides the result, and the
-# search repairs it: the same box that sampling could not escape gives 0.079 when
-# the search picks the start value in it.
+# Every method of part 1 reaches the same loss, 0.088. On a surface with one
+# minimum, the start value only decides how many epochs the training needs.
 #
-# The two far-box rows are not comparable with the rest, and not with each other:
-# the second one uses a larger sample, which lowers the loss on its own.
+# The far box shows that a search is not always the faster start. The search
+# fixes $\mu_0$, and it leaves $\sigma_0$ deep on the flat floor, where the
+# training needs about 200 epochs to find the gradient. Sampling from the same
+# box started higher on the floor, and was done by epoch 86.
 
 # %%
 print(f"{'method':21s} {'final loss':>10s} {'seconds':>9s}")
@@ -763,12 +684,14 @@ for label, final_loss, seconds in results:
 #
 # + **The parameterization hides it.** At $\sigma_0 = -4.5$ the softplus
 #   contributes a factor $0.011$ for no other reason than saturation. A start
-#   value is far cheaper than a larger sample: the warm start above reaches 0.079
-#   in about 30 seconds.
+#   value higher on the floor is far cheaper than a larger sample: the sampled
+#   far box above is done by epoch 86, and the warm start, deeper on the floor,
+#   needs about 230.
 # + **The elicited statistics do not respond to it.** A larger sample then
 #   sharpens a direction that the data cannot pin down. Part 2 shows this: $k_2$
-#   ends near 13 against a true 2, and that run still has the lowest loss of the
-#   four. The fix is a query that responds, for example on the parameter itself.
+#   ends near 7 against a true 2, and that run still has a lower loss than the
+#   run from the true values. The fix is a query that responds, for example on
+#   the parameter itself.
 #
 # Raise `B` and `num_samples` when the effect is real but buried. Change the
 # start value, or the query, when the effect is not there to begin with.
@@ -1070,26 +993,7 @@ results.append(
 )
 
 # %% [markdown]
-# ### Option 3: derive the box from the expert data
-#
-# The roles above decide the result here. The shape $k_2$ gets the natural range
-# 1 to 5, and the scale $\lambda_2$ gets the range of the data. One box for both
-# would put candidates where the draws overflow.
-
-# %%
-results.append(
-    fit_and_report(
-        "from_elicits",
-        el.initializer(
-            method="sobol",
-            iterations=32,
-            distribution=el.initialization.from_elicits(),
-        ),
-    )
-)
-
-# %% [markdown]
-# ### Option 4: search the start value — the default
+# ### Option 3: search the start value
 #
 # This is the model that the search is made for. It needs no gradient, and it
 # never returns a point whose draws overflow. The budget is 100 evaluations here,
@@ -1112,7 +1016,7 @@ results.append(
         el.initializer(
             method="warmstart",
             iterations=100,
-            distribution=el.initialization.from_elicits(),
+            distribution=el.initialization.uniform(radius=3, mean=2),
         ),
     )
 )
@@ -1123,10 +1027,10 @@ el.warmstart.compile_score = original_compile
 # %% [markdown]
 # ### Comparison
 #
-# Read this table together with the log above. Two of the four runs stopped
-# early: `exact values` after 5 steps, and `from_elicits` after 8. The loss of
-# those two is the last finite loss, and not the loss after 100 epochs. Even the
-# true hyperparameters do not give a stable trajectory for this model.
+# Read this table together with the log above. Two of the three runs stopped
+# early, `exact values` and `uniform box`: each has a loss trace of 5 epochs. The
+# loss of those two is the last finite loss, and not the loss after 100 epochs.
+# Even the true hyperparameters do not give a stable trajectory for this model.
 
 # %%
 print(f"{'method':21s} {'final loss':>10s} {'seconds':>9s}")
@@ -1149,7 +1053,7 @@ for label, loss, seconds in results:
 # Each slice costs 900 evaluations, which is about 80 seconds.
 
 # %% tags=["remove_input"]
-init = fits["from_elicits"].results.initialization.sel(replication=0)
+init = fits["uniform box"].results.initialization.sel(replication=0)
 names = [str(n) for n in init.hyperparameters.coords["hyperparameter"].values]
 candidates = np.asarray(init.hyperparameters.values)
 losses = np.ravel(np.asarray(init.loss.values))
@@ -1291,7 +1195,7 @@ def draw_slice(ax: Any, pair: tuple[str, str]) -> Any:
 
 
 # %% [markdown]
-# The candidates of `from_elicits` come first. `elicito` stores them in
+# The candidates of the `uniform box` come first. `elicito` stores them in
 # `eliobj.results.initialization`. A candidate whose draws overflow gets no
 # usable loss, and we mark it with a cross. A cross can lie in a dark region of
 # the cut: what overflows is then one of the four hyperparameters that the cut
@@ -1325,9 +1229,8 @@ plt.show()
 
 # %% [markdown]
 # The search that we recorded above comes next. It starts from the center of the
-# same box, and none of its 200 evaluations overflows: the box of `from_elicits`
-# already keeps it out of the gray region. The penalty holds it there, because a
-# point that overflows is never returned.
+# same box. 13 of the 32 candidates of that box overflow, but none of the 100
+# evaluations of the search does. A point that overflows is never returned.
 
 # %% tags=["remove_input"]
 fig, axs = plt.subplots(1, 2, figsize=(12, 4.8), layout="tight")
@@ -1364,7 +1267,7 @@ plt.show()
 #
 # The loss over the epochs shows what the table hides. A start value that is
 # merely poor gives a higher curve. A start value that cannot train gives a curve
-# that stops, and two of the four curves stop.
+# that stops, and two of the three curves stop.
 
 # %% tags=["remove_input"]
 fig, ax = plt.subplots(figsize=(7, 4), layout="tight")
@@ -1393,7 +1296,7 @@ long_run = build(
     el.initializer(
         method="warmstart",
         iterations=100,
-        distribution=el.initialization.from_elicits(),
+        distribution=el.initialization.uniform(radius=3, mean=2),
     ),
     epochs=600,
 )
@@ -1409,12 +1312,12 @@ plt.show()
 # This model has an oracle, so we know the true hyperparameters here. We compare
 # each one with its true value, and we see what the expert data can pin down.
 #
-# $\mu_0$, $\mu_1$ and $\sigma_0$ arrive close to their true values. The other
-# three do not: $k_2$ ends near 13 against a true 2, and $\lambda_2$ near 2.5
-# against a true 5.
+# $\mu_0$, $\mu_1$, $\sigma_0$ and $\sigma_1$ arrive near their true values. The
+# other two do not: $k_2$ ends near 7.1 against a true 2, and $\lambda_2$ near
+# 2.4 against a true 5.
 #
 # This is not a failure of the initialization, and not a lack of epochs. The
-# fitted point reaches 0.228, below the 0.234 that the run from the true values
+# fitted point reaches 0.255, below the 0.262 that the run from the true values
 # reached before it stopped. The 15 elicited quantiles, at three values of the
 # predictor, do not identify six hyperparameters: a smaller Weibull scale with a
 # much larger shape produces the same predictive quantiles. Query the parameters
@@ -1448,32 +1351,27 @@ plt.show()
 # %% [markdown]
 # ## Which one to choose
 #
-# Part 1, two hyperparameters, 300 epochs, and 600 for the far box:
+# Part 1, two hyperparameters, 300 epochs:
 #
 # | method       | final loss | seconds |
 # | :----------- | ---------: | ------: |
-# | far box      |      0.467 |    57.6 |
-# | exact values |      0.079 |    28.1 |
-# | uniform box  |      0.079 |    30.5 |
-# | warmstart    |      0.079 |    26.8 |
+# | exact values |      0.088 |     4.4 |
+# | uniform box  |      0.088 |     5.5 |
+# | far box      |      0.088 |     5.6 |
+# | warmstart    |      0.088 |     4.3 |
 #
 # Part 2, six hyperparameters and a likelihood that overflows, 100 epochs:
 #
 # | method       | final loss | seconds |
 # | :----------- | ---------: | ------: |
-# | exact values |      0.234 |     1.0 |
-# | uniform box  |      0.228 |    22.4 |
-# | from_elicits |      1.637 |     5.5 |
-# | warmstart    |      0.226 |    35.4 |
+# | exact values |      0.262 |     1.3 |
+# | uniform box  |      2.361 |     3.4 |
+# | warmstart    |      0.277 |     3.0 |
 #
-# + **`warmstart` on a `from_elicits` box** is the default, and
-#   `el.initializer()` is the whole call. It asks nothing of you, it puts the box
-#   in the right region, and it needs no gradient, so it cannot diverge on a
-#   model that overflows. It is the best of the four in part 2, at 0.226, and the
-#   slowest, because it costs one forward simulation per evaluation.
+# + **`warmstart`** is the default method. It needs no gradient, so it cannot
+#   diverge on a model that overflows. In part 2 it is the only run that trains
+#   for all 100 epochs. Each evaluation costs one forward simulation.
 # + Use **exact values** when you know them. Nothing is cheaper.
-# + Use **`from_elicits` alone**, without the search, when your model cannot
-#   overflow and you want those seconds back.
 # + Use a **`uniform` box** that you center yourself when you know the order of
 #   magnitude of the hyperparameters. Add `warmup_epochs` to reject a candidate
 #   that diverges in the first epochs.

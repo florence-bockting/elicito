@@ -104,24 +104,19 @@ def cma_search(  # noqa: PLR0913
         raise MissingOptionalDependencyError("cma_search", requirement="cma") from exc
 
     names = el.initialization.hyper_names(parameters)
-    box = el.initialization.build_box(
-        distribution, expert_elicited_statistics, parameters
-    )
-
     search_trainer = dict(trainer)
     search_trainer["num_samples"] = max(
         el.warmstart.MIN_SEARCH_SAMPLES,
         trainer["num_samples"] // el.warmstart.SEARCH_FRACTION,
     )
 
-    centre = np.asarray(el.warmstart._box_vector(box, names, "mean"), dtype=np.float64)
+    centre = np.asarray(
+        el.warmstart._box_vector(distribution, names, "mean"), dtype=np.float64
+    )
     radius = np.asarray(
-        el.warmstart._box_vector(box, names, "radius"), dtype=np.float64
+        el.warmstart._box_vector(distribution, names, "radius"), dtype=np.float64
     )
 
-    # CMA-ES uses one step size for every coordinate. A box with a different
-    # radius per hyperparameter is handled by `CMA_stds`, which rescales each
-    # coordinate. The step size of coordinate i is then sigma0 * radius[i].
     options = {
         "CMA_stds": radius,
         "bounds": [centre - radius, centre + radius],
@@ -177,7 +172,6 @@ def cma_search(  # noqa: PLR0913
 
 def box_step_size(
     initializer: Any,
-    expert_elicited_statistics: dict[str, tf.Tensor],
     parameters: list[Parameter],
 ) -> Any:
     """
@@ -191,9 +185,6 @@ def box_step_size(
     ----------
     initializer
         Specification of the initialization method.
-
-    expert_elicited_statistics
-        Elicited statistics of the expert. The default box reads their scale.
 
     parameters
         List including dictionary with all information about the
@@ -211,10 +202,9 @@ def box_step_size(
         return DEFAULT_SIGMA0
 
     names = el.initialization.hyper_names(parameters)
-    box = el.initialization.build_box(
-        dict(initializer["distribution"]), expert_elicited_statistics, parameters
+    radius = el.warmstart._box_vector(
+        dict(initializer["distribution"]), names, "radius"
     )
-    radius = el.warmstart._box_vector(box, names, "radius")
     return {name: value / SIGMA_FRACTION for name, value in zip(names, radius)}
 
 

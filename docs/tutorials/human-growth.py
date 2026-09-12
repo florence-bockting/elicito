@@ -376,26 +376,18 @@ expert = el.expert.simulator(
 # 8.75 years. The true values of the three users sit at $|y| \leq 5.5$, so
 # the box holds them all.
 #
-# The bounds do the work that the box cannot do. The default box of
-# `from_elicits()` reads the scale of the elicited data, which are statures
-# of 50 to 180 cm, and centres every location hyperparameter near 147. A
-# bounded `a_hts` cannot leave its interval, so a start value of 147 is now
-# a stature of 250 cm, not a prior median of $e^{147}$.
+# Only the Adam run below reads this box. With `optimizer="cmaes"`, `elicito`
+# ignores the initializer, with a warning. The CMA-ES training then starts at
+# 0, the midpoint of every interval, which is also the centre of this box.
+# The training is itself a search. A search before it would only throw away
+# the covariance matrix that the training adapts.
 #
-# `cmaes` reads the **whole** box. It starts at the centre, and it takes the
-# step size of each coordinate from the radius of that coordinate. This
-# matters here: `warmstart` runs one local Nelder-Mead search from the
-# centre, and `random`, `lhs` and `sobol` rank independent draws. All three
-# take the first usable basin, which is not the best one.
-#
-# With `optimizer="cmaes"` below, the initialization runs **no** search of
-# its own. The training is the same search. A search before it would throw
-# away the covariance matrix that the training adapts. The box then only says
-# where the run starts, and how far the first step reaches. It is not a
-# bound: the search may leave the box.
-#
-# `iterations` is not used in this combination. A gradient optimizer still
-# needs a start value, so it still runs the search.
+# For the Adam run, `initializer(method="cmaes")` searches the **whole** box
+# for a start value. It starts at the centre, and it takes the step size of
+# each coordinate from the radius of that coordinate. `warmstart` runs one
+# local Nelder-Mead search from the centre, and `random`, `lhs` and `sobol`
+# rank independent draws. All three take the first usable basin, which is not
+# the best one.
 #
 # `cmaes` needs the optional dependency `cma`: `pip install "elicito[cma]"`.
 
@@ -410,17 +402,14 @@ BOX = el.initialization.uniform(mean=0.0, radius=6.0)
 # full 400 prior draws.
 #
 # The search has no gradient to explode, and it adapts its own step size.
-# `sigma0` is the first step size, on the unconstrained scale. Without it the
-# box sets the step size: half the radius of each coordinate, so 3.0 here. A
-# number sets one step size for every coordinate. A dictionary
-# `{hyperparameter name: step size}` sets one per hyperparameter, and a name
-# that is not given keeps the box value.
+# `sigma0` is the first step size, on the unconstrained scale. A number sets
+# one step size for every coordinate. A dictionary
+# `{hyperparameter name: step size}` sets one per hyperparameter.
 #
 # Every coordinate is a logit now, on the same scale, so one number fits all
 # twelve. A step of 3.0 moves a logit from the midpoint to a bound, where
-# the loss is flat. We give 1.0 instead. The true values sit at
-# $|y| \leq 5.5$, so a few generations reach them, and CMA-ES adapts the
-# step size afterwards.
+# the loss is flat. We give 1.0. The true values sit at $|y| \leq 5.5$, so a
+# few generations reach them, and CMA-ES adapts the step size afterwards.
 #
 # `epochs` then counts forward simulations, not gradient steps. The search
 # spends the budget in generations of `4 + 3 ln(12)` = 11 candidates, so 3000
@@ -451,60 +440,7 @@ eliobj = el.Elicit(
         progress=0,
         num_samples=400,
     ),
-    initializer=el.initializer(
-        method="cmaes",
-        distribution=BOX,
-    ),
 )
-
-# %% [markdown]
-# ### How large must the search budget be?
-#
-# The search carries the whole fit, so `epochs` decides which basin it ends
-# in. `cma_search` runs the same search on its own, at a quarter of the prior
-# draws. One run per budget then says whether more evaluations still pay,
-# without a fit for each budget.
-#
-# `cma_search` uses 100 prior draws, a quarter of the training draws. We
-# score every result again on the full 400 draws, so that the budgets compare
-# on the same number.
-
-# %%
-expert_elicits, _ = el.utils.get_expert_data(
-    eliobj.trainer,
-    eliobj.model,
-    eliobj.targets,
-    eliobj.expert,
-    eliobj.parameters,
-    eliobj.network,
-    eliobj.trainer["seed"],
-)
-
-# for budget in (300, 600, 1200):
-#     hyperparams = el.cmaes.cma_search(
-#         expert_elicited_statistics=expert_elicits,
-#         parameters=eliobj.parameters,
-#         trainer=eliobj.trainer,
-#         model=eliobj.model,
-#         targets=eliobj.targets,
-#         expert=eliobj.expert,
-#         distribution=BOX,
-#         max_evals=budget,
-#         seed=eliobj.trainer["seed"],
-#     )
-#     loss = el.warmstart.score(
-#         hyperparams=hyperparams,
-#         expert_elicited_statistics=expert_elicits,
-#         parameters=eliobj.parameters,
-#         trainer=eliobj.trainer,
-#         model=eliobj.model,
-#         targets=eliobj.targets,
-#         expert=eliobj.expert,
-#         seed=eliobj.trainer["seed"],
-#     )
-#     # a_ts is a logit, so map it back to an age in years
-#     ts = T_MAX / (1.0 + np.exp(-hyperparams["a_ts"]))
-#     print(f"budget {budget:5d}: loss {loss:8.2f}, ts {ts:5.2f} years")
 
 # %%
 import time
@@ -634,14 +570,14 @@ axes[0].legend(
 # %% [markdown]
 # ## The same fit, with a gradient
 #
-# Adam is the alternative. Both runs read the same box, with the same seed
-# and the same 400 prior draws.
+# Adam is the alternative. It uses the same seed and the same 400 prior
+# draws. Adam needs a start value, so a CMA-ES search of 300 evaluations over
+# the box runs first. The CMA-ES run has no search before it.
 #
 # The budget is not the same work, and the two numbers are not comparable.
 # For Adam, 800 epochs are 800 gradient steps, and each step is one forward
 # pass **and** one backward pass. For CMA-ES, 3000 is the number of forward
-# simulations. Adam also needs a start value, so it runs a search of 300
-# evaluations first. The CMA-ES run has no search before it.
+# simulations.
 #
 # `decay_steps` matches the number of epochs. The schedule then spans the
 # whole run, as it did at the shorter budget.
@@ -733,8 +669,8 @@ el.plots.prior_marginals(
 #   smallest spread around one stature, 2.1%.
 # - user 3 expects 177.1 cm, and the earliest spurt, at 11.3 years.
 #
-# Every fit uses the same design, the same box and the same budget. Only the
-# expert changes.
+# Every fit uses the same design, the same start point and the same budget.
+# Only the expert changes.
 #
 # One fit is one sample of one search. We repeat it five times, with a
 # different seed each time. The five runs then separate two effects. A
@@ -771,10 +707,6 @@ def fit_user(user):
             epochs=3000,
             progress=0,
             num_samples=400,
-        ),
-        initializer=el.initializer(
-            method="cmaes",
-            distribution=BOX,
         ),
     )
     obj.fit(parallel=el.utils.parallel(runs=REPLICATIONS, cores=5, seeds=SEEDS))

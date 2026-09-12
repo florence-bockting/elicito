@@ -31,12 +31,10 @@
 # and expert data that you enter by hand.
 
 # %% tags=["hide"]
-# Hidden on the website. The first TensorFlow import in each process prints
-# log lines. This cell imports it in the kernel and in the four joblib workers,
-# which `fit(parallel=...)` reuses later.
 import os
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import joblib
 
@@ -47,14 +45,14 @@ def _warm() -> None:
 
 joblib.Parallel(n_jobs=4)(joblib.delayed(_warm)() for _ in range(4))
 
+import tensorflow as tf
+
+tf.constant(0.0)
+
 # %% [markdown]
 # ## Imports
 
 # %%
-import os
-
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-
 from typing import Any
 
 import numpy as np
@@ -286,9 +284,9 @@ expert = el.expert.simulator(ground_truth=ground_truth, num_samples=10_000)
 #
 # - `el.optimizer(optimizer="cmaes")` replaces the gradient descent by the
 #   CMA-ES search.
-# - `el.initializer(method="cmaes")` sets the start point and the first step
-#   size. By default, `elicito` derives a box from the scale of the expert
-#   data. You do not have to supply a number.
+# - CMA-ES needs no `initializer`. The search starts at 0 on the unconstrained
+#   scale, and `elicito` chooses the first step size. Set it with
+#   `el.optimizer(sigma0=...)`.
 # - `epochs` is the budget in **forward simulations**, not the number of
 #   gradient steps. One generation of CMA-ES tests several candidates, so the
 #   loss curve has one point per generation.
@@ -311,7 +309,6 @@ eliobj = el.Elicit(
     trainer=el.trainer(
         method="parametric_prior", seed=2025, epochs=800, progress=1, kappa=0.1
     ),
-    initializer=el.initializer(method="cmaes"),
 )
 
 # %% [markdown]
@@ -422,7 +419,6 @@ eliobj_shared = el.Elicit(
     expert=expert,
     optimizer=el.optimizer(optimizer="cmaes"),
     trainer=el.trainer(method="parametric_prior", seed=2025, epochs=800, progress=0),
-    initializer=el.initializer(method="cmaes"),
 )
 
 eliobj_shared.fit()
@@ -471,7 +467,6 @@ eliobj_dat = el.Elicit(
     expert=el.expert.data(dat=expert_dat),
     optimizer=el.optimizer(optimizer="cmaes"),
     trainer=el.trainer(method="parametric_prior", seed=2025, epochs=800, progress=0),
-    initializer=el.initializer(method="cmaes"),
 )
 
 eliobj_dat.fit()

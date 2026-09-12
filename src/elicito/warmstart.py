@@ -461,10 +461,6 @@ def warm_start(  # noqa: PLR0913
         raise MissingOptionalDependencyError("warm_start", requirement="scipy") from exc
 
     names = el.initialization.hyper_names(parameters)
-    box = el.initialization.build_box(
-        distribution, expert_elicited_statistics, parameters
-    )
-
     search_trainer = dict(trainer)
     search_trainer["num_samples"] = max(
         MIN_SEARCH_SAMPLES, trainer["num_samples"] // SEARCH_FRACTION
@@ -494,7 +490,7 @@ def warm_start(  # noqa: PLR0913
     # the scipy stubs describe the objective as a variadic callable over a
     # float64 array, which no plain function matches
     search: Any = minimize
-    start = _start_vector(box, names)
+    start = _start_vector(distribution, names)
 
     # Nelder-Mead converges on its own tolerances, and it can stall inside the
     # failing region long before the budget is spent. Restart the simplex from

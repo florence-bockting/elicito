@@ -28,25 +28,6 @@ tfd = tfp.distributions
 
 logger = logging.getLogger(__name__)
 
-# Argument names that carry a shape, not a magnitude. A shape does not live on
-# the scale of the elicited data, so the pooled spread says nothing about it.
-SHAPE_ARGS = frozenset(
-    {
-        "concentration",
-        "concentration0",
-        "concentration1",
-        "df",
-        "power",
-        "skewness",
-        "tailweight",
-    }
-)
-
-# Natural range of a shape hyperparameter that the box covers. Below one, a
-# Weibull or a Gamma is so heavy-tailed that single draws overflow.
-SHAPE_LOW = 1.0
-SHAPE_HIGH = 5.0
-
 
 @dataclass
 class InitResult:
@@ -186,16 +167,7 @@ class ExactValues:
 
 
 def _select_candidate(losses: list[Any], initializer: Initializer) -> int:
-    """Return the index of the candidate at the requested loss quantile."""
-    # elicit.initializer always sets this; the default keeps the best candidate
-    loss_quantile = initializer["loss_quantile"]
-    if loss_quantile is None:
-        loss_quantile = 0.0
-
-    # A candidate whose loss is not finite must not take part in the
-    # selection. Without this, a single NAN makes the percentile NAN, no
-    # candidate matches, and the index lookup fails with an error that does
-    # not name the cause.
+    """Return the index of the candidate with minimum loss"""
     values = np.asarray(losses, dtype=np.float64).reshape(-1)
     finite = np.flatnonzero(np.isfinite(values))
 
@@ -215,10 +187,7 @@ def _select_candidate(losses: list[Any], initializer: Initializer) -> int:
         )
         raise ValueError(msg)
 
-    # pick the candidate closest to the requested quantile of the finite
-    # losses. argmin also settles a tie, which an equality test could not.
-    target = np.percentile(values[finite], loss_quantile)
-    return int(finite[int(np.argmin(np.abs(values[finite] - target)))])
+    return int(finite[int(np.argmin(values[finite]))])
 
 
 def _check_box(initializer: Initializer) -> None:
@@ -230,7 +199,7 @@ def _check_box(initializer: Initializer) -> None:
 
 
 class BoxSample:
-    """Draw candidates from a box and keep one, by its loss quantile."""
+    """Draw candidates from a box and keep that with minimum loss."""
 
     name = "box"
     default_iterations = 32
@@ -361,8 +330,7 @@ class _SearchStart:
                 "initialization only reads the box. 'iterations' is not used."
             )
             names = hyper_names(parameters)
-            box = build_box(dict(distribution), expert_elicited_statistics, parameters)
-            centre = el.warmstart._box_vector(box, names, "mean")
+            centre = el.warmstart._box_vector(dict(distribution), names, "mean")
             initializer["hyperparams"] = dict(zip(names, centre))
         else:
             initializer["hyperparams"] = self.search(
@@ -746,7 +714,6 @@ def init_runs(  # noqa: PLR0913
     # sample initial values
     distribution: Any = initializer["distribution"]
     if distribution is not None:
-        distribution = build_box(distribution, expert_elicited_statistics, parameters)
         init_matrix = uniform_samples(
             seed=seed,
             hyppar=distribution["hyper"],
@@ -935,7 +902,7 @@ def uniform(
     radius: Union[float, list[float]] = 1.0,
     mean: Union[float, list[float]] = 0.0,
     hyper: Optional[list[str]] = None,
-) -> dict[Any, Any]:
+) -> Uniform:
     """
     Specify uniform initialization distribution
 
@@ -991,7 +958,7 @@ def uniform(
             msg = "`hyper`, `mean`, and `radius` must have the same length."
             raise AssertionError(msg)
 
-    init_dict = dict(radius=radius, mean=mean, hyper=hyper)
+    init_dict = Uniform(radius=radius, mean=mean, hyper=hyper)
 
     return init_dict
 
@@ -1020,144 +987,3 @@ def hyper_names(parameters: list[Parameter]) -> list[str]:
         for hyp in hyperparams:
             names.append(hyperparams[hyp]["name"])
     return names
-
-
-def build_box(
-    distribution: dict[str, Any],
-    expert_elicited_statistics: dict[str, Any],
-    parameters: list[Parameter],
-) -> dict[str, Any]:
-    """
-    Return the concrete initialization box
-
-    A box from [`from_elicits`][elicito.initialization.from_elicits] is
-    deferred, and is built here from the expert data. Any other box is
-    returned unchanged.
-
-    Parameters
-    ----------
-    distribution
-        Initialization box, as stored in the initializer.
-
-    expert_elicited_statistics
-        Elicited statistics of the expert.
-
-    parameters
-        List including dictionary with all information about the
-        (hyper-)parameters.
-
-    Returns
-    -------
-    box :
-        Box with a concrete ``mean``, ``radius`` and ``hyper``.
-
-    """
-    if distribution.get("from_elicits", False):
-        return _from_elicits_box(
-            expert_elicited_statistics, parameters, distribution["factor"]
-        )
-    return distribution
-
-
-def _from_elicits_box(
-    expert_elicited_statistics: dict[str, Any],
-    parameters: list[Parameter],
-    factor: float = 2.0,
-) -> dict[Any, Any]:
-    """
-    Derive a uniform initialization box from the expert data
-
-    Pools all elicited statistics into one location and one spread. The box
-    of a hyperparameter then follows its role:
-
-    - An unbounded hyperparameter is a location. It is centred at the pooled
-      median, with radius ``factor * spread``.
-    - A lower-bounded hyperparameter whose name is in ``SHAPE_ARGS`` is a
-      shape. A shape has no relation to the scale of the data, so its box
-      covers the natural range ``SHAPE_LOW`` to ``SHAPE_HIGH``.
-    - Any other lower-bounded hyperparameter is a magnitude. Its box spans
-      from ``spread / 100`` up to the pooled 95% quantile, because it can be
-      a small prior scale or a scale as large as the elicited data.
-
-    Pooling all targets is crude. The box is correct in order of
-    magnitude only. That is enough to avoid a start value that is wrong
-    by a factor of ten.
-
-    Parameters
-    ----------
-    expert_elicited_statistics
-        Elicited statistics of the expert, as passed to
-        [`init_prior`][elicito.initialization.init_prior].
-
-    parameters
-        List including dictionary with all information about the
-        (hyper-)parameters.
-
-    factor
-        Multiplier of the pooled spread. The default is ``2.``.
-
-    Returns
-    -------
-    init_dict :
-        Dictionary with all settings of the uniform distribution, as
-        returned by [`uniform`][elicito.initialization.uniform].
-
-    """
-    pooled = np.concatenate(
-        [
-            np.reshape(np.asarray(v, dtype=np.float32), -1)
-            for v in expert_elicited_statistics.values()
-        ]
-    )
-    q25, median, q75, q95 = np.percentile(pooled, [25.0, 50.0, 75.0, 95.0])
-    spread = float(max((q75 - q25) / 1.35, 1e-3))
-    upper = float(max(q95, spread))
-
-    forward = el.utils.LowerBound(lower=0.0).forward
-    shape_low = float(forward(SHAPE_LOW))
-    shape_high = float(forward(SHAPE_HIGH))
-    magnitude_low = float(forward(max(spread / 100.0, 1e-3)))
-    magnitude_high = float(forward(upper))
-
-    hyper = hyper_names(parameters)
-    mean: list[float] = []
-    radius: list[float] = []
-    for param in parameters:
-        hyperparams = param["hyperparams"]
-        if hyperparams is None:
-            continue
-        for hyp in hyperparams:
-            if hyperparams[hyp]["constraint_name"] != "softplusL":
-                mean.append(float(median))
-                radius.append(factor * spread)
-            elif hyp in SHAPE_ARGS:
-                mean.append((shape_low + shape_high) / 2.0)
-                radius.append((shape_high - shape_low) / 2.0)
-            else:
-                mean.append((magnitude_low + magnitude_high) / 2.0)
-                radius.append((magnitude_high - magnitude_low) / 2.0)
-
-    return uniform(radius=radius, mean=mean, hyper=hyper)
-
-
-def from_elicits(factor: float = 2.0) -> Uniform:
-    """
-    Derive the initialization box from the expert data
-
-    The box cannot be built before ``fit``, because the expert statistics
-    of [`expert.simulator`][elicito.elicit.Expert.simulator] do not exist yet. This
-    function only records the request. [`init_prior`]
-    [elicito.initialization.init_prior] builds the box.
-
-    Parameters
-    ----------
-    factor
-        Multiplier of the pooled spread. The default is ``2.``.
-
-    Returns
-    -------
-    init_dict :
-        Dictionary marking the initialization box as deferred.
-
-    """
-    return dict(radius=0.0, mean=0.0, hyper=None, from_elicits=True, factor=factor)

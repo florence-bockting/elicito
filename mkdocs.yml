@@ -50,7 +50,7 @@ plugins:
       # Use filenames for titles
       ignore_h1_titles: True
       include: ["*.py"]
-      execute: true
+      execute: !ENV [DOCS_EXECUTE, true]
       # Toggle off for faster builds
       # execute: false
       allow_errors: false
@@ -151,6 +151,7 @@ extra_javascript:
 
 extra_css:
   - https://unpkg.com/katex@0/dist/katex.min.css
+  - stylesheets/xarray.css
 
 watch:
   - README.md

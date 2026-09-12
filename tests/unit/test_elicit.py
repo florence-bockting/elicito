@@ -144,11 +144,11 @@ def test_model():
 
 
 def test_initializer_defaults():
-    """no argument gives a Nelder-Mead search on a box from the expert data"""
+    """no argument gives a Nelder-Mead search on the default uniform box"""
     init = el.initializer()
     assert init["method"] == "warmstart"
     assert init["iterations"] == 100
-    assert init["distribution"]["from_elicits"]
+    assert init["distribution"] == el.initialization.uniform()
 
 
 def test_initializer():

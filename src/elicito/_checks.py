@@ -72,17 +72,4 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
         )
         raise ValueError(msg)
 
-    if (
-        optimizer["optimizer"] == cmaes.CMAES
-        and initializer is not None
-        and initializer["warmup_epochs"] > 0
-    ):
-        msg = (
-            f"optimizer='{cmaes.CMAES}' cannot be combined with "
-            "initializer(warmup_epochs=...). The warm-up of a candidate is a "
-            "gradient run. Set warmup_epochs=0."
-        )
-        raise ValueError(msg)
-
-    # let the method validate its own sections
     methods.get_method(trainer["method"]).check(parameters, network, initializer)
