@@ -12,6 +12,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
 import elicito as el
+from elicito._initialization_box import hyper_names, start_vector
 from elicito._progress import ProgressTable
 from elicito.exceptions import MissingOptionalDependencyError
 from elicito.types import (
@@ -330,7 +331,7 @@ class _SearchStart:
                 "initialization only reads the box. 'iterations' is not used."
             )
             names = hyper_names(parameters)
-            centre = el.warmstart._box_vector(dict(distribution), names, "mean")
+            centre = start_vector(dict(distribution), names)
             initializer["hyperparams"] = dict(zip(names, centre))
         else:
             initializer["hyperparams"] = self.search(
@@ -961,29 +962,3 @@ def uniform(
     init_dict = Uniform(radius=radius, mean=mean, hyper=hyper)
 
     return init_dict
-
-
-def hyper_names(parameters: list[Parameter]) -> list[str]:
-    """
-    List the hyperparameter names in the order the initializer uses
-
-    Parameters
-    ----------
-    parameters
-        List including dictionary with all information about the
-        (hyper-)parameters.
-
-    Returns
-    -------
-    names :
-        Hyperparameter names, in the order of ``parameters``.
-
-    """
-    names: list[str] = []
-    for param in parameters:
-        hyperparams = param["hyperparams"]
-        if hyperparams is None:
-            continue
-        for hyp in hyperparams:
-            names.append(hyperparams[hyp]["name"])
-    return names

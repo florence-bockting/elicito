@@ -16,6 +16,7 @@ from tests.utils import eliobj as base_eliobj
 
 import elicito as el
 from elicito import Elicit
+from elicito._initialization_box import box_vector, start_vector
 from elicito.utils import get_expert_datformat
 
 tfd = tfp.distributions
@@ -573,12 +574,12 @@ def test_start_vector_reads_the_box():
     names = ["mu0", "sigma0"]
 
     scalar_box = el.initialization.uniform(radius=1.0, mean=2.0)
-    assert el.warmstart._start_vector(scalar_box, names) == [2.0, 2.0]
+    assert start_vector(scalar_box, names) == [2.0, 2.0]
 
     listed_box = el.initialization.uniform(
         radius=[1.0, 1.0], mean=[3.0, 4.0], hyper=["sigma0", "mu0"]
     )
-    assert el.warmstart._start_vector(listed_box, names) == [4.0, 3.0]
+    assert start_vector(listed_box, names) == [4.0, 3.0]
 
 
 def test_uniform_samples_fills_the_box_in_every_dimension():
@@ -781,12 +782,12 @@ def test_box_vector_reads_every_entry_of_the_box():
     names = ["mu0", "sigma0"]
 
     scalar_box = el.initialization.uniform(radius=1.5, mean=2.0)
-    assert el.warmstart._box_vector(scalar_box, names, "radius") == [1.5, 1.5]
+    assert box_vector(scalar_box, names, "radius") == [1.5, 1.5]
 
     listed_box = el.initialization.uniform(
         radius=[1.0, 2.0], mean=[3.0, 4.0], hyper=["sigma0", "mu0"]
     )
-    assert el.warmstart._box_vector(listed_box, names, "radius") == [2.0, 1.0]
+    assert box_vector(listed_box, names, "radius") == [2.0, 1.0]
 
 
 def test_cmaes_is_a_registered_initialization_method():

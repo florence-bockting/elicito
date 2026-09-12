@@ -9,19 +9,18 @@ import numpy as np
 import tensorflow as tf
 
 import elicito as el
+from elicito._initialization_box import (
+    MIN_SEARCH_SAMPLES,
+    PENALTY,
+    SEARCH_FRACTION,
+    hyper_names,
+    start_vector,
+    variable_names,
+)
 from elicito.exceptions import MissingOptionalDependencyError
 from elicito.types import ExpertDict, Parameter, Target, Trainer
 
 logger = logging.getLogger(__name__)
-
-# The search uses a quarter of the training draws. A noisier objective is
-# acceptable, because the result is only a start value.
-SEARCH_FRACTION = 4
-MIN_SEARCH_SAMPLES = 100
-
-# Value reported for a set of hyperparameters that cannot be used. Nelder-Mead
-# needs a finite number, and a usable point always scores far below this one.
-PENALTY = 1e12
 
 
 def score(  # noqa: PLR0913
@@ -272,27 +271,6 @@ def compile_evaluate(
     return run
 
 
-def _variable_names(variables: Any) -> list[str]:
-    """
-    Read the hyperparameter name of each trainable variable
-
-    The prior model names a variable ``"<constraint>.<hyperparameter>"``.
-    The order is the order in which the optimizer reads the variables.
-
-    Parameters
-    ----------
-    variables
-        Trainable variables of the prior model.
-
-    Returns
-    -------
-    names :
-        One hyperparameter name per variable.
-
-    """
-    return [str(var.name)[:-2].split(".")[1] for var in variables]
-
-
 def compile_score(  # noqa: PLR0913
     expert_elicited_statistics: dict[str, tf.Tensor],
     parameters: list[Parameter],
@@ -342,7 +320,7 @@ def compile_score(  # noqa: PLR0913
         loss of that point.
 
     """
-    names = el.initialization.hyper_names(parameters)
+    names = hyper_names(parameters)
     prior_model = el.simulations.Priors(
         ground_truth=False,
         init_matrix_slice=dict.fromkeys(names, tf.constant(0.0, dtype=tf.float32)),
@@ -355,7 +333,7 @@ def compile_score(  # noqa: PLR0913
     variables = el.methods.get_method(trainer["method"]).trainable_variables(
         prior_model
     )
-    var_names = _variable_names(variables)
+    var_names = variable_names(variables)
     run = compile_evaluate(
         prior_model, model, targets, expert_elicited_statistics, seed
     )
@@ -374,21 +352,6 @@ def compile_score(  # noqa: PLR0913
         return value
 
     return scorer
-
-
-def _box_vector(box: dict[str, Any], names: list[str], key: str) -> list[float]:
-    """Read one value per hyperparameter out of one entry of the box."""
-    entry = box[key]
-    if np.isscalar(entry):
-        return [float(entry)] * len(names)  # type: ignore [arg-type]
-    order = box["hyper"] if box["hyper"] is not None else names
-    lookup = dict(zip(order, entry))
-    return [float(lookup[name]) for name in names]
-
-
-def _start_vector(box: dict[str, Any], names: list[str]) -> list[float]:
-    """Read one start value per hyperparameter out of the box."""
-    return _box_vector(box, names, "mean")
 
 
 def warm_start(  # noqa: PLR0913
@@ -460,7 +423,7 @@ def warm_start(  # noqa: PLR0913
     except ImportError as exc:
         raise MissingOptionalDependencyError("warm_start", requirement="scipy") from exc
 
-    names = el.initialization.hyper_names(parameters)
+    names = hyper_names(parameters)
     search_trainer = dict(trainer)
     search_trainer["num_samples"] = max(
         MIN_SEARCH_SAMPLES, trainer["num_samples"] // SEARCH_FRACTION
@@ -490,7 +453,7 @@ def warm_start(  # noqa: PLR0913
     # the scipy stubs describe the objective as a variadic callable over a
     # float64 array, which no plain function matches
     search: Any = minimize
-    start = _start_vector(distribution, names)
+    start = start_vector(distribution, names)
 
     # Nelder-Mead converges on its own tolerances, and it can stall inside the
     # failing region long before the budget is spent. Restart the simplex from

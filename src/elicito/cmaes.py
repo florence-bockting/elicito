@@ -10,6 +10,14 @@ import numpy as np
 import tensorflow as tf
 
 import elicito as el
+from elicito._initialization_box import (
+    MIN_SEARCH_SAMPLES,
+    PENALTY,
+    SEARCH_FRACTION,
+    box_vector,
+    hyper_names,
+    variable_names,
+)
 from elicito._progress import ProgressTable
 from elicito.exceptions import MissingOptionalDependencyError
 from elicito.types import ExpertDict, Parameter, Target, Trainer
@@ -103,19 +111,15 @@ def cma_search(  # noqa: PLR0913
     except ImportError as exc:
         raise MissingOptionalDependencyError("cma_search", requirement="cma") from exc
 
-    names = el.initialization.hyper_names(parameters)
+    names = hyper_names(parameters)
     search_trainer = dict(trainer)
     search_trainer["num_samples"] = max(
-        el.warmstart.MIN_SEARCH_SAMPLES,
-        trainer["num_samples"] // el.warmstart.SEARCH_FRACTION,
+        MIN_SEARCH_SAMPLES,
+        trainer["num_samples"] // SEARCH_FRACTION,
     )
 
-    centre = np.asarray(
-        el.warmstart._box_vector(distribution, names, "mean"), dtype=np.float64
-    )
-    radius = np.asarray(
-        el.warmstart._box_vector(distribution, names, "radius"), dtype=np.float64
-    )
+    centre = np.asarray(box_vector(distribution, names, "mean"), dtype=np.float64)
+    radius = np.asarray(box_vector(distribution, names, "radius"), dtype=np.float64)
 
     options = {
         "CMA_stds": radius,
@@ -129,7 +133,7 @@ def cma_search(  # noqa: PLR0913
 
     # A failed point is scored as a large finite number, so the last generation
     # can be worse than a point seen before. Keep the best usable point.
-    best: dict[str, Any] = {"value": el.warmstart.PENALTY, "values": None}
+    best: dict[str, Any] = {"value": PENALTY, "values": None}
 
     scorer = el.warmstart.compile_score(
         expert_elicited_statistics=expert_elicited_statistics,
@@ -201,10 +205,8 @@ def box_step_size(
     if not method.skips_search(dict(optimizer=CMAES)):
         return DEFAULT_SIGMA0
 
-    names = el.initialization.hyper_names(parameters)
-    radius = el.warmstart._box_vector(
-        dict(initializer["distribution"]), names, "radius"
-    )
+    names = hyper_names(parameters)
+    radius = box_vector(dict(initializer["distribution"]), names, "radius")
     return {name: value / SIGMA_FRACTION for name, value in zip(names, radius)}
 
 
@@ -377,7 +379,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
     # name, so a partial `sigma0` overrides the box one coordinate at a time
     sigma0, stds = _step_size(
         optimizer.get("sigma0", default_sigma0),
-        el.warmstart._variable_names(variables),
+        variable_names(variables),
         default_sigma0,
     )
     if stds is not None:
@@ -408,7 +410,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
         # the penalty enters the score of the search, not the recorded loss.
         # A failed point already carries the PENALTY sentinel, and must keep
         # its order against the usable points.
-        if kappa and value < el.warmstart.PENALTY:
+        if kappa and value < PENALTY:
             value += kappa * float(el.losses.spread_penalty(output["prior_samples"]))
         return value, output
 
@@ -419,7 +421,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
 
     # A failed point is scored as a large finite number, so a later point can
     # be worse than a point seen before. Keep the best usable point.
-    best: dict[str, Any] = {"value": el.warmstart.PENALTY, "values": None}
+    best: dict[str, Any] = {"value": PENALTY, "values": None}
 
     bar = ProgressTable(
         "Training",
