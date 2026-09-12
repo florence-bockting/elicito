@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         os: [ "ubuntu-latest" ]
-        python-version: [ "3.11" ]
+        python-version: [ "3.12" ]
     runs-on: "${{ matrix.os }}"
     steps:
       - name: Check out repository
@@ -44,7 +44,7 @@ jobs:
           uv run mkdocs build --strict
       - uses: ./.github/actions/setup
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           uv-dependency-install-flags: "--all-extras --group docs --group dev"
       - name: docs-with-changelog
         run: |
