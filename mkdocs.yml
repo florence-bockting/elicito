@@ -50,7 +50,7 @@ plugins:
       # Use filenames for titles
       ignore_h1_titles: True
       include: ["*.py"]
-      execute: !ENV [DOCS_EXECUTE, true]
+      execute: true
       # Toggle off for faster builds
       # execute: false
       allow_errors: false
