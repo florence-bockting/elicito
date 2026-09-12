@@ -57,12 +57,10 @@ plugins:
       # Remove cells with this tag from the rendered page
       remove_tag_config:
         remove_cell_tags: ["hide"]
+        remove_input_tags: ["remove_input"]
       # theme: dark
       include_source: True
       ignore: ["*.ipynb", "*.md", "docs/gen_doc_stubs.py"]
-      remove_tag_config:
-        remove_input_tags:
-          - remove_input
   # Docstring generation
   - mkdocstrings:
       # See https://analog-garage.github.io/mkdocstrings-python-xref/1.6.0/
