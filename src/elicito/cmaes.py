@@ -4,7 +4,7 @@ Global search for the hyperparameters of a parametric prior, with CMA-ES
 
 import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import tensorflow as tf
@@ -21,6 +21,9 @@ from elicito._initialization_box import (
 from elicito._progress import ProgressTable
 from elicito.exceptions import MissingOptionalDependencyError
 from elicito.types import ExpertDict, Parameter, Target, Trainer
+
+if TYPE_CHECKING:
+    from elicito.initialization import InitMethod
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +178,7 @@ def cma_search(  # noqa: PLR0913
 
 
 def box_step_size(
+    init_method: "InitMethod",
     initializer: Any,
     parameters: list[Parameter],
 ) -> Any:
@@ -187,6 +191,9 @@ def box_step_size(
 
     Parameters
     ----------
+    init_method
+        Initialization method that ``initializer`` selects.
+
     initializer
         Specification of the initialization method.
 
@@ -201,8 +208,7 @@ def box_step_size(
         initialization method does not hand its box to the training.
 
     """
-    method = el.initialization.resolve_init_method(initializer)
-    if not method.skips_search(dict(optimizer=CMAES)):
+    if not init_method.skips_search(dict(optimizer=CMAES)):
         return DEFAULT_SIGMA0
 
     names = hyper_names(parameters)

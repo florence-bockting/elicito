@@ -759,9 +759,12 @@ class Elicit:
         fit_method: Callable[..., tuple[dict[Any, Any], dict[Any, Any]]]
         if self.optimizer["optimizer"] == cmaes.CMAES:
             fit_method = cmaes.cma_training
-            extra["default_sigma0"] = cmaes.box_step_size(
-                self.initializer, self.parameters
-            )
+            if self.initializer is not None:
+                extra["default_sigma0"] = cmaes.box_step_size(
+                    initialization.resolve_init_method(self.initializer),
+                    self.initializer,
+                    self.parameters,
+                )
         else:
             fit_method = optimization.sgd_training
 

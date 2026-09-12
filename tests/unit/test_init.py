@@ -997,8 +997,10 @@ def test_cmaes_init_drops_its_search_for_a_cmaes_training():
 def test_box_step_size_reads_the_radius_of_the_box():
     box = el.initialization.uniform(radius=4.0, mean=0.0)
 
+    cmaes_init = el.initializer(method="cmaes", distribution=box)
     sigma0 = el.cmaes.box_step_size(
-        el.initializer(method="cmaes", distribution=box),
+        el.initialization.resolve_init_method(cmaes_init),
+        cmaes_init,
         base_eliobj.parameters,
     )
 
@@ -1006,8 +1008,10 @@ def test_box_step_size_reads_the_radius_of_the_box():
     assert sigma0 == {name: 2.0 for name in names}
 
     # a method that keeps its own search hands no box to the training
+    sobol_init = el.initializer(method="sobol", distribution=box)
     other = el.cmaes.box_step_size(
-        el.initializer(method="sobol", distribution=box),
+        el.initialization.resolve_init_method(sobol_init),
+        sobol_init,
         base_eliobj.parameters,
     )
     assert other == el.cmaes.DEFAULT_SIGMA0
