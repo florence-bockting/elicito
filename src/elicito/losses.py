@@ -61,11 +61,11 @@ def preprocess(elicited_statistics: dict[str, tf.Tensor]) -> dict[str, tf.Tensor
         # extract data
         tensor_elicit = elicited_statistics[name]
 
-        if tf.rank(tensor_elicit) > 2:  # noqa: PLR2004
+        if len(tensor_elicit.shape) > 2:  # noqa: PLR2004
             msg = "elicited statistics can only have 2 dimensions."
             raise AssertionError(msg)
 
-        if tf.rank(tensor_elicit) == 1:
+        if len(tensor_elicit.shape) == 1:
             # add a last axis for loss computation
             prep_elicit = tf.expand_dims(tensor_elicit, axis=-1)
             # store result
@@ -178,6 +178,37 @@ def total_loss(
         loss += tf.multiply(individual_losses[i], targets[i]["weight"])
 
     return (loss, individual_losses, elicit_expert_prep, elicit_training_prep)
+
+
+def spread_penalty(
+    prior_samples: tf.Tensor,  # shape=[B, num_samples, num_params]
+    eps: float = 1e-8,
+) -> tf.Tensor:  # shape=[]
+    """
+    Penalize priors that collapse to a point mass
+
+    Compute the negative mean log standard deviation of the marginal priors.
+    The value goes to infinity as one marginal standard deviation goes to
+    zero. Add it to the loss to keep a non-identified hyperparameter away
+    from a degenerate solution. See Manderson and Goudie (2023).
+
+    Parameters
+    ----------
+    prior_samples
+        Samples from the prior distributions.
+
+    eps
+        Constant added to the standard deviation. It keeps the logarithm
+        finite.
+
+    Returns
+    -------
+    penalty :
+        Negative mean log standard deviation across all model parameters.
+
+    """
+    sd = tf.math.reduce_std(prior_samples, axis=1)
+    return -tf.reduce_mean(tf.math.log(sd + eps))
 
 
 def L2(

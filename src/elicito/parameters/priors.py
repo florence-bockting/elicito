@@ -1,5 +1,5 @@
 """
-Simulations from prior and model
+Trainable prior model, and sampling from it
 """
 
 from typing import Any, Callable, Optional, Union
@@ -7,10 +7,9 @@ from typing import Any, Callable, Optional, Union
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-from elicito.methods import get_method
+from elicito.parameters._base import seed_pair
+from elicito.parameters.methods import get_method
 from elicito.types import ExpertDict, NFDict, Parameter, Trainer
-
-tfd = tfp.distributions
 
 
 # initalize generator model
@@ -146,6 +145,7 @@ def intialize_priors(
     return get_method(method).build(parameters, network, init_matrix_slice, seed)
 
 
+@tf.autograph.experimental.do_not_convert  # type: ignore [misc]
 def sample_from_priors(  # noqa: PLR0913
     initialized_priors: Union[None, dict[str, tf.Tensor], Callable[[Any], Any]],
     ground_truth: bool,
@@ -198,16 +198,17 @@ def sample_from_priors(  # noqa: PLR0913
         Samples from prior distributions.
 
     """
-    # set seed
-    tf.random.set_seed(seed)
     if ground_truth:
         # number of samples for ground truth
         rep_true = expert["num_samples"]
         priors = []
 
-        for pr in list(expert["ground_truth"].values()):
+        truths = list(expert["ground_truth"].values())
+        # one stateless seed per distribution, see `ParametricPrior.sample`
+        seeds = tfp.random.split_seed(seed_pair(seed), n=len(truths), salt="truth")
+        for pr, pr_seed in zip(truths, seeds):
             # sample from the prior distribution
-            prior_sample = pr.sample((1, rep_true))
+            prior_sample = pr.sample((1, rep_true), seed=pr_seed)
             # ensure that all samples have the same shape
             try:
                 prior_sample.shape
@@ -227,47 +228,5 @@ def sample_from_priors(  # noqa: PLR0913
         return prior_samples
 
     return get_method(method).sample(
-        initialized_priors, parameters, network, B, num_samples
+        initialized_priors, parameters, network, B, num_samples, seed
     )
-
-
-def simulate_from_generator(
-    prior_samples: tf.Tensor,
-    seed: int,
-    model: dict[str, Any],  # shape=[B,num_samples,num_params]
-) -> Any:
-    """
-    Simulate data from the specified generative model.
-
-    Parameters
-    ----------
-    prior_samples
-        Samples from prior distributions.
-
-    seed
-        Seed used for learning. Specification in :func:`elicit.elicit.trainer`.
-
-    model
-        Specification of generative model using :func:`elicit.elicit.model`.
-
-    Returns
-    -------
-    model_simulations :
-        simulated data from generative model.
-
-    """
-    # set seed
-    tf.random.set_seed(seed)
-    # get model and initialize generative model
-    GenerativeModel = model["obj"]
-    generative_model = GenerativeModel()
-    # get model specific arguments (that are not prior samples)
-    add_model_args = model.copy()
-    add_model_args.pop("obj")
-    # simulate from generator
-    if len(add_model_args) < 1:
-        model_simulations = generative_model(prior_samples)
-    else:
-        model_simulations = generative_model(prior_samples, **add_model_args)
-
-    return model_simulations

@@ -47,7 +47,7 @@ def test_uniform_samples(parameters):
     mean = 0.0
     radius = 0.001
 
-    init_matrix = el.initialization.uniform_samples(
+    init_matrix = el.initializers.sampling.uniform_samples(
         seed, hyppar, n_samples, method, mean, radius, parameters
     )
 
@@ -74,7 +74,7 @@ def test_uniform_samples_array(parameters):
     mean = [0.0, 1.0, 2.0, 3.0, 4.0]
     radius = [0.001] * 5
 
-    init_matrix = el.initialization.uniform_samples(
+    init_matrix = el.initializers.sampling.uniform_samples(
         seed, hyppar, n_samples, method, mean, radius, parameters
     )
 
@@ -103,7 +103,7 @@ def test_uniform_samples_order(parameters):
     mean = [0.0, 1.0, 2.0, 3.0, 4.0]
     radius = [0.001] * 5
 
-    init_matrix = el.initialization.uniform_samples(
+    init_matrix = el.initializers.sampling.uniform_samples(
         seed, hyppar, n_samples, method, mean, radius, parameters
     )
 
@@ -205,7 +205,7 @@ def test_integration_initialization():
         initializer=el.initializer(
             method="sobol",
             iterations=1,
-            distribution=el.initialization.uniform(
+            distribution=el.initializers.uniform(
                 radius=[0.01] * 4,
                 mean=[0.0, 1.0, 2.0, 3.0],
                 hyper=["mu0", "mu1", "sigma0", "sigma1"],
@@ -234,8 +234,11 @@ def test_integration_initialization():
     )
 
     # check whether prior samples reflect corresponding initial hyperparameter
-    means = eliobj.results.prior.mean().to_dataset().to_array().values
-    stds = eliobj.results.prior.std().to_dataset().to_array().values
+    draws = eliobj.sample()
+    means = draws["prior"].mean().to_dataset().to_array().values
+    stds = draws["prior"].std().to_dataset().to_array().values
 
     np.testing.assert_allclose(means, [0.0, 1.0], atol=0.03)
-    np.testing.assert_allclose(stds, [2.0, 3.0], atol=0.13)
+    # the box gives the unconstrained values 2.0 and 3.0. A scale is bounded
+    # below, so the prior uses softplus(2.0) and softplus(3.0).
+    np.testing.assert_allclose(stds, [2.1269, 3.0486], atol=0.02)

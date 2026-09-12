@@ -2,7 +2,9 @@
 Check user input of Elicit object
 """
 
-from elicito import methods, utils
+from elicito import utils
+from elicito.optimizers import cmaes
+from elicito.parameters import methods
 
 
 def check_elicit(  # type: ignore  # noqa: PLR0913
@@ -61,5 +63,15 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
             )
             raise AssertionError(msg)
 
-    # let the method validate its own sections
+    # CMA-ES keeps a full covariance matrix of the search space. The weights
+    # of a normalizing flow are thousands of dimensions, which it cannot search.
+    if optimizer["optimizer"] == cmaes.CMAES and trainer["method"] == "deep_prior":
+        msg = (
+            f"optimizer='{cmaes.CMAES}' can only be used with "
+            "method='parametric_prior'. The 'deep_prior' method has too many "
+            "trainable variables for a derivative-free search. Use a "
+            "tf.keras optimizer instead."
+        )
+        raise ValueError(msg)
+
     methods.get_method(trainer["method"]).check(parameters, network, initializer)

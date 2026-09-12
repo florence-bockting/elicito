@@ -11,7 +11,7 @@ import tensorflow as tf
 
 class Hyper(TypedDict):
     """
-    Typed dictionary for specification of [`hyper`][elicito.elicit.hyper]
+    Typed dictionary for specification of [`hyper`][elicito.specs.hyper]
     """
 
     name: str
@@ -68,7 +68,7 @@ class Parameter(dict[str, Any]):
 
 class QueriesDict(TypedDict, total=False):
     """
-    Typed dictionary for specification of [`queries`][elicito.elicit.Queries]
+    Typed dictionary for specification of [`queries`][elicito.specs.Queries]
     """
 
     name: str
@@ -114,7 +114,7 @@ class Target(dict[str, Any]):
 
 class ExpertDict(TypedDict, total=False):
     """
-    typed dictionary of specification of [`expert`][elicito.elicit.Expert]
+    typed dictionary of specification of [`expert`][elicito.specs.Expert]
     """
 
     ground_truth: dict[str, Any]
@@ -126,7 +126,7 @@ class Uniform(TypedDict):
     """
     typed dictionary for specification of initialization distribution
 
-    See [`uniform`][elicito.initialization.uniform]
+    See [`uniform`][elicito.initializers.sampling.uniform]
 
     """
 
@@ -142,14 +142,14 @@ class Initializer(TypedDict):
 
     method: str | None
     distribution: Uniform | None
-    loss_quantile: float | None
     iterations: int | None
+    warmup_epochs: int
     hyperparams: dict[str, Any] | None
 
 
 class Trainer(TypedDict, total=False):
     """
-    typed dictionary for specification of [`trainer`][elicito.elicit.trainer]
+    typed dictionary for specification of [`trainer`][elicito.specs.trainer]
     """
 
     method: str
@@ -159,13 +159,14 @@ class Trainer(TypedDict, total=False):
     epochs: int
     seed_chain: int
     progress: int
+    kappa: float
 
 
 class NFDict(TypedDict):
     """
     Typed dictionary for specification of normalizing flow
 
-    See [`network`][elicito.networks.NF]
+    See [`network`][elicito.parameters.networks.NF]
 
     """
 
@@ -190,7 +191,7 @@ class MetaSettings(TypedDict):
     """
     Typed dictionary for specification of meta settings in `Elicit`
 
-    See [`Elicit`][elicito.Elicit]
+    See [`Elicit`][elicito.elicit.Elicit]
     """
 
     dry_run: bool
@@ -216,6 +217,8 @@ class SamplingMethod(str, Enum):
     sobol = "sobol"
     random = "random"
     lhs = "lhs"
+    warmstart = "warmstart"
+    cmaes = "cmaes"
 
 
 class VariableType(str, Enum):

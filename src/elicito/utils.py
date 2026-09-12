@@ -3,24 +3,21 @@ helper functions for setting up the Elicit object
 """
 
 import logging
-import os
-import pickle
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
-import cloudpickle  # type: ignore
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-import elicito as el
-from elicito.exceptions import MissingOptionalDependencyError
-from elicito.simulations import Priors, simulate_from_generator
-from elicito.targets import (
-    computation_elicited_statistics,
-    computation_target_quantities,
+# the names with noqa are re-exported, so that el.utils.<name> stays valid
+from elicito.models import (
+    all_finite,  # noqa: F401
+    nonfinite_fraction,  # noqa: F401
+    one_forward_simulation,
+    simulate_and_elicit,  # noqa: F401
 )
+from elicito.parameters.priors import Priors
 from elicito.types import (
     ExpertDict,
-    Initializer,
     NFDict,
     Parallel,
     Parameter,
@@ -31,392 +28,9 @@ from elicito.types import (
 tfd = tfp.distributions
 logger = logging.getLogger(__name__)
 
-
-def save_as_pkl(obj: Any, save_dir: str) -> None:
-    """
-    Save file as pickle.
-
-    Parameters
-    ----------
-    obj
-        Variable that needs to be saved.
-
-    save_dir
-        Path indicating the file location.
-
-    Examples
-    --------
-    >>> save_as_pkl(obj, "results/file.pkl")  # doctest: +SKIP
-
-    """
-    # if directory does not exist, create it
-    os.makedirs(os.path.dirname(save_dir), exist_ok=True)
-    # save obj to location as pickle
-    serialized_obj = cloudpickle.dumps(obj)
-    with open(save_dir, "wb") as file:
-        pickle.dump(serialized_obj, file=file)
-
-
-def identity(x: float) -> Any:
-    """
-    Identity function. Returns the input
-
-    Parameters
-    ----------
-    x
-        Input x
-
-    Returns
-    -------
-    x :
-        input x without transformation.
-
-    """
-    return x
-
-
-class DoubleBound:
-    """
-    constrain double-bounded distributions
-    """
-
-    def __init__(self, lower: float, upper: float):
-        """
-        Constrain double-bounded distribution
-
-        A variable constrained to be in the open interval
-        (``lower``, ``upper``) is transformed to an unconstrained variable Y
-        via a scaled and translated log-odds transform.
-
-        Basis for the here used constraints, is the
-        `constraint transforms implementation in [Stan](https://mc-stan.org/docs/reference-manual/transforms.html).
-
-        Parameters
-        ----------
-        lower
-            Lower bound of variable x.
-
-        upper
-            Upper bound of variable x.
-
-        """
-        self.lower = lower
-        self.upper = upper
-
-    def logit(self, u: tf.Tensor) -> tf.Tensor:
-        r"""
-        Implement the logit transformation for :math:`u \in (0,1)`:
-
-        .. math::
-
-            logit(u) = \log\left(\frac{u}{1-u}\right)
-
-        Parameters
-        ----------
-        u
-            Variable in open unit interval.
-
-        Returns
-        -------
-        v
-            Log-odds of u.
-
-        """
-        # log-odds definition
-        v = tf.math.log(u / (1 - u))
-        # cast v into correct dtype
-        v = tf.cast(v, dtype=tf.float32)
-        return v
-
-    def inv_logit(self, v: tf.Tensor) -> tf.Tensor:
-        r"""
-        Implement the inverse-logit transformation
-
-        The inverse-logit transformation is the logistic
-        sigmoid for :math:`v \in (-\infty,+\infty)`:
-
-        .. math::
-
-            logit^{-1}(v) = \frac{1}{1+\exp(-v)}
-
-        Parameters
-        ----------
-        v
-            Unconstrained variable
-
-        Returns
-        -------
-        u
-            Logistic sigmoid of the unconstrained variable
-
-        """
-        # logistic sigmoid transform
-        u = tf.divide(1.0, (1.0 + tf.exp(-v)))
-        # cast v to correct dtype
-        u = tf.cast(u, dtype=tf.float32)
-        return u
-
-    def forward(self, x: tf.Tensor) -> tf.Tensor:
-        r"""
-        Scale and translate logit transformed variable
-
-        transform variable x with ``lower`` and ``upper`` bound
-        into an unconstrained variable y.
-
-        .. math::
-
-            Y = logit\left(\frac{X - lower}{upper - lower}\right)
-
-        Parameters
-        ----------
-        x
-            Variable with lower and upper bound.
-
-        Returns
-        -------
-        y
-            Unconstrained variable.
-
-        """
-        # scaled and translated logit transform
-        y = self.logit(tf.divide((x - self.lower), (self.upper - self.lower)))
-        # cast y to correct dtype
-        y = tf.cast(y, dtype=tf.float32)
-        return y
-
-    def inverse(self, y: tf.Tensor) -> tf.Tensor:
-        r"""
-        Apply inverse of the log-odds transform
-
-        unconstrained variable y is transformed into a constrained variable x
-        with ``lower`` and ``upper`` bound.
-
-        .. math::
-
-            X = lower + (upper - lower) \cdot logit^{-1}(Y)
-
-        Parameters
-        ----------
-        y
-            Unconstrained variable
-
-        Returns
-        -------
-        x :
-            Constrained variable with lower and upper bound
-
-        """
-        # inverse of log-odds transform
-        x = self.lower + (self.upper - self.lower) * self.inv_logit(y)
-        # cast x to correct dtype
-        x = tf.cast(x, dtype=tf.float32)
-        return x
-
-
-class LowerBound:
-    """
-    constrain lower-bounded distributions
-    """
-
-    def __init__(self, lower: float):
-        """
-        Transform ``lower`` bound variable to unconstrained variable Y
-
-        use inverse-softplus transform.
-
-        References
-        ----------
-        - [Stan](https://mc-stan.org/docs/reference-manual/transforms.html)
-
-        Parameters
-        ----------
-        lower
-            Lower bound of variable X.
-
-        """
-        self.lower = lower
-
-    def forward(self, x: float) -> Any:
-        r"""
-        Transform ``lower``-bounded x via inverse-softplus into an unconstrained y.
-
-        .. math::
-
-            Y = softplus^{-1}(X - lower)
-
-        Parameters
-        ----------
-        x
-            Variable with a lower bound.
-
-        Returns
-        -------
-        y :
-            Unconstrained variable.
-
-        """
-        # inverse softplus transform
-        y = tfp.math.softplus_inverse(x - self.lower)
-        # cast y into correct type
-        y = tf.cast(y, dtype=tf.float32)
-        return y
-
-    def inverse(self, y: float) -> tf.Tensor:
-        r"""
-        Apply softplus to unconstrained y to get ``lower``-bounded x
-
-        .. math::
-
-            X = softplus(Y) + lower
-
-        Parameters
-        ----------
-        y
-            Unconstrained variable.
-
-        Returns
-        -------
-        x :
-            Variable with a lower bound.
-
-        """
-        # softplus transform
-        x = tf.math.softplus(y) + self.lower
-        # cast x into correct dtype
-        x = tf.cast(x, dtype=tf.float32)
-        return x
-
-
-class UpperBound:
-    """
-    transform ``upper`` bounded distribution
-    """
-
-    def __init__(self, upper: float):
-        """
-        Transform ``upper`` bounded x into unconstrained y
-
-        use inverse-softplus transform.
-
-        Parameters
-        ----------
-        upper
-            Upper bound of variable X.
-
-        References
-        ----------
-        + [Stan](https://mc-stan.org/docs/reference-manual/transforms.html)
-
-        """
-        self.upper = upper
-
-    def forward(self, x: float) -> Any:
-        r"""
-        Transform upper-bouned into unconstarined variable
-
-        use inverse-softplus transform
-
-        .. math::
-
-            Y = softplus^{-1}(upper - X)
-
-        Parameters
-        ----------
-        x
-            Variable with an upper bound.
-
-        Returns
-        -------
-        y :
-            Unconstrained variable.
-
-        """
-        # logarithmic transform
-        y = tfp.math.softplus_inverse(self.upper - x)
-        # cast y into correct dtype
-        y = tf.cast(y, dtype=tf.float32)
-        return y
-
-    def inverse(self, y: float) -> tf.Tensor:
-        r"""
-        Transform uncstrained into lower-bounded variable
-
-        use softplus transform
-
-        .. math::
-
-            X = upper - softplus(Y)
-
-        Parameters
-        ----------
-        y
-            Unconstrained variable.
-
-        Returns
-        -------
-        x :
-            Variable with an upper bound.
-
-        """
-        # exponential transform
-        x = self.upper - tf.math.softplus(y)
-        # cast x into correct dtype
-        x = tf.cast(x, dtype=tf.float32)
-        return x
-
-
-def one_forward_simulation(
-    prior_model: Priors, model: dict[str, Any], targets: list[Target], seed: int
-) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any]]:
-    """
-    Run one forward simulation from prior samples to elicited statistics.
-
-    Parameters
-    ----------
-    prior_model
-        Initialized prior distributions which can be used for sampling.
-
-    model
-        Specification of generative model
-
-    targets
-        List of target quantities
-
-    seed
-        Random seed.
-
-    Returns
-    -------
-    elicited_statistics :
-        Dictionary containing the elicited statistics that can be used to
-        compute the loss components
-
-    prior_samples :
-        Samples from prior distributions
-
-    model_simulations :
-        Samples from the generative model (likelihood) given the prior samples
-        for the model parameters
-
-    target_quantities :
-        Target quantities as a function of the model simulations.
-
-    """
-    # set seed
-    tf.random.set_seed(seed)
-    # generate samples from initialized prior
-    prior_samples = prior_model()
-    # simulate prior predictive distribution based on prior samples
-    # and generative model
-    model_simulations = simulate_from_generator(prior_samples, seed, model)
-    # compute the target quantities
-    target_quantities = computation_target_quantities(
-        model_simulations, prior_samples, targets
-    )
-    # compute the elicited statistics by applying a specific elicitation
-    # method on the target quantities
-    elicited_statistics = computation_elicited_statistics(target_quantities, targets)
-    return (elicited_statistics, prior_samples, model_simulations, target_quantities)
+# Seed of the current run. Elicit sets it before a run, and
+# gumbel_softmax_trick reads it.
+SEED = 0
 
 
 def get_expert_data(  # noqa: PLR0913
@@ -503,129 +117,69 @@ def get_expert_data(  # noqa: PLR0913
         return tuple((expert_data, None))
 
 
-def save(
-    eliobj: Any,
-    name: Optional[str] = None,
-    file: Optional[str] = None,
-    overwrite: bool = False,
-) -> None:
+def add_derived(samples: Any, **derived: Callable[[Any], Any]) -> None:
     """
-    Save the eliobj as pickle.
+    Add derived parameters to the prior samples
+
+    A derived parameter is a function of the model parameters, computed in the
+    generative model and not sampled. It is therefore not in the prior group
+    of the samples. This function computes it from the prior samples and
+    stores it there. The plotting functions can then select it by name.
 
     Parameters
     ----------
-    eliobj
-        Instance of the :func:`elicit.elicit.Elicit` class.
+    samples
+        result of :func:`elicito.elicit.Elicit.sample`. The prior group is changed
+        in place.
 
-    name
-        Name of the saved .pkl file.
-        File is saved as .results/{method}/{name}_{seed}.pkl
+    **derived
+        one function per derived parameter, named by the argument. Each
+        function gets the prior samples as an ``xarray.Dataset`` and returns
+        the derived samples.
 
-    file
-        Path to file, including file name,
-        e.g. file="res" (saved as res.pkl) or
-        file="method1/res" (saved as method1/res.pkl)
-
-    overwrite
-        Whether to overwrite existing file.
+    Examples
+    --------
+    >>> samples = eliobj.sample()  # doctest: +SKIP
+    >>> el.utils.add_derived(  # doctest: +SKIP
+    ...     samples,
+    ...     h1=lambda prior: prior["hts"] + prior["dh"],
+    ... )
+    >>> el.plots.prior_marginals(  # doctest: +SKIP
+    ...     eliobj, params=["h1", "hts"], samples=samples
+    ... )
 
     Raises
     ------
-    FileExistsError
-        The file exists and ``overwrite`` is ``False``.
+    KeyError
+        Can't find 'prior' in the samples.
 
-    """
-    # either name or file must be specified
-    if (name is not None) and (file is None):
-        if name.endswith(".pkl"):
-            name = name.removesuffix(".pkl")
-        # create saving path
-        path = f"./results/{eliobj.trainer['method']}/{name}_{eliobj.trainer['seed']}"
-    elif (file is not None) and (name is None):
-        # postprocess file to avoid file.pkl.pkl
-        if file.endswith(".pkl"):
-            file = file.removesuffix(".pkl")
-        path = "./" + file
-    else:
-        msg = (
-            "Name and file cannot be both None or both specified. "
-            "Either one has to be None."
-        )
-        raise AssertionError(msg)
-
-    if os.path.isfile(path + ".pkl") and not overwrite:
-        msg = (
-            f"The file '{path}.pkl' already exists. "
-            "Use overwrite=True to replace it."
-        )
-        raise FileExistsError(msg)
-
-    storage = dict()
-    # user inputs
-    storage["model"] = eliobj.model
-    storage["parameters"] = eliobj.parameters
-    storage["targets"] = eliobj.targets
-    storage["expert"] = eliobj.expert
-    storage["optimizer"] = eliobj.optimizer
-    storage["trainer"] = eliobj.trainer
-    storage["initializer"] = eliobj.initializer
-    storage["network"] = eliobj.network
-    # results
-    if hasattr(eliobj, "results"):
-        storage["results"] = eliobj.results
-    else:
-        storage["temp_results"] = []
-        storage["temp_history"] = []
-
-    save_as_pkl(storage, path + ".pkl")
-
-    print(f"saved in: {path}.pkl")
-
-
-def load(file: str) -> Any:
-    """
-    Load a saved ``eliobj`` from specified path.
-
-    Parameters
-    ----------
-    file
-        path where ``eliobj`` object is saved.
-
-    Returns
-    -------
-    eliobj :
-        loaded ``eliobj`` object.
+    ValueError
+        A name in ``derived`` is already a model parameter.
 
     """
     try:
-        import pandas as pd
-    except ImportError as exc:
-        raise MissingOptionalDependencyError(
-            "data_wrangling", requirement="pandas"
-        ) from exc
+        prior = samples["prior"]
+    except KeyError:
+        raise KeyError(  # noqa: TRY003
+            "No 'prior' group found. Pass the result of 'eliobj.sample()'."
+        )
 
-    obj_pickled = pd.read_pickle(file)  # noqa: S301
-    obj = pickle.loads(obj_pickled)  # noqa: S301
+    model_params = prior.attrs["model_parameters"]
+    # `to_dataset` copies the samples out of the DataTree node, so the new
+    # variables are written back with the setter below
+    prior_samples = prior.to_dataset()
 
-    eliobj = el.Elicit(
-        model=obj["model"],
-        parameters=obj["parameters"],
-        targets=obj["targets"],
-        expert=obj["expert"],
-        optimizer=obj["optimizer"],
-        trainer=obj["trainer"],
-        initializer=obj["initializer"],
-        network=obj["network"],
-    )
+    for name, function in derived.items():
+        if name in model_params:
+            raise ValueError(
+                f"'{name}' is a model parameter. A derived parameter needs"
+                + " a name of its own."
+            )
+        if name in prior_samples.data_vars:
+            logger.info(f"Replacing the derived parameter '{name}'.")
+        prior_samples[name] = function(prior_samples)
 
-    # add results if already fitted
-    if "results" in obj:
-        eliobj.results = obj["results"]
-    else:
-        eliobj.temp_history = obj["temp_history"]
-        eliobj.temp_results = obj["temp_results"]
-
-    return eliobj
+    samples["prior"].dataset = prior_samples
 
 
 def parallel(
@@ -767,7 +321,7 @@ def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6)
         raise ValueError(msg)
 
     # set seed
-    tf.random.set_seed(el.SEED)
+    tf.random.set_seed(SEED)
     # get batch size, num_samples, num_observations
     B, S, number_obs, _ = likelihood.batch_shape
     # constant outcome vector (including zero outcome)
@@ -793,75 +347,6 @@ def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6)
     # reparameterization/linear transformation
     ypred = tf.reduce_sum(tf.multiply(w, c), axis=-1)
     return ypred
-
-
-def dry_run(  # noqa: PLR0913
-    model: dict[str, Any],
-    parameters: list[Parameter],
-    targets: list[Target],
-    trainer: Trainer,
-    initializer: Initializer,
-    network: Optional[NFDict],
-) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any], Any]:
-    """
-    Run generative model in forward mode for a single epoch
-
-    Parameters
-    ----------
-    model
-        User-input from [`model`][elicito.elicit.model].
-
-    parameters
-        User-input from [`parameter`][elicito.elicit.parameter].
-
-    targets
-        User-input from [`target`][elicito.elicit.target].
-
-    trainer
-        User-input from [`trainer`][elicito.elicit.trainer].
-
-    initializer
-        User-input from [`initializer`][elicito.elicit.initializer].
-
-    network
-        User-input from one of the methods implemented in the
-        [`networks`][elicito.networks] module.
-
-    Returns
-    -------
-    :
-        (elicited_statistics, prior_samples, model_simulations,
-        target_quantities, prior_model)
-    """
-    init_matrix_slice = el.methods.get_method(trainer["method"]).init_matrix_slice(
-        initializer=initializer,
-        parameters=parameters,
-        trainer=trainer,
-    )
-
-    prior_model = Priors(
-        ground_truth=False,
-        init_matrix_slice=init_matrix_slice,
-        trainer=trainer,
-        parameters=parameters,
-        network=network,
-        expert=None,  # type: ignore
-        seed=trainer["seed"],
-    )
-
-    (elicited_statistics, prior_samples, model_simulations, target_quantities) = (
-        one_forward_simulation(
-            prior_model=prior_model, model=model, targets=targets, seed=trainer["seed"]
-        )
-    )
-
-    return (
-        elicited_statistics,
-        prior_samples,
-        model_simulations,
-        target_quantities,
-        prior_model,
-    )
 
 
 def compute_num_weights(num_NN_weights: list[tf.TensorShape]) -> int:

@@ -4,19 +4,96 @@ plotting helpers
 
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import tensorflow as tf
 
 from elicito.exceptions import MissingOptionalDependencyError
+from elicito.optimizers.cmaes import CMAES
+from elicito.optimizers.search import hyper_names
 
 if TYPE_CHECKING:
     import matplotlib.axes
     import matplotlib.figure
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+
+def _plot_density(ax: Any, values: Any, name: str, **line_kwargs: Any) -> None:
+    """
+    Draw the density of one parameter, or one line per value if it collapsed
+
+    A kernel density needs at least three distinct values. Two values make the
+    bandwidth infinite, and ``array_stats.kde`` then raises an
+    ``OverflowError``. A collapsed prior is a result worth seeing, so the panel
+    shows one line per value instead of a density, and the figure is drawn.
+
+    A density can fail for other reasons as well. A draw far outside the range
+    of the others, for example, gives a bin width of zero and the same infinite
+    bandwidth. The panel is then left empty, with a warning. One parameter must
+    not cost the whole figure: the other panels show where the prior went.
+
+    Parameters
+    ----------
+    ax
+        Axes to draw on.
+
+    values
+        Draws of one parameter.
+
+    name
+        Name of the parameter, used in the warning.
+
+    **line_kwargs
+        Passed to the plot, e.g. ``color`` and ``lw``.
+
+    Raises
+    ------
+    MissingOptionalDependencyError
+        ``arviz_stats`` is required for the density.
+
+    """
+    try:
+        from arviz_stats.base import array_stats  # type: ignore
+    except ImportError as exc:
+        raise MissingOptionalDependencyError(
+            "plotting", requirement="arviz_stats"
+        ) from exc
+
+    draws = np.ravel(np.asarray(values))
+    finite = draws[np.isfinite(draws)]
+    if len(finite) < len(draws):
+        logger.warning(
+            f"'{name}': {len(draws) - len(finite)} of {len(draws)} draws are"
+            " not finite. They are left out of the density."
+        )
+
+    distinct = np.unique(finite)
+    if len(distinct) < 3:  # noqa: PLR2004
+        logger.warning(
+            f"'{name}' has {len(distinct)} distinct value(s) in {len(finite)}"
+            " finite draws, so it has no density. The prior of this parameter"
+            " has collapsed. The panel shows one line per value."
+        )
+        for value in distinct:
+            ax.axvline(float(value), **line_kwargs)
+        return
+
+    # float64 keeps the variance of a wide sample finite. In float32 it
+    # overflows above 1e19, and the bandwidth is then not a number.
+    try:
+        grid, pdf, _ = array_stats.kde(finite.astype(np.float64))  # type: ignore
+    except (OverflowError, ValueError, ZeroDivisionError, FloatingPointError) as exc:
+        logger.warning(
+            f"'{name}' has no density: {type(exc).__name__}: {exc}. The panel"
+            f" is empty. The {len(distinct)} distinct draws lie between"
+            f" {float(distinct[0]):.4g} and {float(distinct[-1]):.4g}, with a"
+            f" standard deviation of {float(np.std(finite)):.4g}."
+        )
+        return
+
+    ax.plot(grid, pdf, **line_kwargs)
 
 
 def initialization(
@@ -57,6 +134,16 @@ def initialization(
 
     """
     eliobj_res, *_ = _check_parallel(eliobj)
+
+    # check that all information can be assessed
+    if "initialization" not in eliobj_res.children:
+        msg = (
+            "No 'initialization' found in 'eliobj.results'. The initialization"
+            f" method '{eliobj.initializer['method']}' draws no candidates, so"
+            " there is no initialization distribution to plot."
+        )
+        raise KeyError(msg)
+
     # get number of hyperparameters and their names
     names, n_par, titles = _get_names_titles(
         eliobj_res.initialization.hyperparameter.values.tolist(), titles
@@ -68,12 +155,6 @@ def initialization(
     kwargs.setdefault("figsize", (cols * 2, rows * 2))
     kwargs.setdefault("constrained_layout", True)
     kwargs.setdefault("sharex", True)
-
-    # check that all information can be assessed
-    try:
-        eliobj_res.initialization
-    except KeyError:
-        logger.warning("Can't find 'initialization' in eliobj.results.")
 
     # plot ecdf of initialization distribution
     # differentiate between subplots that have (1) only one row vs.
@@ -135,7 +216,11 @@ def loss(
     """
     eliobj_res, parallel, n_reps = _check_parallel(eliobj)
     # names of loss_components
-    names_losses = list(eliobj_res.history_stats.loss.data_vars)[1:]
+    names_losses = [
+        name
+        for name in eliobj_res.history_stats.loss.data_vars
+        if name not in ("total_loss", "penalty")
+    ]
     # get weights in targets
     if weighted:
         in_title = "weighted "
@@ -164,23 +249,25 @@ def loss(
         )
         for i in success
     ]
-    # plot loss per component
+    # plot loss per component. All replications of a component share one
+    # colour, and only the first replication gets a legend label.
     for i, name in enumerate(names_losses):
         for j in success:
             # preprocess loss_component results
             indiv_losses = (
                 eliobj.results.history_stats.loss.sel(replication=j)
-                .to_dataset()
+                .to_dataset()[names_losses]
                 .to_array()
-                .values[1:, :]
+                .values
             )
-            if j == 0:
-                axes[1].plot(
-                    indiv_losses[i, :] * weights[i], label=name, lw=2, alpha=0.5
-                )
-            else:
-                axes[1].plot(indiv_losses[i, :] * weights[i], lw=2, alpha=0.5)
-        axes[1].legend(fontsize="small", handlelength=0.4, frameon=False)
+            axes[1].plot(
+                indiv_losses[i, :] * weights[i],
+                color=f"C{i}",
+                label=name if j == success[0] else None,
+                lw=2,
+                alpha=0.5,
+            )
+    axes[1].legend(fontsize="small", handlelength=0.4, frameon=False)
     [
         axes[i].set_title(t, fontsize="small")
         for i, t in enumerate(["total loss", in_title + "individual losses"])
@@ -241,9 +328,24 @@ def hyperparameter(
         )
 
     eliobj_res, parallel, n_reps = _check_parallel(eliobj)
-    # get number of hyperparameters and their names
+
+    # check that all information can be assessed
+    try:
+        history = eliobj_res.history_stats.hyperparameter
+    except AttributeError:
+        raise AttributeError(
+            "No information about 'hyperparameter' found in "
+            + "'eliobj.results.history_stats'."
+        )
+
+    # The names come from the model, in the order the initializer uses. They
+    # cannot come from the initialization group: an initializer that draws no
+    # candidates, such as `cmaes`, writes none. A shared hyperparameter is
+    # named once, and the gradients in the history are not hyperparameters.
+    recorded = list(history.data_vars)
     names, n_par, titles = _get_names_titles(
-        eliobj_res.initialization.hyperparameter.values.tolist(), titles
+        list(dict.fromkeys(n for n in hyper_names(eliobj.parameters) if n in recorded)),
+        titles,
     )
 
     # check chains that yield NaN
@@ -257,15 +359,6 @@ def hyperparameter(
     kwargs.setdefault("figsize", (cols * 2, rows * 2))
     kwargs.setdefault("constrained_layout", True)
     kwargs.setdefault("sharex", True)
-
-    # check that all information can be assessed
-    try:
-        eliobj_res.history_stats.hyperparameter
-    except AttributeError:
-        raise AttributeError(
-            "No information about 'hyperparameter' found in "
-            + "'eliobj.results.history_stats'."
-        )
 
     fig, axes = _setup_grid(rows, cols, k, **kwargs)
     for ax, hyp, title in zip(axes, names, titles):
@@ -290,10 +383,82 @@ def hyperparameter(
     return fig, axes
 
 
+def _get_samples(eliobj: Any, samples: Any) -> Any:
+    """
+    Return the samples to plot
+
+    The simulated quantities are not part of `eliobj.results`. Either the
+    caller passes the result of `eliobj.sample()`, or the plot runs one
+    forward simulation of its own.
+
+    Parameters
+    ----------
+    eliobj :
+        fitted eliobj object.
+
+    samples :
+        result of `eliobj.sample()`, or None.
+
+    Returns
+    -------
+    :
+        xr.DataTree with the simulated quantities
+
+    Raises
+    ------
+    AttributeError
+        eliobj has not been fitted yet.
+    """
+    if samples is not None:
+        return samples
+    if not hasattr(eliobj, "results"):
+        raise AttributeError(  # noqa: TRY003
+            "No results found in 'eliobj'. Fit the eliobj first."
+        )
+    return eliobj.sample()
+
+
+def _select_params(name_params: list[str], params: list[str] | None) -> list[str]:
+    """
+    Keep the requested model parameters, in the order of the request
+
+    Parameters
+    ----------
+    name_params
+        names of all model parameters, in the order of the prior samples.
+
+    params
+        names of the requested parameters. If None, all parameters are kept.
+
+    Returns
+    -------
+    :
+        names of the parameters to plot.
+
+    Raises
+    ------
+    ValueError
+        A name in 'params' is not a model parameter.
+
+    """
+    if params is None:
+        return name_params
+
+    unknown = [p for p in params if p not in name_params]
+    if unknown:
+        raise ValueError(
+            f"Unknown parameter(s) {unknown} in 'params'."
+            + f" Available parameters are {name_params}."
+        )
+    return list(params)
+
+
 def prior_joint(
     eliobj: Any,
     idx: int | list[int] | None = None,
     titles: list[str] | None = None,
+    params: list[str] | None = None,
+    samples: Any = None,
     **kwargs: dict[Any, Any],
 ) -> tuple["matplotlib.figure.Figure", list["matplotlib.axes.Axes"]]:
     """
@@ -315,6 +480,12 @@ def prior_joint(
     titles : list of str, optional
         Labels for the main diagonal. If None, the names of the hyperparameters
         will be used. The length of titles should match the number of hyperparameters.
+    params : list of str, optional
+        names of the model parameters to plot, in the order of the rows and
+        columns. If None, all model parameters are plotted.
+    samples : xr.DataTree, optional
+        result of :func:`elicito.elicit.Elicit.sample`. If None, the plot runs one
+        forward simulation of its own.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -336,8 +507,10 @@ def prior_joint(
 
         The value for 'idx' is larger than the number of parallelizations.
 
+        A name in 'params' is not a model parameter.
+
     AttributeError
-        Can't find 'prior' in 'eliobj.results'
+        eliobj has not been fitted yet.
 
     """
     try:
@@ -348,57 +521,52 @@ def prior_joint(
             "plotting", requirement="matplotlib"
         ) from exc
 
-    try:
-        from arviz_stats.base import array_stats  # type: ignore
-    except ImportError as exc:
-        raise MissingOptionalDependencyError(
-            "plotting", requirement="arviz_stats"
-        ) from exc
+    samples = _get_samples(eliobj, samples)
 
     if idx is None:
         idx = [0]
     if type(idx) is not list:
         idx = [idx]  # type: ignore
-    if len(idx) > eliobj.results.prior.sizes["replication"]:
+    if len(idx) > samples["prior"].sizes["replication"]:
         raise ValueError(
             "The value for 'idx' is larger than the number"
             + " of parallelizations. 'idx' should not exceed"
-            + f" {eliobj.results.prior.sizes['replication']} but got {len(idx)}."
+            + f" {samples['prior'].sizes['replication']} but got {len(idx)}."
         )
-    if eliobj.results.history_stats.loss.sizes["epoch"] < eliobj.trainer["epochs"]:
+    recorded = eliobj.results.history_stats.loss.sizes["epoch"]
+    if recorded < _planned_epochs(eliobj, recorded):
         seed = eliobj.results.history_stats.seed_replication.sel(replication=idx).values
         raise ValueError(
             f"Training failed for seed {seed} (index={idx}). Loss is NAN."
             + " No results for plotting available."
         )
 
-    # check that all information can be assessed
-    try:
-        eliobj.results.prior
-    except AttributeError:
-        raise AttributeError(  # noqa: TRY003
-            "No information about 'prior' found in 'eliobj.results'."
-        )
     cmap = mpl.colormaps["turbo"]
     # get parameter names
-    name_params = list(eliobj.results.prior.data_vars)
+    name_params = _select_params(list(samples["prior"].data_vars), params)
     n_params = len(name_params)
     _, _, titles = _get_names_titles(name_params, titles)
 
-    fig, axs = plt.subplots(n_params, n_params, constrained_layout=True, **kwargs)  # type: ignore
+    # `squeeze=False` keeps the two indices of `axs` for a model with one
+    # parameter
+    fig, axs = plt.subplots(  # type: ignore
+        n_params, n_params, constrained_layout=True, squeeze=False, **kwargs
+    )
     colors = cmap(np.linspace(0, 1, len(idx)))
     for c, k in enumerate(idx):
+        # reshape samples by merging batches and number of samples
+        priors = (
+            samples["prior"]
+            .sel(replication=k)
+            .to_dataset()[name_params]
+            .to_array()
+            .stack(stacked=("batch", "draw"))
+            .values
+        )
         for i in range(n_params):
-            # reshape samples by merging batches and number of samples
-            priors = (
-                eliobj.results.prior.sel(replication=k)
-                .to_dataset()
-                .to_array()
-                .stack(stacked=("batch", "draw"))
-                .values
+            _plot_density(
+                axs[i, i], priors[i, :], name_params[i], color=colors[c], lw=2
             )
-            grid, pdf, _ = array_stats.kde(priors[i, :])  # type: ignore
-            axs[i, i].plot(grid, pdf, color=colors[c], lw=2)
 
             axs[i, i].set_xlabel(titles[i], size="small")
             [axs[i, i].tick_params(axis=a, labelsize="x-small") for a in ["x", "y"]]
@@ -406,9 +574,9 @@ def prior_joint(
             axs[i, i].spines[["right", "top"]].set_visible(False)
 
         for i, j in itertools.combinations(range(n_params), 2):
-            grid, pdf, _ = array_stats.kde(priors[i, :])  # type: ignore
-            axs[i, i].plot(grid, pdf, color=colors[c], lw=2)
-            axs[i, j].plot(priors[i, :], priors[j, :], ",", color=colors[c], alpha=0.1)
+            # the column sets the x axis, so the panel shares it with the
+            # density on the diagonal of that column
+            axs[i, j].plot(priors[j, :], priors[i, :], ",", color=colors[c], alpha=0.1)
             [axs[i, j].tick_params(axis=a, labelsize=7) for a in ["x", "y"]]
             axs[j, i].set_axis_off()
             axs[i, j].grid(color="lightgrey", linestyle="dotted", linewidth=1)
@@ -419,7 +587,12 @@ def prior_joint(
 
 
 def prior_marginals(
-    eliobj: Any, cols: int = 4, titles: list[str] | None = None, **kwargs: Any
+    eliobj: Any,
+    cols: int = 4,
+    titles: list[str] | None = None,
+    params: list[str] | None = None,
+    samples: Any = None,
+    **kwargs: Any,
 ) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the convergence of each hyperparameter across epochs.
@@ -434,6 +607,12 @@ def prior_marginals(
     titles : list of str, optional
         titles for each subplot. If None, the names of the hyperparameters
         will be used. The length of titles should match the number of hyperparameters.
+    params : list of str, optional
+        names of the model parameters to plot, in the order of the subplots.
+        If None, all model parameters are plotted.
+    samples : xr.DataTree, optional
+        result of :func:`elicito.elicit.Elicit.sample`. If None, the plot runs one
+        forward simulation of its own.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -450,25 +629,22 @@ def prior_marginals(
     Raises
     ------
     AttributeError
-        Can't find 'prior' in 'eliobj.results'
-    """
-    try:
-        from arviz_stats.base import array_stats  # type: ignore
-    except ImportError as exc:
-        raise MissingOptionalDependencyError(
-            "plotting", requirement="arviz_stats"
-        ) from exc
+        eliobj has not been fitted yet.
 
-    eliobj_res, parallel, n_reps = _check_parallel(eliobj)
+    ValueError
+        A name in 'params' is not a model parameter.
+    """
+    samples = _get_samples(eliobj, samples)
+    _, parallel, n_reps = _check_parallel(eliobj)
     # check chains that yield NaN
     if parallel:
         _, success, _ = _check_NaN(eliobj, n_reps)
     else:
         success = [0]
+    # get parameter names, and keep only the requested ones
+    name_params = _select_params(list(samples["prior"].data_vars), params)
     # get shape of prior samples
-    n_par = len(list(eliobj.results.prior.data_vars))
-    # get parameter names
-    name_params = list(eliobj.results.prior.data_vars)
+    n_par = len(name_params)
     _, _, titles = _get_names_titles(name_params, titles)
     # prepare plot axes
     (cols, rows, _) = _prep_subplots(eliobj, cols, n_par, bounderies=False)
@@ -476,27 +652,21 @@ def prior_marginals(
     kwargs.setdefault("figsize", (cols * 2, rows * 2))
     kwargs.setdefault("constrained_layout", True)
 
-    # check that all information can be assessed
-    try:
-        eliobj_res.prior
-    except AttributeError:
-        raise AttributeError(  # noqa: TRY003
-            "No information about 'prior' found in 'eliobj.results'."
-        )
-
     fig, axes = _setup_grid(rows, cols, **kwargs)
 
     for j, (ax, title) in enumerate(zip(axes, titles)):
         for i in success:
             priors = (
-                eliobj.results.prior.sel(replication=i)
-                .to_dataset()
+                samples["prior"]
+                .sel(replication=i)
+                .to_dataset()[name_params]
                 .stack(combined=("batch", "draw"))
                 .to_array()
                 .values
             )
-            grid, pdf, _ = array_stats.kde(priors[j, :])  # type: ignore
-            ax.plot(grid, pdf, color="black", lw=2, alpha=0.5)
+            _plot_density(
+                ax, priors[j, :], name_params[j], color="black", lw=2, alpha=0.5
+            )
 
         ax.set_title(f"{title}", fontsize="small")
         ax.tick_params(axis="y", labelsize="x-small")
@@ -512,7 +682,7 @@ def prior_marginals(
 
 
 def elicits(
-    eliobj: Any, cols: int = 4, **kwargs: Any
+    eliobj: Any, cols: int = 4, samples: Any = None, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot the expert-elicited vs. model-simulated statistics.
@@ -524,6 +694,9 @@ def elicits(
     cols : int, optional
         number of columns for arranging the subplots in the figure.
         The default is ``4``.
+    samples : xr.DataTree, optional
+        result of :func:`elicito.elicit.Elicit.sample`. If None, the plot runs one
+        forward simulation of its own.
     **kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -543,10 +716,11 @@ def elicits(
         No information about expert 'elicited_summary' found.
 
     """
+    samples = _get_samples(eliobj, samples)
     # check whether parallelization has been used
-    eliobj_res, parallel, n_reps = _check_parallel(eliobj)
+    _, parallel, n_reps = _check_parallel(eliobj)
     # get number of elicited summaries
-    n_elicits = len(eliobj_res.elicited_summary.data_vars)
+    n_elicits = len(samples["elicited_summary"].data_vars)
     # check chains that yield NaN
     if parallel:
         _, success, _ = _check_NaN(eliobj, n_reps)
@@ -559,7 +733,7 @@ def elicits(
     kwargs.setdefault("constrained_layout", True)
 
     # extract quantities of interest needed for plotting
-    name_elicits = list(eliobj_res.elicited_summary.data_vars)
+    name_elicits = list(samples["elicited_summary"].data_vars)
     method_name = [name_elicits[i].split("_")[0] for i in range(n_elicits)]
 
     # check that all information can be assessed
@@ -588,7 +762,7 @@ def elicits(
         elif meth == "cor":
             labels = [("expert", "train")] + [(None, None) for _ in range(n_reps - 1)]
             method = _correlation
-            num_cor = eliobj.results.elicited_summary.to_dataset()[elicit].shape[-1]
+            num_cor = samples["elicited_summary"].to_dataset()[elicit].shape[-1]
             prep = (
                 ax.set_ylim(-1, 1),
                 ax.set_xlim(-0.5, num_cor),
@@ -604,7 +778,7 @@ def elicits(
                 method(
                     ax,
                     expert_res.sel(replication=i)[elicit].values,
-                    eliobj.results.elicited_summary.sel(replication=i)[elicit].values,
+                    samples["elicited_summary"].sel(replication=i)[elicit].values,
                     labels[i],
                 )
                 + prep
@@ -710,7 +884,7 @@ def marginals(
     elicits_std = eliobj.results.history_stats.prior_marginal["std"].values
 
     fig = plt.figure(**kwargs)
-    subfigs = fig.subfigures(2, 1, wspace=0.07)
+    subfigs = cast("np.ndarray[Any, Any]", fig.subfigures(2, 1, wspace=0.07))
     _convergence_plot(
         subfigs[0],
         elicits_means,
@@ -739,7 +913,7 @@ def marginals(
 
 
 def priorpredictive(
-    eliobj: Any, target: str, replication: int = 0, **kwargs: Any
+    eliobj: Any, target: str, replication: int = 0, samples: Any = None, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
     Plot prior predictive distribution (PPD)
@@ -754,6 +928,9 @@ def priorpredictive(
         name of the target quantity to be plotted.
     replication : int, optional
         index of the replication to be plotted. The default is ``0``.
+    samples : xr.DataTree, optional
+        result of :func:`elicito.elicit.Elicit.sample`. If None, the plot runs one
+        forward simulation of its own.
     kwargs : any, optional
         additional keyword arguments that can be passed to specify
         `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
@@ -766,21 +943,15 @@ def priorpredictive(
     Raises
     ------
     AttributeError
-        Can't find 'target_quantity' in 'eliobj.results'.
+        eliobj has not been fitted yet.
 
     ValueError
         Can't find '=target' in list of target quantity names.
 
     """
-    # check that all information can be assessed
-    try:
-        eliobj.results.target_quantity
-    except AttributeError:
-        raise AttributeError(  # noqa: TRY003
-            "No information about 'target_quantity' found in 'eliobj.results'."
-        )
+    samples = _get_samples(eliobj, samples)
 
-    tar_name = list(eliobj.results.target_quantity.data_vars)
+    tar_name = list(samples["target_quantity"].data_vars)
     if target not in tar_name:
         raise ValueError(  # noqa: TRY003
             f"Can't find {target} in list of target quantity names: {tar_name}"
@@ -790,7 +961,7 @@ def priorpredictive(
     kwargs.setdefault("constrained_layout", True)
 
     target_reshaped = (
-        eliobj.results.target_quantity[target]
+        samples["target_quantity"][target]
         .to_dataset()
         .stack(stacked=("batch", "draw"))
         .to_array()
@@ -808,7 +979,6 @@ def priorpredictive(
             color=f"{shade}",
             alpha=0.5,
         )
-    axes[0].legend(fontsize="small", handlelength=0.9, frameon=False)
     axes[0].set_title(f"prior predictive distribution of {target}", fontsize="small")
     axes[0].spines[["right", "top"]].set_visible(False)
     axes[0].tick_params(axis="y", labelsize="x-small")
@@ -827,6 +997,7 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
     weight_factor: float = 1.0,
     seed: int = 123,
     xlim_weights: float = 0.2,
+    samples: Any = None,
     **kwargs: dict[Any, Any],
 ) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
     """
@@ -849,6 +1020,9 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
         weighting factor of each model in prior averaging
     xlim_weights : float, optional
         limit of x-axis of weights plot
+    samples : xr.DataTree, optional
+        result of :func:`elicito.elicit.Elicit.sample`. If None, the plot runs one
+        forward simulation of its own.
     kwargs : any, optional
         additional arguments passed to matplotlib
     """
@@ -866,12 +1040,7 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
             "plotting", requirement="arviz_stats"
         ) from exc
 
-    try:
-        import pandas as pd
-    except ImportError as exc:
-        raise MissingOptionalDependencyError(
-            "data_wrangling", requirement="pandas"
-        ) from exc
+    samples = _get_samples(eliobj, samples)
 
     # prepare plotting
     n_par = len(eliobj.parameters)
@@ -885,29 +1054,29 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
     # modify success for non-parallel case
     if n_reps == 1:
         success = [0]
-        success_name = str(eliobj.trainer["seed"])
+        success_name = [str(eliobj.trainer["seed"])]
     else:
         # remove chains for which training yield NaN
         (_, success, success_name) = _check_NaN(eliobj, n_reps)
 
     # perform model averaging
     (w_MMD, averaged_priors, B, n_samples) = _model_averaging(
-        eliobj, weight_factor, success, n_sim, seed
+        eliobj, weight_factor, success, n_sim, seed, samples
     )
-    # store results in data frame
-    df = pd.DataFrame(dict(weight=w_MMD, seed=[str(i) for i in success_name]))
-    # sort data frame according to weight values
-    df_sorted = df.sort_values(by="weight", ascending=False).reset_index(drop=True)
+    # sort the seeds by weight, largest weight first
+    order = np.argsort(w_MMD)[::-1]
 
     # plot average and single priors
     fig = plt.figure(layout="constrained", **kwargs)  # type: ignore
-    subfigs = fig.subfigures(2, 1, height_ratios=height_ratio)
+    subfigs = cast(
+        "np.ndarray[Any, Any]", fig.subfigures(2, 1, height_ratios=height_ratio)
+    )
     subfig0 = subfigs[0].subplots(1, 1)
     subfig1 = subfigs[1].subplots(rows, cols)
 
     # plot weights of model averaging
-    seeds = np.array(df_sorted["seed"])
-    weights = np.array(df_sorted["weight"])
+    seeds = np.array([str(success_name[i]) for i in order])
+    weights = np.array(w_MMD)[order]
 
     subfig0.barh(seeds, weights, color="darkgrey")
     subfig0.spines[["right", "top"]].set_visible(False)
@@ -927,14 +1096,14 @@ def prior_averaging(  # noqa: PLR0913, PLR0915
         # Plot prior samples for each success
         for i in success:
             prior = (
-                eliobj.results.prior.sel(replication=i)
+                samples["prior"]
+                .sel(replication=i)
                 .to_dataset()
                 .stack(stacked=("batch", "draw"))
                 .to_array()
                 .values
             )
-            grid, pdf, _ = array_stats.kde(prior[j, :])  # type: ignore
-            ax.plot(grid, pdf, color="black", lw=2, alpha=0.5)
+            _plot_density(ax, prior[j, :], title, color="black", lw=2, alpha=0.5)
 
         # Plot averaged prior (in red)
         grid, pdf, _ = array_stats.kde(
@@ -972,6 +1141,7 @@ def _model_averaging(  # noqa: PLR0913
     success: Any,
     n_sim: int,
     seed: int,
+    samples: Any,
     last_vals: int = 30,
 ) -> tuple[Any, ...]:
     # compute final loss per run by averaging over last x values
@@ -997,7 +1167,7 @@ def _model_averaging(  # noqa: PLR0913
     # extract prior samples; shape = (num_sims, B*sim_prior, num_param)
     prior_samples = np.stack(
         [
-            eliobj.results.prior.sel(replication=i).to_dataset().to_array().values
+            samples["prior"].sel(replication=i).to_dataset().to_array().values
             for i in success
         ]
     )
@@ -1166,6 +1336,33 @@ def _convergence_plot(  # noqa: PLR0913
     return axes
 
 
+def _planned_epochs(eliobj: Any, recorded: int) -> int:
+    """
+    Count the history points that a finished run must have
+
+    The gradient fitter writes one point per epoch, so a shorter history means
+    that the run stopped early. The CMA-ES fitter writes one point per
+    generation, and the number of generations is not known before the run.
+
+    Parameters
+    ----------
+    eliobj
+        fitted ``eliobj`` object.
+
+    recorded
+        number of history points that this run wrote.
+
+    Returns
+    -------
+    :
+        expected number of history points.
+
+    """
+    if eliobj.optimizer["optimizer"] == CMAES:
+        return recorded
+    return int(eliobj.trainer["epochs"])
+
+
 def _check_NaN(eliobj: Any, n_reps: int) -> tuple[Any, ...]:
     # check whether some replications stopped with NAN
     ep_run = [
@@ -1173,12 +1370,17 @@ def _check_NaN(eliobj: Any, n_reps: int) -> tuple[Any, ...]:
         for i in range(n_reps)
     ]
     seed_rep = eliobj.results.history_stats.seed_replication.values
+
+    # a replication of a CMA-ES run that stopped early has fewer points than
+    # the other replications
+    n_planned = _planned_epochs(eliobj, max(ep_run))
+
     # extract successful and failed seeds and indices for further plotting
     fail = []
     success = []
     success_name = []
     for i, ep in enumerate(ep_run):
-        if ep < eliobj.trainer["epochs"]:
+        if ep < n_planned:
             fail.append((i, seed_rep[i]))
         else:
             success.append(i)

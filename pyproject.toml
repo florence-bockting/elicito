@@ -8,11 +8,11 @@ authors = [
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11, <3.14"
 dependencies = [
-    "tqdm >= 4.38",
+    "joblib >= 1.4.2",
     "numpy >= 1.24",
+    "rich >= 13.0",
     "tensorflow >= 2.16.0",
     "tensorflow-probability >= 0.24.0",
-    "joblib >= 1.4.2",
     "tf-keras >= 2.16.0",
     "xarray>=2025.9.0",
 ]
@@ -48,17 +48,17 @@ plots = [
     "matplotlib>=3.7.1",
     "arviz_stats>=0.6.0",
 ]
-pandas = [
-    "pandas>=2.2.3"
-]
 scipy = [
     "scipy>=1.14.0"
+]
+cma = [
+    "cma>=3.4.0"
 ]
 
 full = [
     "elicito[plots]",
-    "elicito[pandas]",
     "elicito[scipy]",
+    "elicito[cma]",
 ]
 
 [dependency-groups]
@@ -77,10 +77,8 @@ dev = [
     "jupyter >= 1.1.1",
     # Required for type-checking
     "types-tensorflow>=2.18.0",
-    "types-tqdm>=4.67.0",
     "scipy-stubs<1.15; python_full_version >= '3.11'",
     "joblib-stubs>=1.4.2",
-    "pandas-stubs>=2.3.0.250703",
     # xarray stubs
     "accessor-stubs>=0.0.1",
     # Required for liccheck, see https://github.com/dhatim/python-license-check/pull/113
@@ -416,6 +414,10 @@ authorized_licenses = [
     "bsd license",
     "BSD 3-Clause",
     "3-Clause BSD",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+    "MPL-2.0 AND MIT",
     "CC0",
     "apache",
     "apache 2.0",

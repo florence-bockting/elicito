@@ -46,7 +46,7 @@ def test_initialization_multivariate_normal(param):
             [[0.36, 0.12, 0.06], [0.12, 0.29, -0.13], [0.06, -0.13, 0.26]]
         ),
     )
-    init_prior = el.simulations.intialize_priors(
+    init_prior = el.parameters.priors.intialize_priors(
         init_matrix_slice,
         method="parametric_prior",
         seed=1,
@@ -71,14 +71,14 @@ def test_sample_multivariate_normal(param):
     init_matrix_slice = dict(
         mus=[0.5, 0.3, 0.1], cov_matrix=tf.linalg.cholesky(covariance_matrix)
     )
-    init_prior = el.simulations.intialize_priors(
+    init_prior = el.parameters.priors.intialize_priors(
         init_matrix_slice,
         method="parametric_prior",
         seed=1,
         parameters=param,
         network=None,
     )
-    samples = el.simulations.sample_from_priors(
+    samples = el.parameters.priors.sample_from_priors(
         initialized_priors=init_prior,
         ground_truth=False,
         num_samples=10_000,
@@ -92,8 +92,14 @@ def test_sample_multivariate_normal(param):
 
     np.testing.assert_array_equal(samples.shape, (100, 10_000, 3))
 
+    # a relative tolerance on the smallest mean, 0.1, is 1.3 Monte Carlo
+    # standard errors, so it fails for one draw in five. The absolute
+    # tolerance is 12 standard errors.
     np.testing.assert_allclose(
-        tf.reduce_mean(samples, (0, 1)), init_matrix_slice["mus"], rtol=1e-2
+        tf.reduce_mean(samples, (0, 1)),
+        init_matrix_slice["mus"],
+        rtol=1e-2,
+        atol=1e-2,
     )
 
     np.testing.assert_allclose(
@@ -124,7 +130,7 @@ def test_trainable_variables_multivariate_normal(param):
         hyperparams=dict(mus=[0.5, 0.3, 0.1], cov_matrix=tf.eye(3)),
     )
 
-    init_priors = el.simulations.Priors(
+    init_priors = el.parameters.priors.Priors(
         ground_truth=False,
         init_matrix_slice=init_matrix["hyperparams"],
         trainer=dict(method="parametric_prior"),

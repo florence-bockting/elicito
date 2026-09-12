@@ -1,16 +1,22 @@
 """
-Hyperparameter initialization for parametric prior
+Initialization by sampling candidates from a box
 """
 
+import logging
 from collections.abc import Iterable
 from typing import Any, Optional, Union
 
+import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
-from tqdm import tqdm
 
-import elicito as el
+from elicito import models
+from elicito._progress import ProgressTable
 from elicito.exceptions import MissingOptionalDependencyError
+from elicito.initializers._base import InitResult, _check_box, _select_candidate
+from elicito.losses import total_loss
+from elicito.optimizers import sgd
+from elicito.parameters.priors import Priors
 from elicito.types import (
     ExpertDict,
     Initializer,
@@ -18,9 +24,79 @@ from elicito.types import (
     Parameter,
     Target,
     Trainer,
+    Uniform,
 )
 
 tfd = tfp.distributions
+logger = logging.getLogger(__name__)
+
+
+class BoxSample:
+    """Draw candidates from a box and keep that with minimum loss."""
+
+    name = "box"
+    default_iterations = 32
+
+    def check(self, initializer: Initializer) -> None:
+        """Reject an input this method cannot use."""
+        _check_box(initializer)
+
+    def skips_search(self, optimizer: dict[str, Any]) -> bool:
+        """Whether the training repeats this search, so it can be dropped."""
+        return False
+
+    def propose(  # noqa: PLR0913
+        self,
+        expert_elicited_statistics: dict[str, tf.Tensor],
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+        optimizer: dict[str, Any],
+        model: dict[str, Any],
+        targets: list[Target],
+        network: Optional[NFDict],
+        expert: ExpertDict,
+        seed: int,
+        progress: int,
+    ) -> InitResult:
+        """Score every candidate, then keep one."""
+        loss_list, init_var_list, init_matrix = init_runs(
+            expert_elicited_statistics=expert_elicited_statistics,
+            initializer=initializer,
+            parameters=parameters,
+            trainer=trainer,
+            optimizer=optimizer,
+            model=model,
+            targets=targets,
+            network=network,
+            expert=expert,
+            seed=seed,
+            progress=progress,
+        )
+        idx = _select_candidate(loss_list, initializer)
+        return InitResult(
+            prior_model=init_var_list[idx],
+            candidates=init_matrix,
+            losses=loss_list,
+        )
+
+    def dry_run_slice(
+        self,
+        initializer: Initializer,
+        parameters: list[Parameter],
+        trainer: Trainer,
+    ) -> Any:
+        """Return a slice of the right shape for ``Elicit.__init__``."""
+        init_matrix = uniform_samples(
+            seed=trainer["seed"],
+            hyppar=initializer["distribution"]["hyper"],  # type: ignore [index, arg-type]
+            n_samples=initializer["iterations"],  # type: ignore [arg-type]
+            method=initializer["method"],  # type: ignore [arg-type]
+            mean=initializer["distribution"]["mean"],  # type: ignore [index]
+            radius=initializer["distribution"]["radius"],  # type: ignore [index]
+            parameters=parameters,
+        )
+        return {f"{key}": init_matrix[key][0] for key in init_matrix}
 
 
 def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
@@ -38,7 +114,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     Parameters
     ----------
     seed
-        User-specified seed as defined in [`trainer`][elicito.elicit.trainer].
+        User-specified seed as defined in [`trainer`][elicito.specs.trainer].
 
     hyppar
         List of hyperparameter names (strings) declaring the order for the
@@ -66,7 +142,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     parameters
         List including dictionary with all information about the (hyper-)parameters.
         Can be retrieved as attribute from the initialized
-        [`Elicit`][elicito.Elicit] obj (i.e., `eliobj.parameters`)
+        [`Elicit`][elicito.elicit.Elicit] obj (i.e., `eliobj.parameters`)
 
     Raises
     ------
@@ -165,13 +241,18 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
             )
             raise ValueError(msg)
 
-        # initialize sampler
+        # One design over all hyperparameters, as in the branch above. A
+        # separate one-dimensional sequence per hyperparameter runs in nearly
+        # the same order for each of them, which correlates the columns and
+        # leaves the candidates on a diagonal of the box.
         if method == "sobol":
-            sampler = qmc.Sobol(d=1, seed=seed)
+            sampler = qmc.Sobol(d=len(hyppar), seed=seed)
+            sample_data = sampler.random(n=n_samples)
         elif method == "lhs":
-            sampler = qmc.LatinHypercube(d=1, seed=seed)
+            sampler = qmc.LatinHypercube(d=len(hyppar), seed=seed)
+            sample_data = sampler.random(n=n_samples)
 
-        for i, j, n in zip(mean, radius, hyppar):
+        for column, (i, j, n) in enumerate(zip(mean, radius, hyppar)):
             i_casted = tf.cast(i, tf.float32)
             j_casted = tf.cast(j, tf.float32)
 
@@ -179,10 +260,9 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
                 uniform_samples = tfd.Uniform(
                     tf.subtract(i_casted, j_casted),
                     tf.add(i_casted, j_casted),
-                ).sample((n_samples, 1))
+                ).sample((n_samples,))
             else:
-                sample_data = sampler.random(n=n_samples)
-                tensor_data = tf.convert_to_tensor(sample_data)
+                tensor_data = tf.convert_to_tensor(sample_data[:, column])
                 # Inverse transform
                 sample_dat = tf.cast(tensor_data, tf.float32)
                 uniform_samples = tfd.Uniform(
@@ -190,7 +270,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
                     tf.add(i_casted, j_casted),
                 ).quantile(sample_dat)
 
-            res_dict[n] = tf.squeeze(uniform_samples, axis=-1)
+            res_dict[n] = uniform_samples
     return res_dict
 
 
@@ -199,6 +279,7 @@ def init_runs(  # noqa: PLR0913
     initializer: Initializer,
     parameters: list[Parameter],
     trainer: Trainer,
+    optimizer: dict[str, Any],
     model: dict[str, Any],
     targets: list[Target],
     network: Optional[NFDict],
@@ -214,29 +295,33 @@ def init_runs(  # noqa: PLR0913
     Parameters
     ----------
     expert_elicited_statistics
-        User-specified expert data as provided by [`Elicit`][elicito.elicit.Expert].
+        User-specified expert data as provided by [`Elicit`][elicito.specs.Expert].
 
     initializer
-        User-input from [`initializer`][elicito.elicit.initializer].
+        User-input from [`initializer`][elicito.initializers.spec.initializer].
 
     parameters
-        User-input from [`parameter`][elicito.elicit.parameter].
+        User-input from [`parameter`][elicito.specs.parameter].
 
     trainer
-        User-input from [`trainer`][elicito.elicit.trainer].
+        User-input from [`trainer`][elicito.specs.trainer].
+
+    optimizer
+        User-input from [`optimizer`][elicito.specs.optimizer]. Used to run
+        the warm-up epochs of a candidate.
 
     model
-        User-input from [`model`][elicito.elicit.model].
+        User-input from [`model`][elicito.specs.model].
 
     targets
-        User-input from [`target`][elicito.elicit.target].
+        User-input from [`target`][elicito.specs.target].
 
     network
         User-input from one of the methods implemented in the
-        [`networks`][elicito.networks] module.
+        [`networks`][elicito.parameters.networks] module.
 
     expert
-        User-input from [`Expert`][elicito.elicit.Expert].
+        User-input from [`Expert`][elicito.specs.Expert].
 
     seed
         internal seed for reproducible results
@@ -259,8 +344,10 @@ def init_runs(  # noqa: PLR0913
 
     """
     # create a copy of the seed variable for incremental increase of seed
-    # for each initialization run
-    seed_copy = tf.identity(seed)
+    # for each initialization run. It stays a Python integer: a tensor seed
+    # reaches `tf.random.set_seed`, and the graph of a compiled forward pass
+    # then cannot read the global seed.
+    seed_copy = int(seed)
     # set seed
     tf.random.set_seed(seed)
     # initialize saving of results
@@ -269,23 +356,29 @@ def init_runs(  # noqa: PLR0913
     save_prior = []
 
     # sample initial values
-    if initializer["distribution"] is not None:
+    distribution: Any = initializer["distribution"]
+    if distribution is not None:
         init_matrix = uniform_samples(
             seed=seed,
-            hyppar=initializer["distribution"]["hyper"],  # type: ignore [arg-type]
+            hyppar=distribution["hyper"],
             n_samples=initializer["iterations"],  # type: ignore [arg-type]
             method=initializer["method"],  # type: ignore [arg-type]
-            mean=initializer["distribution"]["mean"],
-            radius=initializer["distribution"]["radius"],
+            mean=distribution["mean"],
+            radius=distribution["radius"],
             parameters=parameters,
         )
 
-    epochs: Any
-    if progress == 1:
-        print("Initialization")
-        epochs = tqdm(range(initializer["iterations"]))  # type: ignore [arg-type]
-    else:
-        epochs = range(initializer["iterations"])  # type: ignore [arg-type]
+    epochs = range(initializer["iterations"])  # type: ignore [arg-type]
+    bar = ProgressTable(
+        "Initialization",
+        total=initializer["iterations"],  # type: ignore [arg-type]
+        disable=progress != 1,
+        loss=float("nan"),
+    )
+
+    # a candidate is scored by its loss after `warmup_epochs` training epochs.
+    # `0` scores it at epoch 0, which is the previous behaviour.
+    warmup_epochs = int(initializer.get("warmup_epochs", 0) or 0)
 
     for i in epochs:
         # update seed
@@ -293,7 +386,7 @@ def init_runs(  # noqa: PLR0913
         # extract initial hyperparameter value for each run
         init_matrix_slice = {f"{key}": init_matrix[key][i] for key in init_matrix}
         # initialize prior distributions based on initial hyperparameters
-        prior_model = el.simulations.Priors(
+        prior_model = Priors(
             ground_truth=False,
             init_matrix_slice=init_matrix_slice,
             trainer=trainer,
@@ -303,111 +396,77 @@ def init_runs(  # noqa: PLR0913
             seed=seed_copy,
         )
 
-        # simulate from priors and generative model and compute the
-        # elicited statistics corresponding to the initial hyperparameters
-        (training_elicited_statistics, *_) = el.utils.one_forward_simulation(
-            prior_model=prior_model, model=model, targets=targets, seed=seed
-        )
+        if warmup_epochs > 0:
+            # a low loss at epoch 0 does not show whether the trajectory is
+            # stable. The candidate keeps its trained values; init_matrix
+            # records the drawn values from before the warm-up.
+            warmup_trainer = trainer.copy()
+            warmup_trainer["epochs"] = warmup_epochs
+            warmup_trainer["progress"] = 0
 
-        # compute discrepancy between expert elicited statistics and
-        # simulated data corresponding to initial hyperparameter values
-        (loss, *_) = el.losses.total_loss(
-            elicit_training=training_elicited_statistics,
-            elicit_expert=expert_elicited_statistics,
-            targets=targets,
-        )
+            history, _ = sgd.sgd_training(
+                expert_elicited_statistics=expert_elicited_statistics,
+                prior_model_init=prior_model,
+                trainer=warmup_trainer,
+                optimizer=optimizer,
+                model=model,
+                targets=targets,
+                parameters=parameters,
+                seed=seed_copy,
+                progress=0,
+            )
+            # sgd_training stores a scalar; the epoch-0 branch and
+            # _outputs.create_init_group both expect shape (1,)
+            loss = tf.reshape(history["loss"][-1], (1,))
+        else:
+            # simulate from priors and generative model and compute the
+            # elicited statistics corresponding to the initial hyperparameters
+            (training_elicited_statistics, _, _, target_quantities) = (
+                models.one_forward_simulation(
+                    prior_model=prior_model, model=model, targets=targets, seed=seed
+                )
+            )
+
+            # compute discrepancy between expert elicited statistics and
+            # simulated data corresponding to initial hyperparameter values
+            (loss, *_) = total_loss(
+                elicit_training=training_elicited_statistics,
+                elicit_expert=expert_elicited_statistics,
+                targets=targets,
+            )
+
+            # A quantile query hides an overflow: the 95% quantile of a sample
+            # with a few infinite draws is still finite. A candidate that
+            # overflows must not be selected, so mark it as failed here.
+            if not models.all_finite(target_quantities):
+                loss = tf.fill(tf.shape(loss), tf.constant(np.nan, loss.dtype))
         # save loss value, initial hyperparameter values and initialized prior
         # model for each run
         init_var_list.append(prior_model)
         save_prior.append(prior_model.trainable_variables)
         loss_list.append(loss.numpy())
-    if progress == 1:
-        print(" ")
+        bar.update(loss=float(tf.squeeze(loss)))
+    bar.close()
+
+    # A candidate with a non-finite loss cannot be used as a start value. It
+    # is kept in the list, so that loss_list stays aligned with init_matrix
+    # for the initialization plot. Selection skips it.
+    n_failed = int(np.sum(~np.isfinite(np.asarray(loss_list, dtype=np.float64))))
+    if n_failed > 0:
+        logger.info(
+            f"{n_failed} of {len(loss_list)} initialization candidates yield a"
+            " non-finite loss. They are excluded from the selection of the"
+            " start value."
+        )
+
     return loss_list, init_var_list, init_matrix
-
-
-def init_prior(  # noqa: PLR0913
-    expert_elicited_statistics: dict[str, tf.Tensor],
-    initializer: Optional[Initializer],
-    parameters: list[Parameter],
-    trainer: Trainer,
-    model: dict[str, Any],
-    targets: list[Target],
-    network: Optional[NFDict],
-    expert: ExpertDict,
-    seed: int,
-    progress: int,
-) -> tuple[Any, Any, Any, Any]:
-    """
-    Extract target loss and initialize prior model
-
-    Parameters
-    ----------
-    expert_elicited_statistics
-        Expert-elicited statistics
-
-    initializer
-        Initialization of hyperparameter values
-
-    parameters
-        Specification of model parameters
-
-    trainer
-        Specification of trainer settings for the optimization process
-
-    model
-        Generative model
-
-    targets
-        Elicitation techniques and target quantities
-
-    network
-        Generative model for learning non-parametric priors
-
-    expert
-        Expert specification
-
-    seed
-        Internally used seed for reproducible results
-
-    progress
-        whether progress should be printed or muted
-
-    Returns
-    -------
-    init_prior_model :
-        initialized priors that will be used for the training phase.
-
-    loss_list :
-        list with all losses computed for each initialization run.
-
-    init_prior :
-        list with initializer prior model for each run.
-
-    init_matrix :
-        dictionary with *keys* being the hyperparameter names and *values*
-        being the drawn initial values per run.
-
-    """
-    return el.methods.get_method(trainer["method"]).initialize(
-        expert_elicited_statistics=expert_elicited_statistics,
-        initializer=initializer,
-        parameters=parameters,
-        trainer=trainer,
-        model=model,
-        targets=targets,
-        network=network,
-        expert=expert,
-        seed=seed,
-        progress=progress,
-    )
 
 
 def uniform(
     radius: Union[float, list[float]] = 1.0,
     mean: Union[float, list[float]] = 0.0,
     hyper: Optional[list[str]] = None,
-) -> dict[Any, Any]:
+) -> Uniform:
     """
     Specify uniform initialization distribution
 
@@ -440,7 +499,7 @@ def uniform(
         The default is ``0.``.
 
     hyper
-        List of hyperparameter names as specified in [`hyper`][elicito.elicit.hyper].
+        List of hyperparameter names as specified in [`hyper`][elicito.specs.hyper].
         The values provided in **radius** and **mean** should follow the order
         of hyperparameters indicated in this list.
         If a float is passed to **radius** and **mean** this argument is not
@@ -463,6 +522,6 @@ def uniform(
             msg = "`hyper`, `mean`, and `radius` must have the same length."
             raise AssertionError(msg)
 
-    init_dict = dict(radius=radius, mean=mean, hyper=hyper)
+    init_dict = Uniform(radius=radius, mean=mean, hyper=hyper)
 
     return init_dict

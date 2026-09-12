@@ -3,7 +3,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 import elicito as el
-from elicito.networks import InvertibleNetwork
+from elicito.parameters.networks import InvertibleNetwork
 
 tfd = tfp.distributions
 
@@ -98,7 +98,7 @@ def test_parametric_prior():
     initializer = el.initializer(
         method="random",
         iterations=32,
-        distribution=el.initialization.uniform(radius=2.0, mean=0.0),
+        distribution=el.initializers.uniform(radius=2.0, mean=0.0),
     )
 
     eliobj = el.Elicit(
@@ -204,7 +204,7 @@ def test_invertible_network():
     initializer = el.initializer(
         method="random",
         iterations=32,
-        distribution=el.initialization.uniform(radius=2.0, mean=0.0),
+        distribution=el.initializers.uniform(radius=2.0, mean=0.0),
     )
 
     eliobj = el.Elicit(

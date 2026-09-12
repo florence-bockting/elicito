@@ -1,5 +1,5 @@
 """
-Unittests for elicit.py module
+Unittests for specs.py module
 """
 
 import pytest
@@ -7,13 +7,13 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 import elicito as el
-from elicito.elicit import Dtype, VariableType, hyper, parameter
-from elicito.utils import (
+from elicito.parameters.bijections import (
     DoubleBound,
     LowerBound,
     UpperBound,
     identity,
 )
+from elicito.specs import Dtype, VariableType, hyper, parameter
 
 tfd = tfp.distributions
 
@@ -143,11 +143,19 @@ def test_model():
         el.model(TestModel2)
 
 
+def test_initializer_defaults():
+    """no argument gives a Nelder-Mead search on the default uniform box"""
+    init = el.initializer()
+    assert init["method"] == "warmstart"
+    assert init["iterations"] == 100
+    assert init["distribution"] == el.initializers.uniform()
+
+
 def test_initializer():
     msg = "If method is None, 'distribution' must also be None."
     with pytest.raises(ValueError, match=msg):
         el.initializer(
-            method=None, distribution=el.initialization.uniform(radius=1, mean=0)
+            method=None, distribution=el.initializers.uniform(radius=1, mean=0)
         )
 
     msg = "If method is None, 'iterations' must also be None."
@@ -163,19 +171,16 @@ def test_initializer():
     with pytest.raises(ValueError, match=msg):
         el.initializer(method=None, hyperparams=None)
 
-    msg = "If 'distribution' is None, then 'method' must also be None."
-    with pytest.raises(ValueError, match=msg):
-        el.initializer(method="random", distribution=None, iterations=32)
-
+    # the list of valid names comes from the initialization registry
     msg = (
-        "Currently implemented initialization "
-        "methods are 'random', 'sobol', and 'lhs', but got method='something'"
-        " as input."
+        "Currently implemented initialization methods are "
+        "'cmaes', 'lhs', 'random', 'sobol', 'warmstart', but got "
+        "method='something' as input."
     )
     with pytest.raises(ValueError, match=msg):
         el.initializer(
             method="something",
-            distribution=el.initialization.uniform(radius=1, mean=0),
+            distribution=el.initializers.uniform(radius=1, mean=0),
             iterations=32,
         )
 
@@ -195,6 +200,12 @@ def test_trainer():
     )
     with pytest.raises(ValueError, match=msg):
         el.trainer(method="some_prior", seed=1, epochs=3)
+
+    msg = "The weight kappa cannot be negative. Got kappa=-1.0."
+    with pytest.raises(ValueError, match=msg):
+        el.trainer(method="deep_prior", seed=1, epochs=3, kappa=-1.0)
+
+    assert el.trainer(method="deep_prior", seed=1, epochs=3)["kappa"] == 0.0
 
 
 def test_optimizer_default_is_a_class():

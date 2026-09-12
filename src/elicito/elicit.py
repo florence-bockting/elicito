@@ -1,981 +1,860 @@
 """
-setting-up the elicitation method with Elicit
+The Elicit object, which fits, samples and saves an elicitation method
 """
 
-import inspect
-from typing import Any, Callable, Optional
+import warnings
+from collections import defaultdict
+from collections.abc import Callable
+from types import SimpleNamespace
+from typing import Any
 
+import joblib
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
+from joblib.externals.loky.backend.context import (  # type: ignore [import-untyped]
+    get_context,
+)
 
+from elicito import (
+    _checks,
+    _outputs,
+    _storage,
+    initializers,
+    models,
+    optimizers,
+    parameters,
+    specs,
+    utils,
+)
+from elicito._progress import SeedTable, run_in_worker
+from elicito.parameters.priors import Priors
 from elicito.types import (
     ExpertDict,
-    Hyper,
     Initializer,
     MetaSettings,
+    NFDict,
+    Parallel,
     Parameter,
-    PriorMethods,
-    ProgressMethod,
-    QueriesDict,
     SamplingMethod,
     Target,
     Trainer,
-    Uniform,
-    VariableType,
-)
-from elicito.utils import (
-    DoubleBound,
-    LowerBound,
-    UpperBound,
-    identity,
 )
 
 tfd = tfp.distributions
 
 
-class Dtype:
+def _default_initializer(
+    optimizer: dict[str, Any], initializer: Initializer | None
+) -> Initializer | None:
+    """Use the default box of CMA-ES, and ignore a user initializer for it"""
+    if optimizer["optimizer"] != optimizers.cmaes.CMAES:
+        return initializer
+    if initializer is not None:
+        warnings.warn(
+            f"optimizer='{optimizers.cmaes.CMAES}' ignores the initializer. "
+            "Set the step size with el.optimizer(sigma0=...).",
+            UserWarning,
+            stacklevel=3,
+        )
+    return initializers.initializer(method=SamplingMethod.cmaes)
+
+
+def dry_run(  # noqa: PLR0913
+    model: dict[str, Any],
+    parameters: list[Parameter],
+    targets: list[Target],
+    trainer: Trainer,
+    initializer: Initializer,
+    network: NFDict | None,
+) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any], Any]:
     """
-    Create a tensorflow scalar or array depending on the vtype attribute.
+    Run generative model in forward mode for a single epoch
 
-    Attributes
+    Parameters
     ----------
-    vtype
-        Type of input x.
+    model
+        User-input from [`model`][elicito.specs.model].
 
-    dim
-        Dimensionality of input x.
-        Scalar: `dim = 1`; Vector: `dim > 1`
+    parameters
+        User-input from [`parameter`][elicito.specs.parameter].
+
+    targets
+        User-input from [`target`][elicito.specs.target].
+
+    trainer
+        User-input from [`trainer`][elicito.specs.trainer].
+
+    initializer
+        User-input from [`initializer`][elicito.initializers.spec.initializer].
+
+    network
+        User-input from one of the methods implemented in the
+        [`networks`][elicito.parameters.networks] module.
 
     Returns
     -------
     :
-        Tensor of shape depending on `vtype` and `dim`.
+        (elicited_statistics, prior_samples, model_simulations,
+        target_quantities, prior_model)
+    """
+    init_matrix_slice = (
+        None
+        if initializer is None
+        else initializers.methods.resolve_init_method(initializer).dry_run_slice(
+            initializer, parameters, trainer
+        )
+    )
+
+    prior_model = Priors(
+        ground_truth=False,
+        init_matrix_slice=init_matrix_slice,
+        trainer=trainer,
+        parameters=parameters,
+        network=network,
+        expert=None,  # type: ignore
+        seed=trainer["seed"],
+    )
+
+    (elicited_statistics, prior_samples, model_simulations, target_quantities) = (
+        models.one_forward_simulation(
+            prior_model=prior_model, model=model, targets=targets, seed=trainer["seed"]
+        )
+    )
+
+    return (
+        elicited_statistics,
+        prior_samples,
+        model_simulations,
+        target_quantities,
+        prior_model,
+    )
+
+
+class Elicit:
+    """
+    Configure the elicitation method
     """
 
-    def __init__(self, vtype: VariableType, dim: int):
+    def __init__(  # noqa: PLR0913
+        self,
+        model: dict[str, Any],
+        parameters: list[Parameter],
+        targets: list[Target],
+        expert: ExpertDict,
+        trainer: Trainer,
+        optimizer: dict[str, Any],
+        network: NFDict | None = None,
+        initializer: Initializer | None = None,
+        meta_settings: MetaSettings | None = None,
+    ):
         """
-        Initialize Dtype
+        Specify the elicitation method
 
         Parameters
         ----------
-        vtype
-            Type of input x.
-            either real, array, cov, or cov2tril
+        model
+            specification of generative model using [`model`][elicito.specs.model].
 
-        dim
-            Dimensionality of input
-        """
-        self.vtype = vtype
-        self.dim = dim
+        parameters
+            list of model parameters specified with [`parameter`][elicito.specs.parameter].
 
-    def __call__(self, x: tf.Tensor) -> tf.Tensor:
-        """
-        Apply data type to input x
+        targets
+            list of target quantities specified with [`target`][elicito.specs.target].
 
-        Parameters
-        ----------
-        x
-            input x
+        expert
+            provide input data from expert or simulate data from oracle with
+            either the ``data`` or ``simulator`` method of the
+            [`Expert`][elicito.specs.Expert] module.
+
+        trainer
+            specification of training settings and meta-information for
+            workflow using [`trainer`][elicito.specs.trainer].
+
+        optimizer
+            specification of SGD optimizer and its settings using
+            [`optimizer`][elicito.specs.optimizer].
+
+        network
+            specification of neural network using a method implemented in
+            [`networks`][elicito.parameters.networks].
+            Only required for ``deep_prior`` method.
+
+        initializer
+            specification of initialization settings using
+            [`initializer`][elicito.initializers.spec.initializer].
+            Only required for ``parametric_prior`` method. With
+            ``optimizer="cmaes"``, the initializer is ignored with a warning.
+
+        meta_settings
+            dictionary of meta settings for the elicitation workflow. See
+            [`meta_settings`][elicito.types.MetaSettings] for available options.
 
         Returns
         -------
-        :
-            input x with correct type
-        """
-        if self.vtype == VariableType.real:
-            dtype_dim = tf.cast(x, dtype=tf.float32)
-        if self.vtype == VariableType.array:
-            dtype_dim = tf.constant(x, dtype=tf.float32, shape=(self.dim,))
-        if self.vtype == VariableType.cov:
-            dtype_dim = tf.constant(x, dtype=tf.float32, shape=(self.dim, self.dim))
-        if self.vtype == VariableType.cov2tril:
-            dtype_dim = tf.linalg.cholesky(
-                tf.constant(x, dtype=tf.float32, shape=(self.dim, self.dim))
-            )
-        return dtype_dim
+        eliobj :
+            specification of all settings to run the elicitation workflow and
+            fit the eliobj.
 
+        Raises
+        ------
+        AssertionError
+            ``expert`` data are not in the required format. Correct specification of
+            keys can be checked using
+            [`get_expert_datformat`][elicito.utils.get_expert_datformat]
 
-def hyper(  # noqa: PLR0913
-    name: str,
-    lower: float = float("-inf"),
-    upper: float = float("inf"),
-    vtype: VariableType = VariableType.real,
-    dim: int = 1,
-    shared: bool = False,
-) -> Hyper:
-    """
-    Specify prior hyperparameters.
+            Dimensionality of ``ground_truth`` for simulating expert data, must be
+            the same as the number of model parameters.
 
-    Parameters
-    ----------
-    name
-        Custom name of hyperparameter.
+        ValueError
+            if ``method = "deep_prior"``, ``network`` can't be None and ``initialization``
+            should be None.
 
-    lower
-        Lower bound of hyperparameter.
+            if ``method="deep_prior"``, ``num_params`` as specified in the ``network_specs``
+            argument (section: network) does not match the number of parameters
+            specified in the parameters section.
 
-    upper
-        Upper bound of hyperparameter.
+            if ``method="parametric_prior"``, ``network`` should be None and
+            ``initialization`` can't be None.
 
-    vtype
-        Hyperparameter type. Either "real", "array",
-        "cov" or "cov2tril" (lower triangular of
-        covariance matrix realised via cholesky(cov))
+            if ``method ="parametric_prior" and multiple hyperparameter have
+            the same name but are not shared by setting ``shared = True``."
 
-    dim
-        Dimensionality of variable.
-        Only required if `vtype = "array"`.
+            if ``hyperparams`` is specified in section ``initializer`` and a
+            hyperparameter name (key in hyperparams dict) does not match any
+            hyperparameter name specified in [`hyper`][elicito.specs.hyper].
 
-    shared
-        Shared hyperparameter between model parameters.
+        NotImplementedError
+            [network] Currently only the standard normal distribution is
+            implemented as base distribution. See
+            [GitHub issue #35](https://github.com/florence-bockting/prior_elicitation/issues/35).
 
-    Returns
-    -------
-    hyppar_dict :
-        Dictionary including all hyperparameter settings.
+        """  # noqa: E501
+        if meta_settings is None:
+            meta_settings = specs.meta_settings()
 
-    Raises
-    ------
-    ValueError
-        ``lower``, ``upper`` take only values that are float
-        or `"-inf"`or `"inf"`.
+        initializer = _default_initializer(optimizer, initializer)
 
-        ``lower`` value should not be higher than ``upper`` value.
-
-        ``vtype`` value can only be either 'real', 'array', 'cov', or 'cov2tril'
-
-        ``dim`` value can't be '1' if 'vtype="array"'
-
-    Examples
-    --------
-    >>> # sigma hyperparameter of a parametric distribution
-    >>> el.hyper(name="sigma0", lower=0)  # doctest: +SKIP
-
-    >>> # shared hyperparameter
-    >>> el.hyper(name="sigma", lower=0, shared=True)  # doctest: +SKIP
-
-    """
-    # check correct value for lower
-    if lower == "-inf":  # type: ignore
-        lower = float("-inf")
-
-    if (type(lower) is str) and (lower != "-inf"):  # type: ignore
-        msg = "Lower must be either '-inf' or a float." "Other strings are not allowed."
-        raise ValueError(msg)
-
-    # check correct value for upper
-    if upper == "inf":  # type: ignore
-        upper = float("inf")
-    if (type(upper) is str) and (upper != "inf"):  # type: ignore
-        msg = "Upper must be either 'inf' or a float." "Other strings are not allowed."
-        raise ValueError(msg)
-
-    if lower > upper:
-        msg = "The value for 'lower' must be smaller than the value for 'upper'."
-        raise ValueError(msg)
-
-    # check values for vtype are implemented
-    if vtype not in ["real", "array", "cov", "cov2tril"]:
-        msg = (
-            "vtype must be either 'real', 'array', 'cov', 'cov2tril'. "
-            f"You provided {vtype=}."
+        _checks.check_elicit(
+            model,
+            parameters,
+            targets,
+            expert,
+            trainer,
+            optimizer,
+            network,
+            initializer,
+            meta_settings,
         )
-        raise ValueError(msg)
 
-    # check that dimensionality is adapted when "array" is chosen
-    if (vtype == "array") and dim == 1:
-        msg = "For vtype='array', the 'dim' argument must have a value greater 1."
-        raise ValueError(msg)
+        self.model = model
+        self.parameters = parameters
+        self.targets = targets
+        self.expert = expert
+        self.trainer = trainer
+        self.optimizer = optimizer
+        self.network = network
+        self.initializer = initializer
+        self.meta_settings = meta_settings
 
-    # constraints
-    # only lower bound
-    if (lower != float("-inf")) and (upper == float("inf")):
-        lower_bound = LowerBound(lower=lower)
-        transform = lower_bound.inverse
-        constraint_name = "softplusL"
-    # only upper bound
-    elif (upper != float("inf")) and (lower == float("-inf")):
-        upper_bound = UpperBound(upper=upper)
-        transform = upper_bound.inverse
-        constraint_name = "softplusU"
-    # upper and lower bound
-    elif (upper != float("inf")) and (lower != float("-inf")):
-        double_bound = DoubleBound(lower=lower, upper=upper)
-        transform = double_bound.inverse  # type: ignore
-        constraint_name = "invlogit"
-    # unbounded
-    else:
-        transform = identity  # type: ignore
-        constraint_name = "identity"
+        self.temp_history: list[dict[str, Any]] = []
+        self.temp_results: list[dict[str, Any]] = []
 
-    # value type
-    dtype_dim = Dtype(vtype, dim)
+        # helper for subsequent checks
+        self.dry_run = self.meta_settings["dry_run"]
+        # overwrite global seed
+        utils.SEED = self.trainer["seed"]
 
-    hyper_dict: Hyper = dict(
-        name=name,
-        constraint=transform,
-        constraint_name=constraint_name,
-        vtype=dtype_dim,
-        dim=dim,
-        shared=shared,
-    )
+        # set seed
+        tf.random.set_seed(utils.SEED)
 
-    return hyper_dict
+        if self.dry_run:
+            (
+                self.dry_elicits,
+                self.dry_priors,
+                self.dry_modelsims,
+                self.dry_targets,
+                self.dry_prior_model,
+            ) = dry_run(
+                self.model,
+                self.parameters,
+                self.targets,
+                self.trainer,
+                self.initializer,  # type: ignore
+                self.network,
+            )
 
+    def __str__(self) -> str:  # noqa: PLR0912
+        """Return a readable summary of the object."""
+        names_str = "\n".join(
+            f"  - {self.targets[tar]['name']} -> {eli}"
+            for tar, eli in zip(
+                range(len(self.targets)),
+                utils.get_expert_datformat(self.targets),
+            )
+        )
 
-def parameter(
-    name: str,
-    family: Optional[Any] = None,
-    hyperparams: Optional[dict[str, Hyper]] = None,
-    lower: float = float("-inf"),
-    upper: float = float("inf"),
-) -> Parameter:
-    """
-    Specify model parameters.
-
-    Parameters
-    ----------
-    name
-        Custom name of parameter.
-
-    family
-        Prior distribution family for model parameter.
-        Only required for ``parametric_prior`` method.
-        Must be a member of [`tfp.distributions`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions).
-
-    hyperparams
-        Hyperparameters of distribution as specified in **family**.
-        Only required for ``parametric_prior`` method.
-        Structure of dictionary: *keys* must match arguments of
-        [`tfp.distributions`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions)
-        object and *values* have to be specified using the [`hyper`][elicito.elicit.hyper]
-        method.
-
-    lower
-        Only used if ``method = "deep_prior"``.
-        Lower bound of parameter.
-
-    upper
-        Only used if ``method = "deep_prior"``.
-        Upper bound of parameter.
-
-    Returns
-    -------
-    param_dict : dict
-        Dictionary including all model (hyper)parameter settings.
-
-    Raises
-    ------
-    ValueError
-        ``hyperparams`` value is a dict with keys corresponding to arguments of
-        tfp.distributions object in 'family'. Raises error if key does not
-        correspond to any argument of distribution.
-
-    Examples
-    --------
-    >>> el.parameter(name="beta0",  # doctest: +SKIP
-    >>>              family=tfd.Normal,  # doctest: +SKIP
-    >>>              hyperparams=dict(loc=el.hyper("mu0"),  # doctest: +SKIP
-    >>>                               scale=el.hyper("sigma0", lower=0)  # doctest: +SKIP
-    >>>                               )  # doctest: +SKIP
-    >>>              )  # doctest: +SKIP
-
-    """  # noqa: E501
-    # check whether keys of hyperparams dict correspond to arguments of family
-    if hyperparams is not None:
-        for key in hyperparams:
-            if key not in inspect.getfullargspec(family)[0]:
-                raise ValueError(  # noqa: TRY003
-                    f"'{family.__module__.split('.')[-1]}'"
-                    f" family has no argument '{key}'. Check keys of "
-                    "'hyperparams' dict."
+        if hasattr(self, "results"):
+            targets_str = names_str
+        elif len(self.temp_results) != 0:
+            targets_str = "\n".join(
+                f"  - {k1} {tuple(self.temp_results[0]['target_quantities'][k1].shape)} -> "  # noqa: E501
+                f"{k2} {tuple(self.temp_results[0]['elicited_statistics'][k2].shape)}"
+                for k1, k2 in zip(
+                    self.temp_results[0]["target_quantities"],
+                    self.temp_results[0]["elicited_statistics"],
                 )
-
-    # constraints
-    # only lower bound
-    if (lower != float("-inf")) and (upper == float("inf")):
-        lower_bound = LowerBound(lower)
-        transform = lower_bound.inverse
-        constraint_name: str = "softplusL"
-    # only upper bound
-    elif (upper != float("inf")) and (lower == float("-inf")):
-        upper_bound = UpperBound(upper)
-        transform = upper_bound.inverse
-        constraint_name = "softplusU"
-    # upper and lower bound
-    elif (upper != float("inf")) and (lower != float("-inf")):
-        double_bound = DoubleBound(lower, upper)
-        transform = double_bound.inverse  # type: ignore
-        constraint_name = "invlogit"
-    # unbounded
-    else:
-        transform = identity  # type: ignore
-        constraint_name = "identity"
-
-    return Parameter(
-        name=name,
-        family=family,
-        hyperparams=hyperparams,
-        constraint_name=constraint_name,
-        constraint=transform,  # type: ignore
-    )
-
-
-def model(obj: Callable[[str], tf.Tensor], **kwargs: dict[Any, Any]) -> dict[str, Any]:
-    """
-    Specify the generative model.
-
-    Parameters
-    ----------
-    obj
-        Generative model class as defined by the user.
-
-    **kwargs
-        additional keyword arguments expected by `obj`.
-
-    Returns
-    -------
-    generator_dict :
-        Dictionary including all generative model settings.
-
-    Raises
-    ------
-    ValueError
-        generative model in `obj` requires the input argument
-        'prior_samples', but argument has not been found.
-
-        optional argument(s) of the generative model specified in `obj` are
-        not specified
-
-    Examples
-    --------
-    >>> # specify the generative model class
-    >>> class ToyModel:  # doctest: +SKIP
-    >>>     def __call__(self, prior_samples, design_matrix):  # doctest: +SKIP
-    >>> # linear predictor
-    >>>         epred = tf.matmul(prior_samples, design_matrix,  # doctest: +SKIP
-    >>>                           transpose_b=True)  # doctest: +SKIP
-    >>> # data-generating model
-    >>>         likelihood = tfd.Normal(  # doctest: +SKIP
-    >>>             loc=epred,  # doctest: +SKIP
-    >>>             scale=tf.expand_dims(prior_samples[:, :, -1], -1)  # doctest: +SKIP
-    >>>             )  # doctest: +SKIP
-    >>> # prior predictive distribution
-    >>>         ypred = likelihood.sample()  # doctest: +SKIP
-    >>>
-    >>>         return dict(  # doctest: +SKIP
-    >>>             likelihood=likelihood,  # doctest: +SKIP
-    >>>             ypred=ypred, epred=epred,  # doctest: +SKIP
-    >>>             prior_samples=prior_samples  # doctest: +SKIP
-    >>>             )  # doctest: +SKIP
-
-    >>> # specify the model category in the elicit object
-    >>> el.model(obj=ToyModel,  # doctest: +SKIP
-    >>>          design_matrix=design_matrix  # doctest: +SKIP
-    >>>          )  # doctest: +SKIP
-    """
-    # get input arguments of generative model class
-    input_args = inspect.getfullargspec(obj.__call__)[0]  # type: ignore
-    # check correct input form of generative model class
-    if "prior_samples" not in input_args:
-        msg = (
-            "The generative model class 'obj' requires the"
-            " input variable 'prior_samples' but argument has not been found"
-            " in 'obj'."
-        )
-        raise ValueError(msg)
-
-    # check that all optional arguments have been provided by the user
-    optional_args = set(input_args).difference({"prior_samples", "self"})
-    for arg in optional_args:
-        if arg not in list(kwargs.keys()):
-            msg = (
-                f"The argument {arg=} required by the"
-                "generative model class 'obj' is missing."
             )
-            raise ValueError(msg)
+        # unfitted eliobj with shape information due to dry run
+        elif self.dry_run:
+            targets_str = "\n".join(
+                f"  - {k1} {tuple(self.dry_targets[k1].shape)} -> "
+                f"{k2} {tuple(self.dry_elicits[k2].shape)}"
+                for k1, k2 in zip(self.dry_targets, self.dry_elicits)
+            )
+        # unfitted eliobj without shape information
+        else:
+            targets_str = names_str
 
-    generator_dict = dict(obj=obj)
+        if self.optimizer["optimizer"] == optimizers.cmaes.CMAES:
+            sigma0 = self.optimizer.get("sigma0", optimizers.cmaes.DEFAULT_SIGMA0)
+            if isinstance(sigma0, dict):
+                # a step size per hyperparameter is too long for one line
+                sigma0 = f"{len(sigma0)} values"
+            opt_str = f"{optimizers.cmaes.CMAES}(sigma0={sigma0})"
+        else:
+            opt_name = self.optimizer["optimizer"].__name__
+            opt_lr = self.optimizer["learning_rate"]
+            opt_str = f"{opt_name}(lr={opt_lr})"
 
-    for key in kwargs:  # noqa: PLC0206
-        generator_dict[key] = kwargs[key]  # type: ignore
+        get_num_hyperpar: int | str
+        if hasattr(self, "results") and self.trainer["method"] == "deep_prior":
+            get_num_hyperpar = utils.compute_num_weights(
+                self.results[0]["num_NN_weights"]  # type: ignore
+            )
 
-    return generator_dict
+        if (self.trainer["method"] == "deep_prior") and (self.dry_run):
+            trainable_vars = self.dry_prior_model.init_priors.trainable_variables
+            num_NN_weights = [
+                trainable_vars[i].shape for i in range(len(trainable_vars))
+            ]
+            get_num_hyperpar = utils.compute_num_weights(num_NN_weights)
 
+        elif self.trainer["method"] == "parametric_prior":
+            get_num_hyperpar = sum(
+                [
+                    len(self.parameters[i]["hyperparams"])
+                    for i in range(len(self.parameters))
+                ]
+            )
+        else:
+            get_num_hyperpar = "?"
+            print("Number of hyperparameter in model can't be computed.")
 
-class Queries:
-    """
-    specify elicitation techniques
-    """
+        summary = (
+            f"Model hyperparameters: {get_num_hyperpar}\n"
+            f"Model parameters: {len(self.parameters)}\n"
+            "Targets -> Elicited summaries (loss components)"
+            f"{': ' + str(len(self.dry_elicits)) if self.dry_run else ''}\n"
+            f"{targets_str}\n"
+            f"Prior samples: {self.trainer['num_samples']}"
+            f"{' ' + str(tuple(self.dry_priors.shape)) if self.dry_run else ''}\n"
+            f"Batch size: {self.trainer['B']}\n"
+            f"Epochs: {self.trainer['epochs']}\n"
+            f"Method: {self.trainer['method']}\n"
+            f"Seed: {self.trainer['seed']}\n"
+            f"Optimizer: {opt_str}\n"
+        )
+        if self.trainer["method"] == "parametric_prior":
+            if self.initializer is not None:
+                summary += (
+                    f"Initializer: (method: {self.initializer['method']}, "
+                    f"iterations: {self.initializer['iterations']})\n"
+                )
+            else:
+                summary += "Initializer: None\n"
+        elif self.network is not None:
+            summary += f"Network: {self.network['inference_network'].__name__}\n"
+        else:
+            summary += "Network: None\n"
 
-    def quantiles(self, quantiles: tuple[float, ...]) -> QueriesDict:
+        return summary
+
+    def __repr__(self) -> str:
+        """Return a readable representation of the object."""
+        return self.__str__()
+
+    def fit(
+        self,
+        overwrite: bool = False,
+        parallel: Parallel | None = None,
+    ) -> None:
         """
-        Implement a quantile-based elicitation technique.
+        Fit the eliobj and learn prior distributions.
 
         Parameters
         ----------
-        quantiles
-            Tuple with respective quantiles ranging between 0 and 1.
+        overwrite
+            If the eliobj was already fitted and the user wants to refit it,
+            the user is asked whether they want to overwrite the previous
+            fitting results. Setting ``overwrite=True`` allows the user to
+            force overfitting without being prompted.
 
-        Returns
-        -------
-        elicit_dict :
-            Dictionary including the quantile settings.
+        parallel
+            specify parallelization settings if multiple trainings should run
+            in parallel. See [`parallel`][elicito.utils.parallel].
 
         Raises
         ------
         ValueError
-            ``quantiles`` have to be specified as probability ranging between
-            0 and 1.
+            The eliobj is already fitted and ``overwrite`` is ``False``.
+
+        Examples
+        --------
+        >>> eliobj.fit()  # doctest: +SKIP
+
+        >>> eliobj.fit(overwrite=True)  # doctest: +SKIP
+
+        >>> eliobj.fit(parallel=el.utils.parallel(runs=4))  # doctest: +SKIP
 
         """
-        # compute percentage from probability
-        quantiles_perc = tuple([q * 100 for q in quantiles])
+        # set seed
+        tf.random.set_seed(self.trainer["seed"])
 
-        # check that quantiles are provided as percentage
-        for quantile in quantiles:
-            if (quantile < 0) or (quantile > 1):
+        # check whether elicit object is already fitted
+        if hasattr(self, "results"):
+            if not overwrite:
                 msg = (
-                    "Quantiles have to be expressed as "
-                    f"probability (between 0 and 1). Got {quantile=}."
+                    "eliobj is already fitted. Use overwrite=True to fit it "
+                    "again and replace the results."
+                )
+                raise ValueError(msg)
+            delattr(self, "results")
+
+        self.temp_results = []
+        self.temp_history = []
+
+        # run single time if no parallelization is required
+        if parallel is None:
+            results, history = self.workflow(self.trainer["seed"])
+            # include seed information into results
+            results["seed"] = self.trainer["seed"]
+            # save results in list attribute
+            self.temp_history.append(history)
+            self.temp_results.append(results)
+        # run multiple replications
+        else:
+            # create a list of seeds if not provided
+            if parallel["seeds"] is None:
+                # generate seeds
+                seeds = [
+                    int(s) for s in tfd.Uniform(0, 999999).sample(parallel["runs"])
+                ]
+            else:
+                seeds = parallel["seeds"]
+
+            # run training simultaneously for multiple seeds. Live tables from
+            # several processes overwrite each other, so the workers send
+            # their tables to the parent. It shows one row for each seed.
+            # The loky context starts the queue server without fork, which
+            # can deadlock in a multi-threaded process.
+            with get_context("loky").Manager() as manager:
+                queue = manager.Queue()
+                table = SeedTable(seeds, queue, disable=self.trainer["progress"] == 0)
+                try:
+                    res = joblib.Parallel(n_jobs=parallel["cores"])(
+                        joblib.delayed(run_in_worker)(self.workflow, seed, row, queue)
+                        for row, seed in enumerate(seeds)
+                    )
+                finally:
+                    table.close()
+
+            for i, seed in enumerate(seeds):
+                self.temp_results.append(res[i][0])
+                self.temp_history.append(res[i][1])
+                self.temp_results[i]["seed"] = seed
+
+        self.results = _outputs.create_datatree(
+            self.temp_history,
+            self.temp_results,
+            self.trainer,
+            self.parameters,
+            self.expert,
+        )
+
+        delattr(self, "temp_history")
+        delattr(self, "temp_results")
+
+    def sample(
+        self,
+        num_samples: int | None = None,
+        B: int | None = None,
+        seed: int | None = None,
+    ) -> Any:
+        """
+        Simulate from the learned prior
+
+        The learned trainable variables, the generative model and the
+        parameter definitions reproduce the prior samples, the model
+        simulations, the target quantities and the elicited summaries. The
+        method runs one forward pass per replication.
+
+        Parameters
+        ----------
+        num_samples
+            number of prior samples per batch. Default is the value used
+            for training.
+
+        B
+            batch size. Default is the value used for training.
+
+        seed
+            seed of the forward pass. Default is the seed of the
+            corresponding replication. With the default, and with the
+            training values for **num_samples** and **B**, the samples
+            equal those of the last training epoch.
+
+        Returns
+        -------
+        :
+            xr.DataTree with the groups prior, model, target_quantity and
+            elicited_summary.
+
+        Raises
+        ------
+        AttributeError
+            eliobj has not been fitted yet.
+
+        ValueError
+            The stored weights do not match the trainable variables.
+
+        Examples
+        --------
+        >>> samples = eliobj.sample(num_samples=1_000)  # doctest: +SKIP
+        >>> el.plots.prior_marginals(samples)  # doctest: +SKIP
+        """
+        if not hasattr(self, "results"):
+            msg = "No results found. Run 'eliobj.fit()' before 'eliobj.sample()'."
+            raise AttributeError(msg)
+
+        weights = self.results["learned_weights"].to_dataset()
+        seeds = self.results.history_stats.seed_replication.values
+        method = parameters.methods.get_method(self.trainer["method"])
+
+        simulated = []
+        for i, replication_seed in enumerate(seeds):
+            run_seed = int(replication_seed) if seed is None else int(seed)
+            trainer = dict(self.trainer)
+            trainer["seed"] = run_seed
+            if num_samples is not None:
+                trainer["num_samples"] = num_samples
+            if B is not None:
+                trainer["B"] = B
+
+            # the build step reads an initial value for every hyperparameter.
+            # The learned values overwrite them below, so any number does.
+            prior_model = parameters.priors.Priors(
+                ground_truth=False,
+                init_matrix_slice=defaultdict(lambda: tf.constant(0.0)),
+                trainer=trainer,  # type: ignore [arg-type]
+                parameters=self.parameters,
+                network=self.network,
+                expert=self.expert,
+                seed=run_seed,
+            )
+            variables = method.trainable_variables(prior_model)
+            if len(variables) != len(weights.data_vars):
+                msg = (
+                    f"The model has {len(variables)} trainable variables but"
+                    f" {len(weights.data_vars)} are stored in the results."
+                    " The results belong to a different model specification."
+                )
+                raise ValueError(msg)
+            for j, variable in enumerate(variables):
+                variable.assign(weights[f"weight_{j}"].sel(replication=i).values)
+
+            tf.random.set_seed(run_seed)
+            (elicits, prior_sim, model_sim, target_quants) = models.simulate_and_elicit(
+                prior_model=prior_model,
+                model=self.model,
+                targets=self.targets,
+                seed=run_seed,
+            )
+            simulated.append(
+                dict(
+                    prior_samples=prior_sim,
+                    model_samples=model_sim,
+                    target_quantities=target_quants,
+                    elicited_statistics=elicits,
+                )
+            )
+
+        return _outputs.create_sample_tree(simulated, self.parameters)
+
+    def save(
+        self,
+        name: str | None = None,
+        file: str | None = None,
+        overwrite: bool = False,
+    ) -> None:
+        """
+        Save data on disk
+
+        Parameters
+        ----------
+        name
+            file name used to store the eliobj. Saving is done
+            according to the following rule: ``./{method}/{name}_{seed}.pkl``
+            with 'method' and 'seed' being arguments of
+            [`trainer`][elicito.specs.trainer].
+
+        file
+            user-specific path for saving the eliobj. If file is specified
+            **name** must be ``None``.
+
+        overwrite
+            If already a fitted object exists in the same path, the user is
+            asked whether the eliobj should be refitted and the results
+            overwritten.
+            With the ``overwrite`` argument, you can disable this
+            behavior. In this case the results are automatically overwritten
+            without prompting the user.
+
+        Raises
+        ------
+        AssertionError
+            ``name`` and ``file`` can't be specified simultaneously.
+
+        Examples
+        --------
+        >>> eliobj.save(name="toymodel")  # doctest: +SKIP
+
+        >>> eliobj.save(file="res/toymodel", overwrite=True)  # doctest: +SKIP
+
+        """
+        return _storage.save(self, name=name, file=file, overwrite=overwrite)
+
+    @classmethod
+    def load(cls, file: str) -> "Elicit":
+        """
+        Load a saved ``eliobj`` from specified path
+
+        Parameters
+        ----------
+        file
+            path where ``eliobj`` object is saved.
+
+        Returns
+        -------
+        eliobj :
+            loaded ``eliobj`` object.
+
+        Examples
+        --------
+        >>> eliobj = el.Elicit.load("res/toymodel.pkl")  # doctest: +SKIP
+
+        """
+        storage = _storage.read_storage(file)
+        eliobj = cls(
+            model=storage["model"],
+            parameters=storage["parameters"],
+            targets=storage["targets"],
+            expert=storage["expert"],
+            optimizer=storage["optimizer"],
+            trainer=storage["trainer"],
+            initializer=storage["initializer"],
+            network=storage["network"],
+        )
+
+        # add results if already fitted
+        if "results" in storage:
+            eliobj.results = storage["results"]
+        else:
+            eliobj.temp_history = storage["temp_history"]
+            eliobj.temp_results = storage["temp_results"]
+
+        return eliobj
+
+    def update(self, **kwargs: dict[Any, Any]) -> None:
+        """
+        Update attributes of Elicit object
+
+        Method for updating the attributes of the Elicit class. Updating
+        an eliobj leads to an automatic reset of results.
+
+        Parameters
+        ----------
+        **kwargs
+            keyword argument used for updating an attribute of Elicit class.
+            Key must correspond to one attribute of the class and value refers
+            to the updated value.
+
+        Raises
+        ------
+        ValueError
+            key of provided keyword argument is not an eliobj attribute. Please
+            check `dir(eliobj)`.
+
+        Examples
+        --------
+        >>> eliobj.update(parameter=updated_parameter_dict)  # doctest: +SKIP
+
+        """
+        # check that arguments exist as eliobj attributes
+        for key in kwargs:
+            if str(key) not in [
+                "model",
+                "parameters",
+                "targets",
+                "expert",
+                "trainer",
+                "optimizer",
+                "network",
+                "initializer",
+            ]:
+                msg = (
+                    f"{key=} is not an eliobj attribute. "
+                    + "Use dir() to check for attributes.",
                 )
                 raise ValueError(msg)
 
-        elicit_dict: QueriesDict = dict(name="quantiles", value=quantiles_perc)
-        return elicit_dict
+        # create first test variables
+        test = SimpleNamespace(
+            model=self.model,
+            parameters=self.parameters,
+            targets=self.targets,
+            expert=self.expert,
+            trainer=self.trainer,
+            optimizer=self.optimizer,
+            network=self.network,
+            initializer=self.initializer,
+            meta_settings=self.meta_settings,
+        )
 
-    def identity(self) -> QueriesDict:
+        for key, value in kwargs.items():
+            setattr(test, key, value)
+
+        if (
+            "initializer" not in kwargs
+            and test.optimizer["optimizer"] == optimizers.cmaes.CMAES
+        ):
+            test.initializer = None
+        test.initializer = _default_initializer(test.optimizer, test.initializer)
+
+        _checks.check_elicit(
+            test.model,
+            test.parameters,
+            test.targets,
+            test.expert,
+            test.trainer,
+            test.optimizer,
+            test.network,
+            test.initializer,
+            test.meta_settings,
+        )
+
+        # only if checks pass update variables of Elicit
+        for i, key in enumerate(kwargs):
+            setattr(self, key, kwargs[key])
+            # reset results
+            if hasattr(self, "results"):
+                delattr(self, "results")
+            self.temp_results = list()
+            self.temp_history = list()
+            if i == 0:
+                # inform user about reset of results
+                print("INFO: Results have been reset.")
+        # a kwarg initializer=None must not replace the CMA-ES default
+        self.initializer = test.initializer
+
+    def workflow(self, seed: int) -> tuple[Any, ...]:
         """
-        Implement an identity function.
+        Build the main workflow of the prior elicitation method.
 
-        Should be used if no further transformation of target quantity is required.
-
-        Returns
-        -------
-        elicit_dict :
-            Dictionary including the identity settings.
-
-        """
-        elicit_dict: QueriesDict = dict(name="identity", value=None)
-        return elicit_dict
-
-    def correlation(self) -> QueriesDict:
-        """
-        Calculate the pearson correlation between model parameters.
-
-        Returns
-        -------
-        elicit_dict : dict
-            Dictionary including the correlation settings.
-
-        """
-        elicit_dict: QueriesDict = dict(name="pearson_correlation", value=None)
-        return elicit_dict
-
-    def custom(self, func: Callable[[Any], Any]) -> QueriesDict:
-        """
-        Specify a custom target method.
-
-        The custom method can be passed as argument.
+        Get expert data, initialize method, run optimization.
+        Results are returned for further post-processing.
 
         Parameters
         ----------
-        func
-            Custom target method.
+        seed
+            seed information used for reproducing results.
 
         Returns
         -------
-        elicit_dict :
-            Dictionary including the custom settings.
+        :
+            results and history object of the optimization process.
 
         """
-        elicit_dict: QueriesDict = dict(
-            name="custom", func_name=func.__name__, value=func
+        # overwrite global seed
+        # TODO test correct seed usage for parallel processing
+        utils.SEED = seed
+
+        # get expert data; use trainer seed
+        # (and not seed from list)
+        expert_elicits, expert_prior = utils.get_expert_data(
+            self.trainer,
+            self.model,
+            self.targets,
+            self.expert,
+            self.parameters,
+            self.network,
+            self.trainer["seed"],
         )
-        return elicit_dict
 
-
-# create an instance of the Queries class
-queries = Queries()
-
-
-def target(
-    name: str,
-    loss: Callable[[Any], Any],
-    query: QueriesDict,
-    target_method: Optional[Callable[[Any], Any]] = None,
-    weight: float = 1.0,
-) -> Target:
-    """
-    Specify target quantity and corresponding elicitation technique.
-
-    Parameters
-    ----------
-    name
-        Name of the target quantity. Two approaches are possible:
-        (1) Target quantity is identical to an output from the generative
-        model: The name must match the output variable name. (2) Custom target
-        quantity is computed using the `target_method` argument.
-
-    query
-        Specify the elicitation technique by using one of the methods
-        implemented in [`Queries`][elicito.elicit.Queries].
-
-    loss
-        Lossfunction for computing the discrepancy between expert data and
-        model simulations. See [`losses`][elicito.losses].
-
-    target_method
-        Custom method for computing a target quantity.
-        Note: This method hasn't been implemented yet and will raise an
-        ``NotImplementedError``. See
-        [GitHub issue #34](https://github.com/florence-bockting/prior_elicitation/issues/34).
-
-    weight
-        Weight of the corresponding elicited quantity in the total loss.
-
-    Returns
-    -------
-    target_dict :
-        Dictionary including all settings regarding the target quantity and
-        corresponding elicitation technique.
-
-    Examples
-    --------
-    >>> el.target(name="y_X0",  # doctest: +SKIP
-    >>>           query=el.queries.quantiles(  # doctest: +SKIP
-    >>>                 (.05, .25, .50, .75, .95)),  # doctest: +SKIP
-    >>>           loss=el.losses.MMD2(kernel="energy"),  # doctest: +SKIP
-    >>>           weight=1.0  # doctest: +SKIP
-    >>>           )  # doctest: +SKIP
-
-    >>> el.target(name="correlation",  # doctest: +SKIP
-    >>>           query=el.queries.correlation(),  # doctest: +SKIP
-    >>>           loss=el.losses.L2,  # doctest: +SKIP
-    >>>           weight=1.0  # doctest: +SKIP
-    >>>           )  # doctest: +SKIP
-    """
-    # create instance of loss class
-    loss_instance = loss
-
-    return Target(
-        name=name,
-        query=query,
-        target_method=target_method,
-        loss=loss_instance,
-        weight=weight,
-    )
-
-
-class Expert:
-    """
-    specify the expert data
-    """
-
-    def data(self, dat: dict[str, list[tf.Tensor]]) -> ExpertDict:
-        """
-        Provide elicited-expert data for learning prior distributions.
-
-        Parameters
-        ----------
-        dat
-            Elicited data from expert provided as dictionary. Data must be
-            provided in a standardized format.
-            Use [`get_expert_datformat`][elicito.utils.get_expert_datformat]
-            to get correct data format for your method specification.
-
-        Returns
-        -------
-        expert_data :
-            Expert-elicited information used for learning prior distributions.
-
-        Examples
-        --------
-        >>> expert_dat = {  # doctest: +SKIP
-        >>>     "quantiles_y_X0": [-12.55, -0.57, 3.29, 7.14, 19.15],  # doctest: +SKIP
-        >>>     "quantiles_y_X1": [-11.18, 1.45, 5.06, 8.83, 20.42],  # doctest: +SKIP
-        >>>     "quantiles_y_X2": [-9.28, 3.09, 6.83, 10.55, 23.29]  # doctest: +SKIP
-        >>> }  # doctest: +SKIP
-        """
-        # Note: check for correct expert data format is done in Elicit class
-        dat_prep: dict[Any, Any] = {
-            f"{key}": tf.expand_dims(
-                tf.cast(tf.convert_to_tensor(dat[key]), dtype=tf.float32), 0
-            )
-            for key in dat
-        }
-
-        data_dict: ExpertDict = dict(data=dat_prep)
-        return data_dict
-
-    def simulator(
-        self, ground_truth: dict[str, Any], num_samples: int = 10_000
-    ) -> ExpertDict:
-        """
-        Simulate data from an oracle
-
-        Define a ground truth (i.e., specify 'true' prior distribution(s)).
-
-        Parameters
-        ----------
-        ground_truth
-            True prior distribution(s). *Keys* refer to parameter names and
-            *values* to prior distributions implemented as
-            [`tfp.distributions`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions)
-            object with predetermined hyperparameter values.
-            You can specify a prior distribution for each model parameter or
-            a joint prior for all model parameters at once or any approach in
-            between. Only requirement is that the dimensionality of all priors
-            in ground truth match with the number of model parameters.
-            Order of priors in ground truth must match order of
-            [`Elicit`][elicito.Elicit] argument `parameters`.
-
-        num_samples
-            Number of draws from the prior distribution.
-            It is recommended to use a high value to min. sampling variation.
-
-        Returns
-        -------
-        expert_data :
-            Settings of oracle for simulating from ground truth. True elicited
-            statistics are used as `expert-data` in loss function.
-
-        Examples
-        --------
-        >>> el.expert.simulator(  # doctest: +SKIP
-        >>>     ground_truth = {  # doctest: +SKIP
-        >>>         "beta0": tfd.Normal(loc=5, scale=1),  # doctest: +SKIP
-        >>>         "beta1": tfd.Normal(loc=2, scale=1),  # doctest: +SKIP
-        >>>         "sigma": tfd.HalfNormal(scale=10.0),  # doctest: +SKIP
-        >>>     },  # doctest: +SKIP
-        >>>     num_samples = 10_000  # doctest: +SKIP
-        >>> )  # doctest: +SKIP
-
-        >>> el.expert.simulator(  # doctest: +SKIP
-        >>>     ground_truth = {  # doctest: +SKIP
-        >>>         "betas": tfd.MultivariateNormalDiag(  # doctest: +SKIP
-        >>>                 [5.,2.], [1.,1.]),  # doctest: +SKIP
-        >>>         "sigma": tfd.HalfNormal(scale=10.0),  # doctest: +SKIP
-        >>>     },  # doctest: +SKIP
-        >>>     num_samples = 10_000  # doctest: +SKIP
-        >>> )  # doctest: +SKIP
-
-        >>> el.expert.simulator(  # doctest: +SKIP
-        >>>     ground_truth = {  # doctest: +SKIP
-        >>>         "thetas": tfd.MultivariateNormalDiag([5.,2.,1.],  # doctest: +SKIP
-        >>>                                              [1.,1.,1.]),  # doctest: +SKIP
-        >>>     },  # doctest: +SKIP
-        >>>     num_samples = 10_000  # doctest: +SKIP
-        >>> )  # doctest: +SKIP
-        """
-        # Note: check whether dimensionality of ground truth and number of
-        # model parameters is identical is done in Elicit class
-
-        expert_data: ExpertDict = dict(
-            ground_truth=ground_truth, num_samples=int(num_samples)
+        # initialization of hyperparameter
+        (init_prior_model, loss_list, init_matrix) = initializers.methods.init_prior(
+            expert_elicits,
+            self.initializer,
+            self.parameters,
+            self.trainer,
+            self.optimizer,
+            self.model,
+            self.targets,
+            self.network,
+            self.expert,
+            seed,
+            self.trainer["progress"],
         )
-        return expert_data
+        # run dag with optimal set of initial values
+        # save results in corresp. attributes
 
+        # the optimizer is either a tf.keras class, or the name of a
+        # derivative-free search
+        extra: dict[str, Any] = {}
+        fit_method: Callable[..., tuple[dict[Any, Any], dict[Any, Any]]]
+        if self.optimizer["optimizer"] == optimizers.cmaes.CMAES:
+            fit_method = optimizers.cmaes.cma_training
+            if self.initializer is not None:
+                extra["default_sigma0"] = optimizers.cmaes.box_step_size(
+                    initializers.methods.resolve_init_method(self.initializer),
+                    self.initializer,
+                    self.parameters,
+                )
+        else:
+            fit_method = optimizers.sgd.sgd_training
 
-# create an instantiation of Expert class
-expert = Expert()
-
-
-def optimizer(
-    optimizer: Any = tf.keras.optimizers.Adam, **kwargs: dict[Any, Any]
-) -> dict[str, Any]:
-    """
-    Specify optimizer and its settings for SGD.
-
-    Parameters
-    ----------
-    optimizer
-        Optimizer used for SGD implemented.
-        Must be a class implemented in [`tf.keras.optimizers`](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers)
-
-    **kwargs
-        Additional keyword arguments expected by **optimizer**.
-
-    Returns
-    -------
-    optimizer_dict :
-        Dictionary specifying the SGD optimizer and its additional settings.
-
-    Raises
-    ------
-    TypeError
-        ``optimizer`` is not a tf.keras.optimizers object
-    ValueError
-        ``optimizer`` could not be found in tf.keras.optimizers
-
-    Examples
-    --------
-    >>> optimizer = el.optimizer(  # doctest: +SKIP
-    >>>     optimizer=tf.keras.optimizers.Adam,  # doctest: +SKIP
-    >>>     learning_rate=0.1,  # doctest: +SKIP
-    >>>     clipnorm=1.0  # doctest: +SKIP
-    >>> )  # doctest: +SKIP
-    """
-    optimizer_dict = dict(optimizer=optimizer)
-
-    for key in kwargs:  # noqa: PLC0206
-        optimizer_dict[key] = kwargs[key]
-
-    return optimizer_dict
-
-
-def initializer(
-    method: Optional[SamplingMethod] = None,
-    distribution: Optional[Uniform] = None,
-    iterations: Optional[int] = None,
-    hyperparams: Optional[dict[str, Any]] = None,
-) -> Initializer:
-    """
-    Initialize hyperparameter values
-
-    Only necessary for method ``parametric_prior``.
-    Two approaches are currently possible:
-
-    1. Specify specific initial values for each hyperparameter.
-    2. Use one of the implemented sampling approaches to draw initial
-       values from one of the provided initialization distributions
-
-    In (2) initial values for each hyperparameter are drawn from a uniform
-    distribution ranging from ``mean - radius`` to ``mean + radius``.
-
-    Parameters
-    ----------
-    method
-        Name of initialization method.
-        Currently supported are "random", "lhs", and "sobol".
-
-    distribution
-        Specification of initialization distribution.
-        Currently implemented methods: [`uniform`][elicito.initialization.uniform]
-
-    iterations
-        Number of samples drawn from the initialization distribution.
-
-    hyperparams
-        Dictionary with specific initial values per hyperparameter.
-        **Note:** Initial values are considered to be on the *unconstrained
-        scale*. Use  the ``forward`` method of [`LowerBound`][elicito.utils.LowerBound],
-        [`UpperBound`][elicito.utils.UpperBound] and
-        [`DoubleBound`][elicito.utils.DoubleBound]
-        for transforming a constrained hyperparameter into an
-        unconstrained one. In hyperparams dictionary, *keys* refer to
-        hyperparameter names, as specified in [`hyper`][elicito.elicit.hyper]
-        and *values* to the respective initial values.
-
-    Returns
-    -------
-    init_dict :
-        Dictionary specifying the initialization method.
-
-    Raises
-    ------
-    ValueError
-        ``method`` can only take the values "random", "sobol", or "lhs"
-
-        ``loss_quantile`` must be a probability ranging between 0 and 1.
-
-        Either ``method`` or ``hyperparams`` has to be specified.
-
-    Examples
-    --------
-    >>> el.initializer(  # doctest: +SKIP
-    >>>     method="lhs",  # doctest: +SKIP
-    >>>     iterations=32,  # doctest: +SKIP
-    >>>     distribution=el.initialization.uniform(  # doctest: +SKIP
-    >>>         radius=1,  # doctest: +SKIP
-    >>>         mean=0   # doctest: +SKIP
-    >>>         )  # doctest: +SKIP
-    >>>     )  # doctest: +SKIP
-
-    >>> el.initializer(  # doctest: +SKIP
-    >>>     hyperparams = dict(  # doctest: +SKIP
-    >>>         mu0=0.,  # doctest: +SKIP
-    >>>         sigma0=el.utils.LowerBound(lower=0.).forward(0.3),  # doctest: +SKIP
-    >>>         mu1=1.,  # doctest: +SKIP
-    >>>         sigma1=el.utils.LowerBound(lower=0.).forward(0.5),  # doctest: +SKIP
-    >>>         sigma2=el.utils.LowerBound(lower=0.).forward(0.4)  # doctest: +SKIP
-    >>>         )  # doctest: +SKIP
-    >>>     )  # doctest: +SKIP
-    """
-    # check that method is implemented
-
-    if method is None:
-        args = {"distribution": distribution, "iterations": iterations}
-
-        for name, value in args.items():
-            if value is not None:
-                raise ValueError(f"If method is None, '{name}' must also be None.")  # noqa: TRY003
-
-        if hyperparams is None:
-            msg = (
-                "Either 'method' or 'hyperparams' has"
-                "to be specified. Use method for sampling from an"
-                "initialization distribution and 'hyperparams' for"
-                "specifying exact initial values per hyperparameter."
-            )
-            raise ValueError(msg)
-
-        # hardcode loss_quantile as it was rather meant for experimental purposes
-        # however results suggest that loss_quantile different from zero are not
-        # really reasonable
-        loss_quantile = 0.0
-
-        quantile_perc = loss_quantile
-
-    else:
-        args = {"distribution": distribution, "iterations": iterations}
-
-        for name, value in args.items():
-            if value is None:
-                msg = f"If '{name}' is None, then 'method' must also be None."
-                raise ValueError(msg)
-
-        # hardcode loss_quantile as it was rather meant for experimental purposes
-        # however results suggest that loss_quantile different from zero are not
-        # really reasonable
-        loss_quantile = 0.0
-
-        # compute percentage from probability
-        if loss_quantile is not None:
-            quantile_perc = int(loss_quantile * 100)
-        # ensure that iterations is an integer
-        if iterations is not None:
-            iterations = int(iterations)
-
-        if method not in ["random", "lhs", "sobol"]:
-            msg = (
-                "Currently implemented initialization "
-                f"methods are 'random', 'sobol', and 'lhs', but got {method=}"
-                " as input."
-            )
-            raise ValueError(msg)
-
-    init_dict: Initializer = dict(
-        method=method,
-        distribution=distribution,
-        loss_quantile=quantile_perc,
-        iterations=iterations,
-        hyperparams=hyperparams,
-    )
-
-    return init_dict
-
-
-def trainer(  # noqa: PLR0913
-    method: PriorMethods,
-    seed: int,
-    epochs: int,
-    B: int = 128,
-    num_samples: int = 200,
-    progress: ProgressMethod = ProgressMethod.SHOW_PROGRESS,
-) -> Trainer:
-    """
-    Specify training settings for learning the prior distribution(s).
-
-    Parameters
-    ----------
-    method
-        Method for learning the prior distribution. Available is either
-        ``parametric_prior`` for learning independent parametric priors
-        or ``deep_prior`` for learning a joint non-parameteric prior.
-
-    seed
-        Seed used for learning.
-
-    epochs
-        Number of iterations until training is stopped.
-
-    B
-        Batch size.
-
-    num_samples
-        Number of samples from the prior(s).
-
-    progress
-        whether training progress should be printed. Progress is shown if
-        `progress=1` and muted if `progress=0`.
-
-    Returns
-    -------
-    train_dict :
-        dictionary specifying the training settings for learning the prior
-        distribution(s).
-
-    Raises
-    ------
-    ValueError
-        ``method`` can only take the value "parametric_prior" or "deep_prior"
-
-        ``epochs`` can only take positive integers. Minimum number of epochs
-        is 1.
-
-        `progress` can only be 0 (mute progress) or 1 (print progress)
-
-    Examples
-    --------
-    >>> el.trainer(  # doctest: +SKIP
-    >>>     method="parametric_prior",  # doctest: +SKIP
-    >>>     seed=0,  # doctest: +SKIP
-    >>>     epochs=400,  # doctest: +SKIP
-    >>>     B=128,  # doctest: +SKIP
-    >>>     num_samples=200  # doctest: +SKIP
-    >>> )  # doctest: +SKIP
-    """
-    # check that progress is either 0 or 1
-    if progress not in [0, 1]:
-        raise ValueError(f"Progress has to be either 0 or 1. Got {progress=}.")  # noqa: TRY003
-    # check that epochs are positive numbers
-    if epochs <= 0:
-        msg = "The number of epochs has to be greater 0." f" Got {epochs=}."
-        raise ValueError(msg)
-
-    # check that method is implemented
-    if method not in ["parametric_prior", "deep_prior"]:
-        msg = (
-            "Currently only the methods 'deep_prior' and"
-            f"'parametric prior' are implemented but got {method=}."
+        history, results = fit_method(
+            expert_elicits,
+            init_prior_model,
+            self.trainer,
+            self.optimizer,
+            self.model,
+            self.targets,
+            self.parameters,
+            seed,
+            self.trainer["progress"],
+            **extra,
         )
-        raise ValueError(msg)
+        # add some additional results
+        results["expert_elicited_statistics"] = expert_elicits
+        try:
+            self.expert["ground_truth"]
+        except KeyError:
+            pass
+        else:
+            results["expert_prior_samples"] = expert_prior
 
-    train_dict: Trainer = dict(
-        method=method,
-        seed=int(seed),
-        B=int(B),
-        num_samples=int(num_samples),
-        epochs=int(epochs),
-        progress=progress,
-    )
-    return train_dict
+        if self.trainer["method"] == "parametric_prior":
+            results["init_loss_list"] = loss_list
+            results["init_matrix"] = init_matrix
 
-
-def meta_settings(dry_run: bool = True) -> MetaSettings:
-    """
-    Specify meta settings.
-
-    Parameters
-    ----------
-    dry_run
-        Whether to perform a dry run before starting the training.
-        If ``dry_run=True``, the generative model is executed in
-        forward mode and the shape information of all tensors are
-        collected and provided in the print method.
-
-    Returns
-    -------
-    meta_dict :
-        dictionary specifying the meta settings.
-
-    Examples
-    --------
-    >>> el.meta_settings()  # doctest: +SKIP
-    """
-    meta_dict: MetaSettings = dict(
-        dry_run=dry_run,
-    )
-
-    return meta_dict
+        return tuple((results, history))

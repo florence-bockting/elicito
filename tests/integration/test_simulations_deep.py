@@ -114,7 +114,7 @@ def network():
 def test_initialize_priors_2(network, parameters):
     """Test the initialization of priors."""
     # Create a dictionary with initialized tf.Variables
-    init_prior = el.simulations.intialize_priors(
+    init_prior = el.parameters.priors.intialize_priors(
         init_matrix_slice=None,
         method="deep_prior",
         seed=0,
@@ -151,7 +151,7 @@ def parameters_deep():
 
 # check: deep_prior, oracle
 def test_prior_samples_3(init_matrix_slice, parameters_deep, expert, network):
-    initialized_priors = el.simulations.intialize_priors(
+    initialized_priors = el.parameters.priors.intialize_priors(
         init_matrix_slice=init_matrix_slice,
         method="deep_prior",
         seed=0,
@@ -159,7 +159,7 @@ def test_prior_samples_3(init_matrix_slice, parameters_deep, expert, network):
         network=network,
     )
 
-    prior_samples = el.simulations.sample_from_priors(
+    prior_samples = el.parameters.priors.sample_from_priors(
         initialized_priors,
         True,
         10,
@@ -171,7 +171,7 @@ def test_prior_samples_3(init_matrix_slice, parameters_deep, expert, network):
         expert,
     )
 
-    prior_samples_copy = el.simulations.sample_from_priors(
+    prior_samples_copy = el.parameters.priors.sample_from_priors(
         initialized_priors,
         True,
         10,
@@ -183,7 +183,7 @@ def test_prior_samples_3(init_matrix_slice, parameters_deep, expert, network):
         expert,
     )
 
-    prior_samples_copy2 = el.simulations.sample_from_priors(
+    prior_samples_copy2 = el.parameters.priors.sample_from_priors(
         initialized_priors,
         True,
         10,

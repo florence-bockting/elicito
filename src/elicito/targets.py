@@ -122,7 +122,7 @@ def computation_elicited_statistics(
 
             # reshape target quantity
             target_tensor = target_quantities[targets[i]["name"]]
-            tensor_rank = tf.rank(target_tensor)
+            tensor_rank = len(target_tensor.shape)
 
             if (
                 (tensor_rank == 3)  # noqa: PLR2004

@@ -54,12 +54,13 @@ plugins:
       # Toggle off for faster builds
       # execute: false
       allow_errors: false
+      # Remove cells with this tag from the rendered page
+      remove_tag_config:
+        remove_cell_tags: ["hide"]
+        remove_input_tags: ["remove_input"]
       # theme: dark
       include_source: True
       ignore: ["*.ipynb", "*.md", "docs/gen_doc_stubs.py"]
-      remove_tag_config:
-        remove_input_tags:
-          - remove_input
   # Docstring generation
   - mkdocstrings:
       # See https://analog-garage.github.io/mkdocstrings-python-xref/1.6.0/
@@ -78,7 +79,6 @@ plugins:
             - https://ncdata.readthedocs.io/en/stable/objects.inv
             - https://numpy.org/doc/stable/objects.inv
             - https://openscm-units.readthedocs.io/en/stable/objects.inv
-            - https://pandas.pydata.org/docs/objects.inv
             - https://pint.readthedocs.io/en/stable/objects.inv
             - https://www.fatiando.org/pooch/latest/objects.inv
             - https://docs.python.org/3/objects.inv
@@ -151,6 +151,7 @@ extra_javascript:
 
 extra_css:
   - https://unpkg.com/katex@0/dist/katex.min.css
+  - stylesheets/xarray.css
 
 watch:
   - README.md
