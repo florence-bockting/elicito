@@ -178,7 +178,7 @@ eliobj = el.Elicit(
     expert=el.expert.simulator(ground_truth=ground_truth, num_samples=10_000),
     optimizer=el.optimizer(optimizer="cmaes"),
     trainer=el.trainer(
-        method="parametric_prior", seed=2025, epochs=400, progress=1, kappa=0.1
+        method="parametric_prior", seed=2025, epochs=400, progress=1, kappa=0.0
     ),
 )
 eliobj.fit(parallel=el.utils.parallel(runs=5, seeds=[1, 2, 3, 4, 5]))
@@ -196,14 +196,16 @@ for r in range(5):
 # %% [markdown]
 # ## Back to PyMC
 #
-# Replace the design points with the observed data. Here we simulate 30
+# Replace the design points with the observed data. Here we simulate 50
 # observations.
 
 # %%
+n_obs = 50
+x_data = np.arange(n_obs) / np.std(np.arange(n_obs))
 rng = np.random.default_rng(2025)
-y_data = 5.3 + 1.8 * x_scaled + rng.normal(0.0, 2.0, size=30)
+y_data = 5.3 + 1.8 * x_data + rng.normal(0.0, 2.0, size=n_obs)
 
-pm.set_data({"x": x_scaled, "y_obs": y_data}, model=pymc_model)
+pm.set_data({"x": x_data, "y_obs": y_data}, model=pymc_model)
 
 # %% [markdown]
 # `set_hyperparameters` writes the learned values of one replication into the
