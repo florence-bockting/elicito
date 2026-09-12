@@ -146,7 +146,7 @@ def evaluate(  # noqa: PLR0913
     """
     if run is None:
         (elicited, prior_sim, model_sim, target_quantities) = (
-            el.utils.one_forward_simulation(
+            el.simulations.one_forward_simulation(
                 prior_model=prior_model, model=model, targets=targets, seed=seed
             )
         )
@@ -175,7 +175,7 @@ def evaluate(  # noqa: PLR0913
     # One flat failure value would give the search nothing to follow, so
     # grade the penalty by the share of draws that overflow. The search can
     # then walk out of the bad region.
-    bad = el.utils.nonfinite_fraction(target_quantities)
+    bad = el.simulations.nonfinite_fraction(target_quantities)
     if bad > 0.0:
         value = PENALTY * (1.0 + bad)
     # A derivative-free search cannot use a non-finite value. Steer it away.
@@ -240,7 +240,7 @@ def compile_evaluate(
     -------
     run :
         Callable without arguments. It returns the four results of
-        [`simulate_and_elicit`][elicito.utils.simulate_and_elicit], followed by
+        [`simulate_and_elicit`][elicito.simulations.simulate_and_elicit], followed by
         the four results of [`total_loss`][elicito.losses.total_loss].
 
     """
@@ -248,7 +248,7 @@ def compile_evaluate(
     @tf.function(reduce_retracing=True)  # type: ignore [misc]
     def run() -> Any:
         (elicited, prior_sim, model_sim, target_quantities) = (
-            el.utils.simulate_and_elicit(prior_model, model, targets, seed)
+            el.simulations.simulate_and_elicit(prior_model, model, targets, seed)
         )
         (loss, indiv_losses, loss_components_expert, loss_components_training) = (
             el.losses.total_loss(

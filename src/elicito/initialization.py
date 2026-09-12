@@ -779,7 +779,7 @@ def init_runs(  # noqa: PLR0913
             # simulate from priors and generative model and compute the
             # elicited statistics corresponding to the initial hyperparameters
             (training_elicited_statistics, _, _, target_quantities) = (
-                el.utils.one_forward_simulation(
+                el.simulations.one_forward_simulation(
                     prior_model=prior_model, model=model, targets=targets, seed=seed
                 )
             )
@@ -795,7 +795,7 @@ def init_runs(  # noqa: PLR0913
             # A quantile query hides an overflow: the 95% quantile of a sample
             # with a few infinite draws is still finite. A candidate that
             # overflows must not be selected, so mark it as failed here.
-            if not el.utils.all_finite(target_quantities):
+            if not el.simulations.all_finite(target_quantities):
                 loss = tf.fill(tf.shape(loss), tf.constant(np.nan, loss.dtype))
         # save loss value, initial hyperparameter values and initialized prior
         # model for each run

@@ -12,9 +12,8 @@ import tensorflow_probability as tfp  # type: ignore
 from elicito._progress import ProgressTable
 from elicito.losses import spread_penalty, total_loss
 from elicito.methods import get_method
-from elicito.simulations import Priors
+from elicito.simulations import Priors, simulate_and_elicit
 from elicito.types import Parameter, Target, Trainer
-from elicito.utils import simulate_and_elicit
 
 tfd = tfp.distributions
 

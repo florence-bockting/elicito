@@ -690,7 +690,7 @@ def test_init_runs_rejects_a_candidate_whose_draws_overflow(monkeypatch):
 
     # the loss alone accepts the candidate: with the check disabled, the model
     # with the overflow initializes as well
-    monkeypatch.setattr(el.utils, "all_finite", lambda quantities: True)
+    monkeypatch.setattr(el.simulations, "all_finite", lambda quantities: True)
     _overflow_eliobj(overflow=True).fit()
     monkeypatch.undo()
 
