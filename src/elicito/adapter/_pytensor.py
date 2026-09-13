@@ -91,6 +91,91 @@ def _subtensor(op: Any, x: Any, *idx: Any) -> Any:
     return x[key]
 
 
+def _batch_ndim(op: Any, x: Any) -> int:
+    """Return the batch axes of the first input of a Blockwise; 0 for another op"""
+    if not hasattr(op, "inputs_sig"):
+        return 0
+    return len(x.shape) - len(op.inputs_sig[0])
+
+
+def _core(op: Any, i: int, x: Any) -> Any:
+    """Input i of a Blockwise at batch element 0"""
+    return x[(0,) * (len(x.shape) - len(op.inputs_sig[i]))]
+
+
+def _reshape(op: Any, x: Any, shape: Any) -> Any:
+    """Reshape x; a Blockwise keeps the batch axes of x"""
+    nb = _batch_ndim(op, x)
+    if nb:
+        # every batch element has the same shape
+        shape = tf.concat([tf.shape(x)[:nb], _core(op, 1, shape)], axis=0)
+    return tf.reshape(x, shape)
+
+
+def _alloc(op: Any, value: Any, *shape: Any) -> Any:
+    """Broadcast value to shape; a Blockwise keeps the batch axes of value"""
+    nb = _batch_ndim(op, value)
+    if not nb:
+        return tf.broadcast_to(value, tf.stack(shape))
+    # every batch element has the same shape
+    target = tf.stack([_core(op, i + 1, s) for i, s in enumerate(shape)])
+    batch, core = tf.shape(value)[:nb], tf.shape(value)[nb:]
+    # the core axes of value align with the last axes of the shape
+    ones = tf.ones([len(shape) - (len(value.shape) - nb)], dtype=tf.int32)
+    value = tf.reshape(value, tf.concat([batch, ones, core], axis=0))
+    return tf.broadcast_to(value, tf.concat([batch, target], axis=0))
+
+
+def _advanced_subtensor(op: Any, x: Any, *idx: Any) -> Any:
+    """
+    Index x as AdvancedSubtensor does
+
+    The op may hold full slices and integer arrays at consecutive axes. A
+    Blockwise may index axis 0 of its core with one integer array.
+    """
+    nb = _batch_ndim(op, x)
+    if nb:
+        if op.core_op.idx_list != (0,):
+            msg = f"The adapter does not support the Blockwise index {op.core_op}."
+            raise NotImplementedError(msg)
+        [i] = idx
+        batch = tf.broadcast_dynamic_shape(tf.shape(x)[:nb], tf.shape(i)[:nb])
+        x = tf.broadcast_to(x, tf.concat([batch, tf.shape(x)[nb:]], axis=0))
+        i = tf.broadcast_to(i, tf.concat([batch, tf.shape(i)[nb:]], axis=0))
+        return tf.gather(x, i, axis=nb, batch_dims=nb)
+
+    entries = op.idx_list
+    is_array = [not isinstance(e, slice) for e in entries]
+    first, n = is_array.index(True), sum(is_array)
+    full = all(
+        (e.start, e.stop, e.step) == (None, None, None)
+        for e in entries
+        if isinstance(e, slice)
+    )
+    keys = [idx[e] for e in entries[first : first + n]]
+    if (
+        not full
+        or not all(is_array[first : first + n])
+        or any(k.dtype == tf.bool for k in keys)
+    ):
+        msg = f"The adapter does not support the index {op}."
+        raise NotImplementedError(msg)
+
+    r = max(len(k.shape) for k in keys)
+    shape = functools.reduce(tf.broadcast_dynamic_shape, [tf.shape(k) for k in keys])
+    keys = [
+        tf.broadcast_to(tf.where(k < 0, k + tf.shape(x)[first + j], k), shape)
+        for j, k in enumerate(keys)
+    ]
+    # gather_nd indexes the leading axes, so move the indexed axes first
+    rank = len(x.shape)
+    perm = [*range(first, first + n), *range(first), *range(first + n, rank)]
+    out = tf.gather_nd(tf.transpose(x, perm), tf.stack(keys, axis=-1))
+    # move the sliced axes back in front of the index axes
+    back = [*range(r, r + first), *range(r), *range(r + first, len(out.shape))]
+    return tf.transpose(out, back)
+
+
 def _broadcast(param: Any, size: Any, ndim: int) -> Any:
     """Broadcast an input of an RV to the size, plus its core shape"""
     core = tf.shape(param)[tf.rank(param) - ndim :]
@@ -144,8 +229,9 @@ RULES: dict[str, Callable[[Any, list[Any], Any], Any]] = {
     "ArgSortOp": lambda op, args, seed: tf.argsort(
         args[0], axis=int(tf.get_static_value(args[1]))
     ),
-    "Alloc": lambda op, args, seed: tf.broadcast_to(args[0], tf.stack(args[1:])),
-    "Reshape": lambda op, args, seed: tf.reshape(args[0], args[1]),
+    "Alloc": lambda op, args, seed: _alloc(op, *args),
+    "Reshape": lambda op, args, seed: _reshape(op, *args),
+    "AdvancedSubtensor": lambda op, args, seed: _advanced_subtensor(op, *args),
     "MakeVector": lambda op, args, seed: tf.stack(
         [tf.cast(arg, _tf_dtype(op.dtype)) for arg in args]
     ),

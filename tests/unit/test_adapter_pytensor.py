@@ -58,6 +58,15 @@ def test_elementwise_op_upcasts_an_integer_input():
         pytest.param(lambda m: pt.stack([m[0, 0], m[1, 2]]), id="MakeVector"),
         pytest.param(lambda m: pt.repeat(m[0], 2), id="Alloc-repeat"),
         pytest.param(lambda m: pt.tile(m, (1, 2)), id="Alloc-tile"),
+        pytest.param(lambda m: m[np.array([1, 0, 1])], id="AdvancedSubtensor"),
+        pytest.param(lambda m: m[:, np.array([2, 0])], id="AdvancedSubtensor-slice"),
+        pytest.param(
+            lambda m: m[np.array([0, 1]), np.array([2, 0])], id="AdvancedSubtensor-two"
+        ),
+        pytest.param(
+            lambda m: m[np.array([[0, 1], [1, 0]])], id="AdvancedSubtensor-2d"
+        ),
+        pytest.param(lambda m: m[:, np.array([-1])], id="AdvancedSubtensor-negative"),
     ],
 )
 def test_rule_matches_pytensor(build):
@@ -85,3 +94,23 @@ def test_batched_rv_takes_the_new_axes():
     [x_b] = vectorize([x], {scale: scale_b})
     [out] = translate([x_b], [scale_b])([tf.ones((5, 3))], SEED)
     assert out.shape == (5, 3)
+
+
+def test_blockwise_advanced_subtensor():
+    """each batch element of v takes its own index"""
+    v, idx = pt.vector("v"), pt.lvector("idx")
+    v_b, idx_b = pt.matrix("v_b"), pt.lmatrix("idx_b")
+    [out] = vectorize([v[idx]], {v: v_b, idx: idx_b})
+    x, i = np.arange(6.0).reshape(2, 3), np.array([[2, 0], [1, 1]])
+    args = [tf.constant(x, tf.float32), tf.constant(i, tf.int32)]
+    [value] = translate([out], [v_b, idx_b])(args, SEED)
+    np.testing.assert_allclose(value, np.take_along_axis(x, i, axis=1))
+
+
+def test_blockwise_repeat_and_reshape():
+    v = pt.vector("v", shape=(2,))
+    v_b = pt.matrix("v_b", shape=(None, 2))
+    [out] = vectorize([pt.reshape(pt.repeat(v, 3), (2, 3))], {v: v_b})
+    x = np.arange(4.0).reshape(2, 2)
+    [value] = translate([out], [v_b])([tf.constant(x, tf.float32)], SEED)
+    np.testing.assert_allclose(value, np.repeat(x, 3, axis=1).reshape(2, 2, 3))
