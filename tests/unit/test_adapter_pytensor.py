@@ -67,6 +67,8 @@ def test_elementwise_op_upcasts_an_integer_input():
             lambda m: m[np.array([[0, 1], [1, 0]])], id="AdvancedSubtensor-2d"
         ),
         pytest.param(lambda m: m[:, np.array([-1])], id="AdvancedSubtensor-negative"),
+        pytest.param(lambda m: -1 * (m > 2), id="Mul-bool"),
+        pytest.param(lambda m: pt.sum(m > 2, axis=1), id="Sum-bool"),
     ],
 )
 def test_rule_matches_pytensor(build):

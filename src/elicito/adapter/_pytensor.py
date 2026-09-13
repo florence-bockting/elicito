@@ -52,18 +52,16 @@ def _constant(var: Any) -> Any:
 
 
 def _upcast(node: Any, args: list[Any]) -> list[Any]:
-    """Give the numeric inputs of an elementwise op one dtype, as PyTensor does"""
+    """Give the inputs of an elementwise op one dtype, as PyTensor does"""
     if not hasattr(node.op, "scalar_op"):
         return args
-    numeric = [inp.dtype != "bool" for inp in node.inputs]
-    dtypes = [inp.dtype for inp, num in zip(node.inputs, numeric) if num]
-    if not dtypes:
-        return args
-    dtype = _tf_dtype(np.result_type(*dtypes).name)
-    return [
-        tf.cast(arg, dtype) if num else arg
-        for arg, num in zip(args, numeric, strict=True)
-    ]
+    if type(node.op).__name__ == "Elemwise":
+        # a bool input takes part too: -1 * (x > 0) is an integer
+        dtype = np.result_type(*[inp.dtype for inp in node.inputs])
+    else:
+        # a reduction such as Sum accumulates in its output dtype
+        dtype = np.dtype(node.outputs[0].dtype)
+    return [tf.cast(arg, _tf_dtype(dtype.name)) for arg in args]
 
 
 def _dimshuffle(op: Any, x: Any) -> Any:
