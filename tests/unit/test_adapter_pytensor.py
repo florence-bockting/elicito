@@ -50,6 +50,14 @@ def test_elementwise_op_upcasts_an_integer_input():
         pytest.param(lambda m: pt.lt(m, 2), id="LT"),
         pytest.param(lambda m: pt.gt(m, 2), id="GT"),
         pytest.param(lambda m: pt.cast(m, "int64"), id="Cast"),
+        pytest.param(lambda m: pt.sum(m, axis=1), id="Sum"),
+        pytest.param(lambda m: pt.sum(m), id="Sum-all"),
+        pytest.param(lambda m: pt.prod(m + 1, axis=0), id="Prod"),
+        pytest.param(lambda m: pt.argsort(-m, axis=1), id="ArgSortOp"),
+        pytest.param(lambda m: pt.reshape(m, (3, -1)), id="Reshape"),
+        pytest.param(lambda m: pt.stack([m[0, 0], m[1, 2]]), id="MakeVector"),
+        pytest.param(lambda m: pt.repeat(m[0], 2), id="Alloc-repeat"),
+        pytest.param(lambda m: pt.tile(m, (1, 2)), id="Alloc-tile"),
     ],
 )
 def test_rule_matches_pytensor(build):

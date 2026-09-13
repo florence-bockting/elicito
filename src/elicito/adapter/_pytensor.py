@@ -17,8 +17,10 @@ tfd = tfp.distributions
 
 def _op_key(op: Any) -> str:
     """Name of the op, or of the scalar or core op that it wraps"""
-    inner = getattr(op, "scalar_op", None) or getattr(op, "core_op", None)
-    return type(inner or op).__name__
+    # a reduction such as Sum also has a scalar_op; it keeps its own name
+    if type(op).__name__ == "Elemwise":
+        return type(op.scalar_op).__name__
+    return type(getattr(op, "core_op", None) or op).__name__
 
 
 def _inputs(node: Any) -> list[Any]:
@@ -137,6 +139,16 @@ RULES: dict[str, Callable[[Any, list[Any], Any], Any]] = {
     # the translated value takes the dtype of the PyTensor output
     "Cast": lambda op, args, seed: args[0],
     "Second": lambda op, args, seed: args[1] + tf.zeros_like(args[0]),
+    "Sum": lambda op, args, seed: tf.reduce_sum(args[0], axis=op.axis),
+    "Prod": lambda op, args, seed: tf.reduce_prod(args[0], axis=op.axis),
+    "ArgSortOp": lambda op, args, seed: tf.argsort(
+        args[0], axis=int(tf.get_static_value(args[1]))
+    ),
+    "Alloc": lambda op, args, seed: tf.broadcast_to(args[0], tf.stack(args[1:])),
+    "Reshape": lambda op, args, seed: tf.reshape(args[0], args[1]),
+    "MakeVector": lambda op, args, seed: tf.stack(
+        [tf.cast(arg, _tf_dtype(op.dtype)) for arg in args]
+    ),
     "DimShuffle": lambda op, args, seed: _dimshuffle(op, args[0]),
     "Join": lambda op, args, seed: tf.concat(args, axis=op.axis),
     "Shape": lambda op, args, seed: tf.shape(args[0]),
