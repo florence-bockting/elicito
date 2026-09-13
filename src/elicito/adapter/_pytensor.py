@@ -22,9 +22,9 @@ def _op_key(op: Any) -> str:
 
 
 def _inputs(node: Any) -> list[Any]:
-    """Return the inputs that carry values; skip the rng and size of an RV"""
+    """Return the inputs that carry values: for an RV, its size and parameters"""
     if hasattr(node.op, "dist_params"):
-        return list(node.op.dist_params(node))
+        return [node.op.size_param(node), *node.op.dist_params(node)]
     return list(node.inputs)
 
 
@@ -38,8 +38,14 @@ def _tf_dtype(dtype: str) -> Any:
 
 
 def _constant(var: Any) -> Any:
-    """Value of a constant or of a pm.Data node; integers stay integers"""
+    """
+    Value of a constant or of a pm.Data node; integers stay integers
+
+    The size of an RV without a size is the constant None.
+    """
     data = var.get_value() if hasattr(var, "get_value") else var.data
+    if data is None:
+        return None
     return tf.constant(data, dtype=_tf_dtype(var.dtype))
 
 
@@ -68,13 +74,55 @@ def _dimshuffle(op: Any, x: Any) -> Any:
     return x
 
 
-# op name -> TensorFlow rule; a rule takes the op, its input values and a seed
+def _subtensor(op: Any, x: Any, *idx: Any) -> Any:
+    """Index x as Subtensor does; the idx_list of the op holds positions in idx"""
+
+    def pick(pos: int | None) -> Any:
+        return None if pos is None else idx[pos]
+
+    key = tuple(
+        slice(pick(e.start), pick(e.stop), pick(e.step))
+        if isinstance(e, slice)
+        else idx[e]
+        for e in op.idx_list
+    )
+    return x[key]
+
+
+def _broadcast(param: Any, size: Any, ndim: int) -> Any:
+    """Broadcast an input of an RV to the size, plus its core shape"""
+    core = tf.shape(param)[tf.rank(param) - ndim :]
+    return tf.broadcast_to(param, tf.concat([size, core], axis=0))
+
+
+def _rv(sample: Callable[..., Any]) -> Callable[[Any, list[Any], Any], Any]:
+    """Rule for an RV: broadcast the parameters to the size, then sample"""
+
+    def rule(op: Any, args: list[Any], seed: Any) -> Any:
+        size, *params = args
+        if size is not None:
+            params = [
+                _broadcast(p, size, ndim)
+                for p, ndim in zip(params, op.ndims_params, strict=True)
+            ]
+        return sample(*params, seed=seed)
+
+    return rule
+
+
+# op name -> TensorFlow rule; a rule takes the op, its input values and a seed.
+# The input values of an RV are its size (None if not given) and parameters.
 RULES: dict[str, Callable[[Any, list[Any], Any], Any]] = {
     "Add": lambda op, args, seed: functools.reduce(tf.add, args),
     "Mul": lambda op, args, seed: functools.reduce(tf.multiply, args),
+    "Second": lambda op, args, seed: args[1] + tf.zeros_like(args[0]),
     "DimShuffle": lambda op, args, seed: _dimshuffle(op, args[0]),
+    "Join": lambda op, args, seed: tf.concat(args, axis=op.axis),
+    "Shape": lambda op, args, seed: tf.shape(args[0]),
+    "Subtensor": lambda op, args, seed: _subtensor(op, *args),
+    "ScalarFromTensor": lambda op, args, seed: args[0],
     "ViewOp": lambda op, args, seed: args[0],
-    "NormalRV": lambda op, args, seed: tfd.Normal(*args).sample(seed=seed),
+    "NormalRV": _rv(lambda loc, scale, seed: tfd.Normal(loc, scale).sample(seed=seed)),
 }
 
 
@@ -202,7 +250,10 @@ def translate(
             ]
             node_args = _upcast(node, node_args)
             rule = RULES[_op_key(node.op)]
-            values[node.default_output()] = rule(node.op, node_args, rv_seeds.get(node))
+            out = node.default_output()
+            value = rule(node.op, node_args, rv_seeds.get(node))
+            # the TensorFlow value takes the dtype of the PyTensor output
+            values[out] = tf.cast(value, _tf_dtype(out.dtype))
         return [values[out] for out in outputs]
 
     return run
