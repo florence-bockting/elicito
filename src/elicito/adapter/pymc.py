@@ -173,7 +173,8 @@ def model(model: Any) -> type:
     Translate a PyMC model into a generative model for `el.model`
 
     The generative model takes the samples of the priors that `parameters`
-    reads. It samples every other free random variable itself.
+    reads. It samples every other free random variable itself, once per
+    sample of the priors.
 
     Parameters
     ----------
@@ -209,9 +210,11 @@ def model(model: Any) -> type:
         for rv in priors
     ]
     replace = dict(zip(priors, batched, strict=True))
-    outputs = vectorize([model[name] for name in names], replace)
+    # the batch shape (B, S); every other RV draws once per batch element
+    batch = pt.lvector("batch", shape=(2,))
+    outputs = vectorize([model[name] for name in names], replace, batch)
 
-    run = translate(outputs, batched)
+    run = translate(outputs, [*batched, batch])
     # the columns of prior_samples that hold each prior, in the order of
     # the parameters
     ends = np.cumsum([_size(rv) for rv in priors]).tolist()
@@ -228,7 +231,7 @@ def model(model: Any) -> type:
                 for a, b, shape in zip(starts, ends, shapes, strict=True)
             ]
             # a count, such as a Binomial draw, becomes a float for the targets
-            outputs = [tf.cast(out, tf.float32) for out in run(args, seed)]
+            outputs = [tf.cast(out, tf.float32) for out in run([*args, batch], seed)]
             return dict(zip(names, outputs, strict=True))
 
     return PyMCModel

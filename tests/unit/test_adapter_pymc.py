@@ -190,6 +190,17 @@ def test_vectorize_batches_an_rv_whose_first_input_is_constant():
     assert out.type.ndim == 2
 
 
+def test_model_draws_a_latent_rv_once_per_sample():
+    """z has no pm.Data input and no batched input"""
+    with pm.Model() as m:
+        mu = pm.Normal("mu", pm.Data("m0", 0.0), pm.Data("s0", 1.0))
+        z = pm.Normal("z", 0.0, 1.0, shape=2)
+        pm.Deterministic("e", mu + z)
+    out = adapter_pymc.model(m)()(tf.zeros((1, 10_000, 1)), seed=SEED)
+    assert out["e"].shape == (1, 10_000, 2)
+    assert abs(float(tf.math.reduce_std(out["e"])) - 1.0) < 0.05
+
+
 N = 20_000
 
 

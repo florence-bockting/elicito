@@ -265,36 +265,46 @@ RULES: dict[str, Callable[[Any, list[Any], Any], Any]] = {
 }
 
 
-def _vectorize_rv(op: Any, node: Any, rng: Any, size: Any, *params: Any) -> Any:
+def _vectorize_rv(
+    op: Any, node: Any, batch: Any, rng: Any, size: Any, *params: Any
+) -> Any:
     """
     Batch a random variable; take the new axes from every input
 
     PyTensor's `vectorize_random_variable` takes them from the first input
-    only. `Binomial(n, p)` with a constant `n` then keeps its old size.
+    only. `Binomial(n, p)` with a constant `n` then keeps its old size. An
+    RV without a batched input takes the batch shape `batch`, if given, and
+    so draws once per batch element.
     """
     from pytensor.graph.basic import equal_computations
     from pytensor.tensor.basic import concatenate
     from pytensor.tensor.random.utils import compute_batch_shape
     from pytensor.tensor.type_other import NoneTypeT
 
-    old_size = op.size_param(node)
-    if not isinstance(old_size.type, NoneTypeT) and equal_computations(
-        [old_size], [size]
-    ):
-        new_ndim = max(
-            (
-                new.type.ndim - old.type.ndim
-                for new, old in zip(params, op.dist_params(node), strict=True)
-            ),
-            default=0,
-        )
-        if new_ndim > 0:
-            batch = compute_batch_shape(params, ndims_params=op.ndims_params)
-            size = concatenate([batch[:new_ndim], size])  # type: ignore[no-untyped-call]
+    if not equal_computations([op.size_param(node)], [size]):
+        # the size itself is batched
+        return op.make_node(rng, size, *params)
+    new_ndim = max(
+        (
+            new.type.ndim - old.type.ndim
+            for new, old in zip(params, op.dist_params(node), strict=True)
+        ),
+        default=0,
+    )
+    no_size = isinstance(size.type, NoneTypeT)
+    if new_ndim == 0 and batch is not None:
+        if no_size:
+            size = compute_batch_shape(params, ndims_params=op.ndims_params)
+        size = concatenate([batch, size])  # type: ignore[no-untyped-call]
+    elif new_ndim > 0 and not no_size:
+        shape = compute_batch_shape(params, ndims_params=op.ndims_params)
+        size = concatenate([shape[:new_ndim], size])  # type: ignore[no-untyped-call]
     return op.make_node(rng, size, *params)
 
 
-def vectorize(outputs: list[Any], replace: dict[Any, Any]) -> list[Any]:
+def vectorize(
+    outputs: list[Any], replace: dict[Any, Any], batch: Any = None
+) -> list[Any]:
     """
     Add batch axes on the left of a PyTensor graph
 
@@ -309,6 +319,10 @@ def vectorize(outputs: list[Any], replace: dict[Any, Any]) -> list[Any]:
     replace
         each input variable, and the batched variable that replaces it
 
+    batch
+        integer vector with the batch shape; if given, an RV without a
+        batched input takes it, and so draws once per batch element
+
     Returns
     -------
     :
@@ -316,15 +330,16 @@ def vectorize(outputs: list[Any], replace: dict[Any, Any]) -> list[Any]:
     """
     from pytensor.graph.basic import Apply
     from pytensor.graph.replace import _vectorize_node
-    from pytensor.graph.traversal import toposort, truncated_graph_inputs
+    from pytensor.graph.traversal import toposort
     from pytensor.tensor.random.op import RandomVariable
 
-    inputs = truncated_graph_inputs(outputs, ancestors_to_include=replace.keys())
-    batched = {inp: replace.get(inp, inp) for inp in inputs}
-    for node in toposort(outputs, blockers=inputs):
+    # the whole graph, also the parts that do not depend on a replaced
+    # variable: an RV there still takes the batch axes
+    batched = dict(replace)
+    for node in toposort(outputs, blockers=list(replace)):
         args = [batched.get(inp, inp) for inp in node.inputs]
         if isinstance(node.op, RandomVariable):
-            new = _vectorize_rv(node.op, node, *args)
+            new = _vectorize_rv(node.op, node, batch, *args)
         else:
             new = _vectorize_node(node.op, node, *args)
         new_outputs = new.outputs if isinstance(new, Apply) else new

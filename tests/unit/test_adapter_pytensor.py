@@ -116,3 +116,14 @@ def test_blockwise_repeat_and_reshape():
     x = np.arange(4.0).reshape(2, 2)
     [value] = translate([out], [v_b])([tf.constant(x, tf.float32)], SEED)
     np.testing.assert_allclose(value, np.repeat(x, 3, axis=1).reshape(2, 2, 3))
+
+
+@pytest.mark.parametrize(("size", "shape"), [((3,), (4, 5, 3)), (None, (4, 5))])
+def test_vectorize_gives_an_unbatched_rv_the_batch_axes(size, shape):
+    """an RV without a batched input draws once per batch element"""
+    x = pt.random.normal(0.0, 1.0, size=size)
+    batch = pt.lvector("batch", shape=(2,))
+    [x_b] = vectorize([x], {}, batch)
+    [out] = translate([x_b], [batch])([tf.constant([4, 5])], SEED)
+    assert out.shape == shape
+    assert float(tf.math.reduce_std(out)) > 0.5
