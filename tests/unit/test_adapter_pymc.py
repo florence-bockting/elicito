@@ -46,9 +46,27 @@ def test_parameters_match_the_tutorial(toy_model):
 
 def test_unsupported_family_raises():
     with pm.Model() as m:
-        pm.Gamma("g", alpha=pm.Data("a", 2.0), beta=pm.Data("b", 1.0))
-    with pytest.raises(NotImplementedError, match="GammaRV"):
+        pm.Laplace("l", mu=pm.Data("mu", 0.0), b=pm.Data("b", 1.0))
+    with pytest.raises(NotImplementedError, match="LaplaceRV"):
         adapter_pymc.parameters(m)
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        pytest.param(lambda a, b: pm.Gamma("x", alpha=a, beta=b), id="Gamma"),
+        pytest.param(lambda a, b: pm.Beta("x", alpha=a, beta=b), id="Beta"),
+        pytest.param(lambda a, b: pm.Uniform("x", lower=a, upper=b), id="Uniform"),
+    ],
+)
+def test_family_matches_pymc(build):
+    """the tfd family with the pm.Data values has the mean of the PyMC prior"""
+    with pm.Model() as m:
+        build(pm.Data("a", 2.0), pm.Data("b", 5.0))
+    [p] = adapter_pymc.parameters(m)
+    kwargs = {k: m[h["name"]].get_value() for k, h in p["hyperparams"].items()}
+    pm_mean = pm.draw(m["x"], draws=20_000, random_seed=1).mean()
+    np.testing.assert_allclose(p["family"](**kwargs).mean(), pm_mean, rtol=0.02)
 
 
 def test_constant_hyperparameter_raises():

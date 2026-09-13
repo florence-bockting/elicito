@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
-from elicito.adapter._pytensor import translate, vectorize
+from elicito.adapter._pytensor import _op_key, translate, vectorize
 from elicito.exceptions import MissingOptionalDependencyError
 from elicito.specs import hyper, parameter
 from elicito.types import Parameter
@@ -17,18 +17,29 @@ from elicito.types import Parameter
 tfd = tfp.distributions
 
 # PyTensor random variable -> tfd family, and one entry per input of the
-# random variable: the tfd argument name, or a value the input must equal
-FAMILIES: dict[str, tuple[Any, tuple[str | float, ...]]] = {
+# random variable: the tfd argument name, a value the input must equal, or
+# (tfd argument name, op): the input is that op of the pm.Data node
+FAMILIES: dict[str, tuple[Any, tuple[str | float | tuple[str, str], ...]]] = {
     "NormalRV": (tfd.Normal, ("loc", "scale")),
     "HalfNormalRV": (tfd.HalfNormal, (0.0, "scale")),
+    "UniformRV": (tfd.Uniform, ("low", "high")),
+    "BetaRV": (tfd.Beta, ("concentration1", "concentration0")),
+    # pm.Gamma(alpha, beta) gives GammaRV the scale 1 / beta
+    "GammaRV": (tfd.Gamma, ("concentration", ("rate", "Reciprocal"))),
 }
 # lower bound of a hyperparameter, by tfd argument name
-LOWER = {"scale": 0.0}
+LOWER = dict.fromkeys(
+    ["scale", "rate", "concentration", "concentration1", "concentration0"], 0.0
+)
 
 
-def _unwrap(inp: Any) -> Any:
-    """Remove the axes that PyMC adds to each input of a prior with a shape"""
-    while inp.owner is not None and type(inp.owner.op).__name__ == "DimShuffle":
+def _unwrap(inp: Any, *ops: str) -> Any:
+    """
+    Remove the axes that PyMC adds to each input of a prior with a shape
+
+    Also remove each op in ops, for example the Reciprocal of a Gamma rate.
+    """
+    while inp.owner is not None and _op_key(inp.owner.op) in ("DimShuffle", *ops):
         inp = inp.owner.inputs[0]
     return inp
 
@@ -46,7 +57,7 @@ def _is_prior(rv: Any) -> bool:
     from pytensor.compile.sharedvalue import SharedVariable
 
     params = rv.owner.op.dist_params(rv.owner)
-    return any(isinstance(_unwrap(inp), SharedVariable) for inp in params)
+    return any(isinstance(_unwrap(inp, "Reciprocal"), SharedVariable) for inp in params)
 
 
 def _specs(rv: Any) -> tuple[Any, dict[str, tuple[str, float]]]:
@@ -67,15 +78,18 @@ def _specs(rv: Any) -> tuple[Any, dict[str, tuple[str, float]]]:
 
     family, entries = FAMILIES[op_name]
     specs = {}
-    for entry, inp in zip(
-        entries, map(_unwrap, node.op.dist_params(node)), strict=True
-    ):
+    for entry, raw in zip(entries, node.op.dist_params(node), strict=True):
+        key: str | float
+        if isinstance(entry, tuple):
+            key, inp = entry[0], _unwrap(raw, entry[1])
+        else:
+            key, inp = entry, _unwrap(raw)
         is_data = isinstance(inp, SharedVariable) and bool(inp.name)
-        if isinstance(entry, str) and is_data and inp.type.ndim == 0:
-            specs[entry] = (inp.name, LOWER.get(entry, float("-inf")))
-        elif isinstance(entry, float) and isinstance(inp, Constant):
-            if np.any(inp.data != entry):
-                msg = f"The prior of '{rv.name}' needs {entry}, not {inp.data}."
+        if isinstance(key, str) and is_data and inp.type.ndim == 0:
+            specs[key] = (inp.name, LOWER.get(key, float("-inf")))
+        elif isinstance(key, float) and isinstance(inp, Constant):
+            if np.any(inp.data != key):
+                msg = f"The prior of '{rv.name}' needs {key}, not {inp.data}."
                 raise ValueError(msg)
         else:
             msg = (
