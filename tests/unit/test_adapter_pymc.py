@@ -5,7 +5,7 @@ import tensorflow_probability as tfp
 
 import elicito as el
 from elicito.adapter import pymc as adapter_pymc
-from elicito.adapter._pytensor import vectorize
+from elicito.adapter._pytensor import translate, vectorize
 
 pm = pytest.importorskip("pymc")
 tfd = tfp.distributions
@@ -188,6 +188,49 @@ def test_vectorize_batches_an_rv_whose_first_input_is_constant():
     x = pt.random.binomial(n=10, p=p, size=(3,))
     [out] = vectorize([x], {p: pt.matrix("p_batched", shape=(None, 3))})
     assert out.type.ndim == 2
+
+
+N = 20_000
+
+
+@pytest.mark.parametrize(
+    "dist",
+    [
+        pytest.param(lambda: pm.Normal.dist(1.0, 2.0, size=N), id="Normal"),
+        pytest.param(lambda: pm.HalfNormal.dist(2.0, size=N), id="HalfNormal"),
+        pytest.param(
+            lambda: pm.TruncatedNormal.dist(0.0, 1.0, lower=0.0, upper=1.0, size=N),
+            id="TruncatedNormal",
+        ),
+        pytest.param(lambda: pm.Uniform.dist(1.0, 3.0, size=N), id="Uniform"),
+        pytest.param(lambda: pm.Beta.dist(2.0, 5.0, size=N), id="Beta"),
+        pytest.param(lambda: pm.Gamma.dist(2.0, 3.0, size=N), id="Gamma"),
+        pytest.param(lambda: pm.Exponential.dist(2.0, size=N), id="Exponential"),
+        pytest.param(lambda: pm.Bernoulli.dist(0.3, size=N), id="Bernoulli"),
+        pytest.param(lambda: pm.Binomial.dist(10, 0.3, size=N), id="Binomial"),
+        pytest.param(
+            lambda: pm.Categorical.dist([0.2, 0.5, 0.3], size=N), id="Categorical"
+        ),
+    ],
+)
+def test_rv_matches_pymc(dist):
+    """the translated RV has the mean and standard deviation of pm.draw"""
+    x = dist()
+    [value] = translate([x], [])([], SEED)
+    tf_draws = np.asarray(value, dtype=float)
+    pm_draws = pm.draw(x, random_seed=1).astype(float)
+    se = np.sqrt((tf_draws.var() + pm_draws.var()) / N)
+    assert abs(tf_draws.mean() - pm_draws.mean()) < 5 * se
+    np.testing.assert_allclose(tf_draws.std(), pm_draws.std(), rtol=0.05)
+
+
+def test_model_returns_counts_as_float():
+    with pm.Model() as m:
+        p = pm.Beta("p", pm.Data("a", 2.0), pm.Data("b", 2.0))
+        pm.Binomial("k", n=10, p=p, observed=np.zeros(3, dtype=int))
+    out = adapter_pymc.model(m)()(tf.fill((1, 50, 1), 0.5), seed=SEED)
+    assert out["k"].dtype == tf.float32
+    assert set(np.unique(out["k"])) <= set(range(11))
 
 
 def _slice(i):

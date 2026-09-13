@@ -184,7 +184,7 @@ def model(model: Any) -> type:
     -------
     :
         generative model class; it returns every observed random variable
-        and every `pm.Deterministic`, by name
+        and every `pm.Deterministic`, by name, as float32
 
     Raises
     ------
@@ -227,7 +227,9 @@ def model(model: Any) -> type:
                 tf.reshape(prior_samples[:, :, a:b], tf.concat([batch, shape], 0))
                 for a, b, shape in zip(starts, ends, shapes, strict=True)
             ]
-            return dict(zip(names, run(args, seed), strict=True))
+            # a count, such as a Binomial draw, becomes a float for the targets
+            outputs = [tf.cast(out, tf.float32) for out in run(args, seed)]
+            return dict(zip(names, outputs, strict=True))
 
     return PyMCModel
 

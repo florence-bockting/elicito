@@ -187,6 +187,8 @@ def _rv(sample: Callable[..., Any]) -> Callable[[Any, list[Any], Any], Any]:
 
     def rule(op: Any, args: list[Any], seed: Any) -> Any:
         size, *params = args
+        # every tfd parameter is a float, also the n of a Binomial
+        params = [tf.cast(p, tf.float32) for p in params]
         if size is not None:
             params = [
                 _broadcast(p, size, ndim)
@@ -242,6 +244,26 @@ RULES: dict[str, Callable[[Any, list[Any], Any], Any]] = {
     "ScalarFromTensor": lambda op, args, seed: args[0],
     "ViewOp": lambda op, args, seed: args[0],
     "NormalRV": _rv(lambda loc, scale, seed: tfd.Normal(loc, scale).sample(seed=seed)),
+    "HalfNormalRV": _rv(
+        lambda loc, scale, seed: loc + tfd.HalfNormal(scale).sample(seed=seed)
+    ),
+    "TruncatedNormalRV": _rv(
+        lambda loc, scale, low, high, seed: tfd.TruncatedNormal(
+            loc, scale, low, high
+        ).sample(seed=seed)
+    ),
+    "UniformRV": _rv(lambda low, high, seed: tfd.Uniform(low, high).sample(seed=seed)),
+    "BetaRV": _rv(lambda a, b, seed: tfd.Beta(a, b).sample(seed=seed)),
+    # GammaRV and ExponentialRV take a scale; tfd takes a rate
+    "GammaRV": _rv(
+        lambda shape, scale, seed: tfd.Gamma(shape, 1 / scale).sample(seed=seed)
+    ),
+    "ExponentialRV": _rv(
+        lambda scale, seed: tfd.Exponential(1 / scale).sample(seed=seed)
+    ),
+    "BernoulliRV": _rv(lambda p, seed: tfd.Bernoulli(probs=p).sample(seed=seed)),
+    "BinomialRV": _rv(lambda n, p, seed: tfd.Binomial(n, probs=p).sample(seed=seed)),
+    "CategoricalRV": _rv(lambda p, seed: tfd.Categorical(probs=p).sample(seed=seed)),
 }
 
 
