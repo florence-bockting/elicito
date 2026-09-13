@@ -176,8 +176,8 @@ def test_model_ypred_moments(toy_model):
 def test_model_unsupported_op_raises():
     with pm.Model() as m:
         b = pm.Normal("b", pm.Data("mu", 0.0), pm.Data("s", 1.0))
-        pm.Deterministic("e", pm.math.exp(b))
-    with pytest.raises(NotImplementedError, match="Exp"):
+        pm.Deterministic("e", pm.math.cos(b))
+    with pytest.raises(NotImplementedError, match="Cos"):
         adapter_pymc.model(m)
 
 
