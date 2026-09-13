@@ -92,6 +92,38 @@ def test_latent_rv_with_a_pm_data_input_raises():
         adapter_pymc.parameters(m)
 
 
+def test_vector_prior_becomes_scalar_parameters():
+    with pm.Model() as m:
+        pm.Normal("b", pm.Data("mu", 0.0), pm.Data("s", 1.0), shape=3)
+    params = adapter_pymc.parameters(m)
+    assert [p["name"] for p in params] == ["b[0]", "b[1]", "b[2]"]
+    assert all(h["shared"] for p in params for h in p["hyperparams"].values())
+
+
+def test_vector_prior_with_a_fixed_input():
+    with pm.Model() as m:
+        pm.HalfNormal("s", pm.Data("sigma", 1.0), shape=2)
+    params = adapter_pymc.parameters(m)
+    assert [p["family"] for p in params] == [tfd.HalfNormal, tfd.HalfNormal]
+
+
+def test_vector_hyperparameter_raises():
+    with pm.Model() as m:
+        pm.Normal("b", pm.Data("mu", np.zeros(3)), pm.Data("s", 1.0))
+    with pytest.raises(TypeError, match="scalar"):
+        adapter_pymc.parameters(m)
+
+
+def test_model_puts_the_columns_back_into_a_vector_prior():
+    with pm.Model() as m:
+        a = pm.Normal("a", pm.Data("mu_a", 0.0), pm.Data("s_a", 1.0))
+        b = pm.Normal("b", pm.Data("mu_b", 0.0), pm.Data("s_b", 1.0), shape=2)
+        pm.Deterministic("e", a + b * np.array([1.0, 10.0]))
+    samples = tf.constant([[[1.0, 2.0, 3.0]]])
+    out = adapter_pymc.model(m)()(samples, seed=SEED)
+    np.testing.assert_allclose(out["e"][0, 0], [3.0, 31.0])
+
+
 def test_model_samples_a_latent_rv(hierarchical_model):
     samples = tf.fill((1, 100_000, 1), 3.0)
     out = adapter_pymc.model(hierarchical_model)()(samples, seed=SEED)
