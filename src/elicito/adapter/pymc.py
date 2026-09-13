@@ -24,12 +24,22 @@ FAMILIES: dict[str, tuple[Any, tuple[str | float, ...]]] = {
 LOWER = {"scale": 0.0}
 
 
+def _is_prior(rv: Any) -> bool:
+    """Tell if a free random variable is a prior: a `pm.Data` node is an input"""
+    from pytensor.compile.sharedvalue import SharedVariable
+
+    params = rv.owner.op.dist_params(rv.owner)
+    return any(isinstance(inp, SharedVariable) for inp in params)
+
+
 def parameters(model: Any) -> list[Parameter]:
     """
     Read the priors of a PyMC model
 
-    Every hyperparameter must be a named `pm.Data` node. Its name becomes
-    the name of the hyperparameter.
+    A free random variable with a `pm.Data` input is a prior. Every input
+    of a prior must be a named `pm.Data` node, or the fixed value of its
+    family. The name of the node becomes the name of the hyperparameter.
+    The generative model samples every other free random variable.
 
     Parameters
     ----------
@@ -39,8 +49,7 @@ def parameters(model: Any) -> list[Parameter]:
     Returns
     -------
     :
-        one parameter per free random variable, in the order of
-        `model.free_RVs`
+        one parameter per prior, in the order of `model.free_RVs`
 
     Raises
     ------
@@ -65,16 +74,17 @@ def parameters(model: Any) -> list[Parameter]:
             "adapter.pymc", requirement="pymc"
         ) from exc
 
+    priors = [rv for rv in model.free_RVs if _is_prior(rv)]
     # a pm.Data node that feeds two priors is one shared hyperparameter
     uses = Counter(
         inp.name
-        for rv in model.free_RVs
+        for rv in priors
         for inp in rv.owner.op.dist_params(rv.owner)
         if isinstance(inp, SharedVariable)
     )
 
     params = []
-    for rv in model.free_RVs:
+    for rv in priors:
         node = rv.owner
         op_name = type(node.op).__name__
         if op_name not in FAMILIES:
@@ -105,6 +115,9 @@ def model(model: Any) -> type:
     """
     Translate a PyMC model into a generative model for `el.model`
 
+    The generative model takes the samples of the priors that `parameters`
+    reads. It samples every other free random variable itself.
+
     Parameters
     ----------
     model
@@ -132,9 +145,10 @@ def model(model: Any) -> type:
         ) from exc
 
     names = [v.name for v in model.observed_RVs + model.deterministics]
-    # a batched input of shape (B, S) replaces each free random variable
-    batched = [pt.matrix(rv.name) for rv in model.free_RVs]
-    replace = dict(zip(model.free_RVs, batched, strict=True))
+    # a batched input of shape (B, S) replaces each prior
+    priors = [rv for rv in model.free_RVs if _is_prior(rv)]
+    batched = [pt.matrix(rv.name) for rv in priors]
+    replace = dict(zip(priors, batched, strict=True))
     outputs = vectorize([model[name] for name in names], replace)
 
     run = translate(outputs, batched)

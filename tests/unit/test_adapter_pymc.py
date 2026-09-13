@@ -69,6 +69,37 @@ def test_shared_hyperparameter():
     assert not params[0]["hyperparams"]["loc"]["shared"]
 
 
+@pytest.fixture
+def hierarchical_model():
+    """a prior mu, a latent theta of shape 4, and an observed y"""
+    with pm.Model() as m:
+        mu = pm.Normal("mu", pm.Data("mu0", 0.0), pm.Data("sigma0", 1.0))
+        theta = pm.Normal("theta", mu, 1.0, shape=4)
+        pm.Normal("y", theta, 0.5, observed=np.zeros(4))
+    return m
+
+
+def test_latent_rv_is_not_a_parameter(hierarchical_model):
+    params = adapter_pymc.parameters(hierarchical_model)
+    assert [p["name"] for p in params] == ["mu"]
+
+
+def test_latent_rv_with_a_pm_data_input_raises():
+    with pm.Model() as m:
+        mu = pm.Normal("mu", pm.Data("mu0", 0.0), pm.Data("sigma0", 1.0))
+        pm.Normal("theta", mu, pm.Data("tau", 1.0))
+    with pytest.raises(TypeError, match="pm.Data"):
+        adapter_pymc.parameters(m)
+
+
+def test_model_samples_a_latent_rv(hierarchical_model):
+    samples = tf.fill((1, 100_000, 1), 3.0)
+    out = adapter_pymc.model(hierarchical_model)()(samples, seed=SEED)
+    assert out["y"].shape == (1, 100_000, 4)
+    assert abs(float(tf.reduce_mean(out["y"])) - 3.0) < 0.05
+    assert abs(float(tf.math.reduce_std(out["y"])) - np.sqrt(1.25)) < 0.05
+
+
 def test_model_is_accepted_by_el_model(toy_model):
     el.model(obj=adapter_pymc.model(toy_model))
 
