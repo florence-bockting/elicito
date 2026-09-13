@@ -8,6 +8,7 @@ import functools
 from collections.abc import Callable
 from typing import Any
 
+import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
@@ -27,10 +28,34 @@ def _inputs(node: Any) -> list[Any]:
     return list(node.inputs)
 
 
+def _tf_dtype(dtype: str) -> Any:
+    """TensorFlow dtype of a PyTensor dtype: bool, int32 or float32"""
+    if dtype == "bool":
+        return tf.bool
+    if np.issubdtype(np.dtype(dtype), np.integer):
+        return tf.int32
+    return tf.float32
+
+
 def _constant(var: Any) -> Any:
-    """Value of a constant or of a pm.Data node"""
+    """Value of a constant or of a pm.Data node; integers stay integers"""
     data = var.get_value() if hasattr(var, "get_value") else var.data
-    return tf.constant(data, dtype=tf.float32)
+    return tf.constant(data, dtype=_tf_dtype(var.dtype))
+
+
+def _upcast(node: Any, args: list[Any]) -> list[Any]:
+    """Give the numeric inputs of an elementwise op one dtype, as PyTensor does"""
+    if not hasattr(node.op, "scalar_op"):
+        return args
+    numeric = [inp.dtype != "bool" for inp in node.inputs]
+    dtypes = [inp.dtype for inp, num in zip(node.inputs, numeric) if num]
+    if not dtypes:
+        return args
+    dtype = _tf_dtype(np.result_type(*dtypes).name)
+    return [
+        tf.cast(arg, dtype) if num else arg
+        for arg, num in zip(args, numeric, strict=True)
+    ]
 
 
 def _dimshuffle(op: Any, x: Any) -> Any:
@@ -175,6 +200,7 @@ def translate(
             node_args = [
                 values[v] if v in values else _constant(v) for v in _inputs(node)
             ]
+            node_args = _upcast(node, node_args)
             rule = RULES[_op_key(node.op)]
             values[node.default_output()] = rule(node.op, node_args, rv_seeds.get(node))
         return [values[out] for out in outputs]
