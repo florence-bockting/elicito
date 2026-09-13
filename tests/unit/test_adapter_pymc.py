@@ -5,6 +5,7 @@ import tensorflow_probability as tfp
 
 import elicito as el
 from elicito.adapter import pymc as adapter_pymc
+from elicito.adapter._pytensor import vectorize
 
 pm = pytest.importorskip("pymc")
 tfd = tfp.distributions
@@ -97,6 +98,15 @@ def test_model_unsupported_op_raises():
         pm.Deterministic("e", pm.math.exp(b))
     with pytest.raises(NotImplementedError, match="Exp"):
         adapter_pymc.model(m)
+
+
+def test_vectorize_batches_an_rv_whose_first_input_is_constant():
+    """pytensor's vectorize_graph keeps the old size of Binomial(n, p) here"""
+    pt = pytest.importorskip("pytensor.tensor")
+    p = pt.vector("p", shape=(3,))
+    x = pt.random.binomial(n=10, p=p, size=(3,))
+    [out] = vectorize([x], {p: pt.matrix("p_batched", shape=(None, 3))})
+    assert out.type.ndim == 2
 
 
 def _slice(i):

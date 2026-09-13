@@ -7,7 +7,7 @@ from typing import Any
 
 import tensorflow_probability as tfp  # type: ignore
 
-from elicito.adapter._pytensor import translate
+from elicito.adapter._pytensor import translate, vectorize
 from elicito.exceptions import MissingOptionalDependencyError
 from elicito.specs import hyper, parameter
 from elicito.types import Parameter
@@ -126,7 +126,6 @@ def model(model: Any) -> type:
     """
     try:
         import pytensor.tensor as pt
-        from pytensor.graph.replace import vectorize_graph
     except ImportError as exc:
         raise MissingOptionalDependencyError(
             "adapter.pymc", requirement="pymc"
@@ -136,7 +135,7 @@ def model(model: Any) -> type:
     # a batched input of shape (B, S) replaces each free random variable
     batched = [pt.matrix(rv.name) for rv in model.free_RVs]
     replace = dict(zip(model.free_RVs, batched, strict=True))
-    outputs = vectorize_graph([model[name] for name in names], replace=replace)
+    outputs = vectorize([model[name] for name in names], replace)
 
     run = translate(outputs, batched)
 
