@@ -11,6 +11,7 @@ The notebooks check the translation only. They do not elicit a prior.
 
 - [Signal detection theory](signal-detection-theory.py) (chapter 11)
 - [The BART model of risk taking](bart-risk-taking.py) (chapter 16)
+- [Psychophysical functions](psychophysical-functions.py) (chapter 12)
 
 ## Source and licence
 
