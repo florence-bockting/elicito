@@ -31,7 +31,7 @@
 # > **Note:** the adapter needs Python 3.12 or later and the optional
 # > dependency `pymc`. Install it with `pip install "elicito[pymc]"`.
 
-# %% tags=["hide"]
+# %% tags=["remove_input"]
 import os
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
