@@ -16,6 +16,7 @@ The notebooks check the translation only. They do not elicit a prior.
 - [The GCM model of categorization](gcm-categorization.py) (chapter 17)
 - [The SIMPLE model of memory](simple-memory.py) (chapter 15)
 - [Heuristic decision-making](heuristic-decision-making.py) (chapter 18)
+- [Extrasensory perception](extrasensory-perception.py) (chapter 13)
 
 ## Source and licence
 
