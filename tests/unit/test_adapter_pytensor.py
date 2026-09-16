@@ -109,6 +109,18 @@ def test_blockwise_advanced_subtensor():
     np.testing.assert_allclose(value, np.take_along_axis(x, i, axis=1))
 
 
+def test_blockwise_advanced_subtensor_two_arrays_and_a_slice():
+    """a constant 3-d array; the index on axis 0 is batched"""
+    t = np.arange(24.0).reshape(2, 3, 4)
+    i, j = pt.lvector("i", shape=(3,)), np.array([2, 2, 0])
+    i_b = pt.lmatrix("i_b", shape=(None, 3))
+    [out] = vectorize([pt.as_tensor(t)[i, j, :]], {i: i_b})
+    assert type(out.owner.op).__name__ == "Blockwise"
+    rows = np.array([[1, 0, 1], [0, 0, 1]])
+    [value] = translate([out], [i_b])([tf.constant(rows, tf.int32)], SEED)
+    np.testing.assert_allclose(value, [t[r, j, :] for r in rows])
+
+
 def test_blockwise_repeat_and_reshape():
     v = pt.vector("v", shape=(2,))
     v_b = pt.matrix("v_b", shape=(None, 2))

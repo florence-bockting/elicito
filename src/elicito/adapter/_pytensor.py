@@ -138,21 +138,35 @@ def _advanced_subtensor(op: Any, x: Any, *idx: Any) -> Any:
     """
     Index x as AdvancedSubtensor does
 
-    The op may hold full slices and integer arrays at consecutive axes. A
-    Blockwise may index axis 0 of its core with one integer array.
+    The op may hold full slices and integer arrays at consecutive axes. The
+    core index of a Blockwise must start with an integer array; each batch
+    axis then becomes one more integer array in front.
     """
+    entries = getattr(op, "core_op", op).idx_list
     nb = _batch_ndim(op, x)
     if nb:
-        if op.core_op.idx_list != (0,):
+        if isinstance(entries[0], slice):
             msg = f"The adapter does not support the Blockwise index {op.core_op}."
             raise NotImplementedError(msg)
-        [i] = idx
-        batch = tf.broadcast_dynamic_shape(tf.shape(x)[:nb], tf.shape(i)[:nb])
+        arrays = [idx[e] for e in entries if not isinstance(e, slice)]
+        batch = functools.reduce(
+            tf.broadcast_dynamic_shape, [tf.shape(a)[:nb] for a in [x, *arrays]]
+        )
         x = tf.broadcast_to(x, tf.concat([batch, tf.shape(x)[nb:]], axis=0))
-        i = tf.broadcast_to(i, tf.concat([batch, tf.shape(i)[nb:]], axis=0))
-        return tf.gather(x, i, axis=nb, batch_dims=nb)
+        core_rank = max(len(a.shape) for a in arrays) - nb
+        # batch axis a indexes itself; its array broadcasts over the others
+        grids = [
+            tf.reshape(
+                tf.range(batch[a]), [1] * a + [-1] + [1] * (nb - a - 1 + core_rank)
+            )
+            for a in range(nb)
+        ]
+        idx = (*grids, *idx)
+        entries = (
+            *range(nb),
+            *(e if isinstance(e, slice) else e + nb for e in entries),
+        )
 
-    entries = op.idx_list
     is_array = [not isinstance(e, slice) for e in entries]
     first, n = is_array.index(True), sum(is_array)
     full = all(
