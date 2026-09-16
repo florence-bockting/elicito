@@ -9,6 +9,8 @@ A Practical Course* (Lee & Wagenmakers, 2013). Each notebook:
 
 The notebooks check the translation only. They do not elicit a prior.
 
+- [Signal detection theory](signal-detection-theory.py) (chapter 11)
+
 ## Source and licence
 
 The PyMC3 models and the data come from the
