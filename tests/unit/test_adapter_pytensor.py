@@ -88,6 +88,50 @@ def test_rv_takes_its_size():
     assert out.shape == (2, 3)
 
 
+COV = np.array([[1.0, 0.6], [0.6, 2.0]])
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        pytest.param(
+            lambda size: pt.random.dirichlet(np.array([1.0, 2.0, 3.0]), size=size),
+            id="DirichletRV",
+        ),
+        pytest.param(
+            lambda size: pt.random.multinomial(
+                10, np.array([0.2, 0.3, 0.5]), size=size
+            ),
+            id="MultinomialRV",
+        ),
+        pytest.param(
+            lambda size: pt.random.multivariate_normal(
+                np.array([1.0, -1.0]), pt.linalg.inv(np.linalg.inv(COV)), size=size
+            ),
+            id="MvNormalRV-MatrixInverse",
+        ),
+    ],
+)
+def test_multivariate_rv_matches_pytensor(build):
+    """mean and covariance of 20000 draws, with the event axis last"""
+    out = build((20000,))
+    [value] = translate([out], [])([], SEED)
+    expected = out.eval()
+    assert value.shape == expected.shape
+    value = np.asarray(value, dtype=float)
+    np.testing.assert_allclose(value.mean(0), expected.mean(0), atol=0.06)
+    np.testing.assert_allclose(np.cov(value.T), np.cov(expected.T), atol=0.1)
+
+
+def test_mvnormal_rv_takes_a_batched_mean():
+    mu = pt.matrix("mu", shape=(None, 2))
+    out = pt.random.multivariate_normal(mu, COV)
+    loc = np.array([[0.0, 0.0], [10.0, -10.0], [5.0, 5.0]], dtype=np.float32)
+    [value] = translate([out], [mu])([tf.constant(loc)], SEED)
+    assert value.shape == (3, 2)
+    np.testing.assert_allclose(value, loc, atol=7)
+
+
 def test_batched_rv_takes_the_new_axes():
     """the first parameter is constant, the second is batched"""
     scale = pt.vector("scale", shape=(3,))

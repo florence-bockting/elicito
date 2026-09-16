@@ -284,6 +284,16 @@ RULES: dict[str, Callable[[Any, list[Any], Any], Any]] = {
     "BernoulliRV": _rv(lambda p, seed: tfd.Bernoulli(probs=p).sample(seed=seed)),
     "BinomialRV": _rv(lambda n, p, seed: tfd.Binomial(n, probs=p).sample(seed=seed)),
     "CategoricalRV": _rv(lambda p, seed: tfd.Categorical(probs=p).sample(seed=seed)),
+    "MatrixInverse": lambda op, args, seed: tf.linalg.inv(args[0]),
+    "DirichletRV": _rv(lambda a, seed: tfd.Dirichlet(a).sample(seed=seed)),
+    "MultinomialRV": _rv(
+        lambda n, p, seed: tfd.Multinomial(n, probs=p).sample(seed=seed)
+    ),
+    "MvNormalRV": _rv(
+        lambda mu, cov, seed: tfd.MultivariateNormalTriL(
+            mu, tf.linalg.cholesky(cov)
+        ).sample(seed=seed)
+    ),
 }
 
 
