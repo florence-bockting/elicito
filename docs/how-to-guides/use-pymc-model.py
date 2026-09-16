@@ -70,8 +70,12 @@ tfd = tfp.distributions
 #
 # - Make each hyperparameter a named `pm.Data` node. Its name becomes the name
 #   of the hyperparameter in `elicito`.
-# - Use Normal or HalfNormal priors and a Normal likelihood. The adapter
-#   supports only these families for now.
+# - Use Normal, HalfNormal, Uniform, Beta or Gamma priors. A free random
+#   variable without a `pm.Data` input, such as a hierarchical effect, is not
+#   a prior: the generative model samples it.
+# - The likelihood and the operations can be those of the
+#   [case studies](../case-studies/index.md), for example Binomial,
+#   Categorical, Multinomial or MvNormal likelihoods, and indexing.
 # - Make the predictor and the data `pm.Data` nodes too. You can then replace
 #   them with `pm.set_data` before the fit.
 # - Do not give the likelihood a `shape` argument. It takes its shape from
