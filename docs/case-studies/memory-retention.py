@@ -75,7 +75,7 @@ DRAWS = 10_000
 #
 # PyMC computes in float64, the translated model in float32. A value near 0
 # or 1 then differs in the last digits. The check therefore rounds both
-# samples to 6 decimals.
+# samples to 6 decimals, in float64.
 
 
 # %%
@@ -105,8 +105,10 @@ def compare(pymc_model: Any, names: list[str], tol: float = 0.05) -> None:
     print(f"{'output':<28}{'TensorFlow mean, sd':>22}{'PyMC mean, sd':>22}{'D':>7}")
     worst = 0.0
     for name, pm_draws in zip(names, pm_out):
-        tf_values = np.round(tf_out[name][0], 6).reshape(DRAWS, -1)
-        pm_values = np.round(pm_draws, 6).reshape(DRAWS, -1)
+        tf_values = np.asarray(tf_out[name][0], dtype=float).reshape(DRAWS, -1)
+        pm_values = np.asarray(pm_draws, dtype=float).reshape(DRAWS, -1)
+        # round in float64: float32 cannot hold a value such as 0.873412
+        tf_values, pm_values = tf_values.round(6), pm_values.round(6)
         distances = [
             stats.ks_2samp(tf_values[:, j], pm_values[:, j], method="asymp").statistic
             for j in range(tf_values.shape[1])
