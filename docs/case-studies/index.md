@@ -13,6 +13,7 @@ The notebooks check the translation only. They do not elicit a prior.
 - [The BART model of risk taking](bart-risk-taking.py) (chapter 16)
 - [Psychophysical functions](psychophysical-functions.py) (chapter 12)
 - [Memory retention](memory-retention.py) (chapter 10)
+- [The GCM model of categorization](gcm-categorization.py) (chapter 17)
 
 ## Source and licence
 
