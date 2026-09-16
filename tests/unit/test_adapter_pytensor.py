@@ -118,6 +118,24 @@ def test_blockwise_repeat_and_reshape():
     np.testing.assert_allclose(value, np.repeat(x, 3, axis=1).reshape(2, 2, 3))
 
 
+def test_blockwise_argsort_in_a_tf_function():
+    """the axis of a batched ArgSortOp stays static inside tf.function"""
+    v = pt.vector("v", shape=(3,))
+    v_b = pt.matrix("v_b", shape=(None, 3))
+    [out] = vectorize([pt.argsort(v, axis=0)], {v: v_b})
+    run = tf.function(translate([out], [v_b]))
+    x = np.array([[3.0, 1.0, 2.0], [0.0, 2.0, 1.0]])
+    [value] = run([tf.constant(x, tf.float32)], SEED)
+    np.testing.assert_array_equal(value, np.argsort(x, axis=1))
+
+
+def test_constant_subgraph_needs_no_rule():
+    """Cos has no rule, but its input is a constant"""
+    x = pt.vector("x")
+    [out] = translate([x + pt.cos(pt.constant(0.0))], [x])([tf.ones(2)], SEED)
+    np.testing.assert_allclose(out, [2.0, 2.0])
+
+
 @pytest.mark.parametrize(("size", "shape"), [((3,), (4, 5, 3)), (None, (4, 5))])
 def test_vectorize_gives_an_unbatched_rv_the_batch_axes(size, shape):
     """an RV without a batched input draws once per batch element"""

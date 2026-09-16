@@ -110,6 +110,16 @@ def _reshape(op: Any, x: Any, shape: Any) -> Any:
     return tf.reshape(x, shape)
 
 
+def _argsort(op: Any, x: Any, axis: Any) -> Any:
+    """Sort along a constant axis; a Blockwise shifts it past the batch axes"""
+    value = tf.get_static_value(axis)
+    if value is None:
+        msg = "The adapter supports ArgSortOp along a constant axis only."
+        raise NotImplementedError(msg)
+    a = int(np.asarray(value).flat[0])
+    return tf.argsort(x, axis=a + _batch_ndim(op, x) if a >= 0 else a)
+
+
 def _alloc(op: Any, value: Any, *shape: Any) -> Any:
     """Broadcast value to shape; a Blockwise keeps the batch axes of value"""
     nb = _batch_ndim(op, value)
@@ -226,9 +236,7 @@ RULES: dict[str, Callable[[Any, list[Any], Any], Any]] = {
     "Second": lambda op, args, seed: args[1] + tf.zeros_like(args[0]),
     "Sum": lambda op, args, seed: tf.reduce_sum(args[0], axis=op.axis),
     "Prod": lambda op, args, seed: tf.reduce_prod(args[0], axis=op.axis),
-    "ArgSortOp": lambda op, args, seed: tf.argsort(
-        args[0], axis=int(tf.get_static_value(args[1]))
-    ),
+    "ArgSortOp": lambda op, args, seed: _argsort(op, *args),
     "Alloc": lambda op, args, seed: _alloc(op, *args),
     "Reshape": lambda op, args, seed: _reshape(op, *args),
     "AdvancedSubtensor": lambda op, args, seed: _advanced_subtensor(op, *args),
@@ -349,6 +357,26 @@ def vectorize(
     return [batched[out] for out in outputs]
 
 
+def _fold(order: list[Any]) -> dict[Any, Any]:
+    """Compute each node whose inputs are all constants, with PyTensor"""
+    from pytensor.graph.basic import Constant
+
+    folded: dict[Any, Any] = {}
+    for node in order:
+        if hasattr(node.op, "dist_params") or not all(
+            isinstance(v, Constant) or v in folded for v in node.inputs
+        ):
+            continue
+        storage: list[list[Any]] = [[None] for _ in node.outputs]
+        node.op.prepare_node(node, None, None, "py")
+        node.op.perform(
+            node, [folded[v] if v in folded else v.data for v in node.inputs], storage
+        )
+        for out, cell in zip(node.outputs, storage, strict=True):
+            folded[out] = cell[0]
+    return folded
+
+
 def translate(
     outputs: list[Any], inputs: list[Any]
 ) -> Callable[[list[Any], Any], list[Any]]:
@@ -388,6 +416,10 @@ def translate(
     for out in outputs:
         visit(out)
 
+    # a node with only constant inputs needs no rule; its value stays static
+    # inside a tf.function
+    folded = _fold(order)
+    order = [node for node in order if node.outputs[0] not in folded]
     for node in order:
         if _op_key(node.op) not in RULES:
             msg = f"The adapter does not support the op {_op_key(node.op)}."
@@ -398,11 +430,16 @@ def translate(
         values: dict[Any, Any] = dict(zip(inputs, args, strict=True))
         seeds = tfp.random.split_seed(seed, n=max(1, len(rv_nodes)), salt="pymc")
         rv_seeds = dict(zip(rv_nodes, seeds))
+
+        def value_of(v: Any) -> Any:
+            if v in values:
+                return values[v]
+            if v in folded:
+                return tf.constant(folded[v], dtype=_tf_dtype(v.dtype))
+            return _constant(v)
+
         for node in order:
-            node_args = [
-                values[v] if v in values else _constant(v) for v in _inputs(node)
-            ]
-            node_args = _upcast(node, node_args)
+            node_args = _upcast(node, [value_of(v) for v in _inputs(node)])
             rule = RULES[_op_key(node.op)]
             out = node.default_output()
             value = rule(node.op, node_args, rv_seeds.get(node))
