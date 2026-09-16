@@ -168,6 +168,31 @@ def parameters(model: Any) -> list[Parameter]:
     return params
 
 
+def _resize_symbolic_rvs(model: Any, priors: list[Any], batch: Any) -> dict[Any, Any]:
+    """
+    Give each symbolic RV, such as a Wishart, the batch axes
+
+    `vectorize` cannot batch a symbolic RV, so PyMC resizes it. Its inputs
+    must not depend on a free random variable.
+    """
+    from pymc.distributions.distribution import SymbolicRandomVariable
+    from pymc.distributions.shape_utils import change_dist_size
+    from pytensor.graph.traversal import ancestors
+
+    resized = {}
+    for rv in model.free_RVs:
+        if rv in priors or not isinstance(rv.owner.op, SymbolicRandomVariable):
+            continue
+        if any(var in model.free_RVs for var in ancestors(rv.owner.inputs)):
+            msg = (
+                f"The adapter does not support '{rv.name}': its inputs depend "
+                "on a free random variable."
+            )
+            raise NotImplementedError(msg)
+        resized[rv] = change_dist_size(rv, batch, expand=True)
+    return resized
+
+
 def model(model: Any) -> type:
     """
     Translate a PyMC model into a generative model for `el.model`
@@ -193,7 +218,8 @@ def model(model: Any) -> type:
         pymc is not installed
 
     NotImplementedError
-        the adapter does not support an op of the model
+        the adapter does not support an op of the model, or a symbolic
+        random variable, such as a Wishart, depends on a free random variable
     """
     try:
         import pytensor.tensor as pt
@@ -212,6 +238,7 @@ def model(model: Any) -> type:
     replace = dict(zip(priors, batched, strict=True))
     # the batch shape (B, S); every other RV draws once per batch element
     batch = pt.lvector("batch", shape=(2,))
+    replace.update(_resize_symbolic_rvs(model, priors, batch))
     outputs = vectorize([model[name] for name in names], replace, batch)
 
     run = translate(outputs, [*batched, batch])

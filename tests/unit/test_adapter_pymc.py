@@ -235,6 +235,43 @@ def test_rv_matches_pymc(dist):
     np.testing.assert_allclose(tf_draws.std(), pm_draws.std(), rtol=0.05)
 
 
+@pytest.mark.parametrize(
+    "dist",
+    [
+        pytest.param(
+            lambda: pm.Wishart.dist(nu=5, V=np.eye(3) * [1.0, 2.0, 3.0]), id="Wishart"
+        ),
+        pytest.param(
+            lambda: pm.LKJCholeskyCov.dist(
+                n=3, eta=4, sd_dist=pm.Exponential.dist(1.0), compute_corr=False
+            ),
+            id="LKJCholeskyCov",
+        ),
+    ],
+)
+def test_model_resizes_a_symbolic_rv(dist):
+    """each element has the mean and standard deviation of pm.draw"""
+    with pm.Model() as m:
+        pm.Normal("mu", pm.Data("m0", 0.0), pm.Data("s0", 1.0))
+        x = m.register_rv(dist(), "x")
+        pm.Deterministic("e", x)
+    out = adapter_pymc.model(m)()(tf.zeros((1, N, 1)), seed=SEED)
+    tf_draws = np.asarray(out["e"][0], dtype=float).reshape(N, -1)
+    pm_draws = pm.draw(dist(), draws=N, random_seed=1).reshape(N, -1)
+    se = np.sqrt((tf_draws.var(0) + pm_draws.var(0)) / N)
+    assert np.all(np.abs(tf_draws.mean(0) - pm_draws.mean(0)) < 5 * se + 1e-6)
+    np.testing.assert_allclose(tf_draws.std(0), pm_draws.std(0), rtol=0.1, atol=1e-6)
+
+
+def test_symbolic_rv_that_depends_on_a_free_rv_raises():
+    with pm.Model() as m:
+        nu = pm.Uniform("nu", pm.Data("low", 4.0), pm.Data("high", 6.0))
+        w = pm.Wishart("w", nu=nu, V=np.eye(2))
+        pm.Deterministic("e", w)
+    with pytest.raises(NotImplementedError, match="'w'"):
+        adapter_pymc.model(m)
+
+
 def test_model_returns_counts_as_float():
     with pm.Model() as m:
         p = pm.Beta("p", pm.Data("a", 2.0), pm.Data("b", 2.0))

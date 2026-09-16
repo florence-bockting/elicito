@@ -26,7 +26,11 @@ def _op_key(op: Any) -> str:
 def _inputs(node: Any) -> list[Any]:
     """Return the inputs that carry values: for an RV, its size and parameters"""
     if hasattr(node.op, "dist_params"):
-        return [node.op.size_param(node), *node.op.dist_params(node)]
+        from pytensor.tensor.type_other import NoneConst
+
+        # a symbolic RV such as LKJCholeskyCov has the size None, not NoneConst
+        size = node.op.size_param(node)
+        return [NoneConst if size is None else size, *node.op.dist_params(node)]
     return list(node.inputs)
 
 
@@ -134,6 +138,81 @@ def _alloc(op: Any, value: Any, *shape: Any) -> Any:
     return tf.broadcast_to(value, tf.concat([batch, target], axis=0))
 
 
+def _batch_arrays(op: Any, x: Any, idx: Any, y: Any = None) -> tuple[Any, Any, Any]:
+    """
+    Return the index entries, x and the index values of an advanced index
+
+    The core index of a Blockwise must start with an integer array. Each
+    batch axis then becomes one more integer array in front, and x takes
+    the batch shape of the index arrays and of y, the values to set.
+    """
+    entries = getattr(op, "core_op", op).idx_list
+    nb = _batch_ndim(op, x)
+    if not nb:
+        return entries, x, idx
+    if isinstance(entries[0], slice):
+        msg = f"The adapter does not support the Blockwise index {op.core_op}."
+        raise NotImplementedError(msg)
+    arrays = [idx[e] for e in entries if not isinstance(e, slice)]
+    batch = functools.reduce(
+        tf.broadcast_dynamic_shape,
+        [tf.shape(a)[:nb] for a in [x, *arrays, *([] if y is None else [y])]],
+    )
+    x = tf.broadcast_to(x, tf.concat([batch, tf.shape(x)[nb:]], axis=0))
+    core_rank = max(len(a.shape) for a in arrays) - nb
+    # batch axis a indexes itself; its array broadcasts over the others
+    grids = [
+        tf.reshape(tf.range(batch[a]), [1] * a + [-1] + [1] * (nb - a - 1 + core_rank))
+        for a in range(nb)
+    ]
+    entries = (*range(nb), *(e if isinstance(e, slice) else e + nb for e in entries))
+    return entries, x, (*grids, *idx)
+
+
+def _advanced_inc_subtensor(op: Any, x: Any, y: Any, *idx: Any) -> Any:
+    """
+    Set or add y at an advanced index of x, as AdvancedIncSubtensor does
+
+    The index must hold integer arrays for the leading axes of x only.
+    """
+    core = getattr(op, "core_op", op)
+    entries, x, idx = _batch_arrays(op, x, idx, y)
+    if any(isinstance(e, slice) for e in entries):
+        msg = f"The adapter does not support the index {core}."
+        raise NotImplementedError(msg)
+    n = len(entries)
+    shape = functools.reduce(
+        tf.broadcast_dynamic_shape, [tf.shape(idx[e]) for e in entries]
+    )
+    keys = [
+        tf.broadcast_to(tf.where(idx[e] < 0, idx[e] + tf.shape(x)[j], idx[e]), shape)
+        for j, e in enumerate(entries)
+    ]
+    y = tf.broadcast_to(tf.cast(y, x.dtype), tf.concat([shape, tf.shape(x)[n:]], 0))
+    scatter = (
+        tf.tensor_scatter_nd_update
+        if core.set_instead_of_inc
+        else tf.tensor_scatter_nd_add
+    )
+    return scatter(x, tf.stack(keys, axis=-1), y)
+
+
+def _lkj_cholesky_cov(n: Any, eta: Any, sd: Any, seed: Any) -> Any:
+    """
+    Draw the packed Cholesky factor of a covariance, as LKJCholeskyCov does
+
+    The factor is diag(sd) times the Cholesky factor of an LKJ correlation;
+    the vector packs its lower triangle row by row.
+    """
+    dim = int(sd.shape[-1])
+    eta = tf.broadcast_to(eta, tf.shape(sd)[:-1])
+    corr = tfd.CholeskyLKJ(dim, eta).sample(seed=seed)
+    rows, cols = np.tril_indices(dim)
+    chol = sd[..., :, None] * corr
+    flat = tf.reshape(chol, tf.concat([tf.shape(sd)[:-1], [dim * dim]], axis=0))
+    return tf.gather(flat, rows * dim + cols, axis=-1)
+
+
 def _advanced_subtensor(op: Any, x: Any, *idx: Any) -> Any:
     """
     Index x as AdvancedSubtensor does
@@ -142,31 +221,7 @@ def _advanced_subtensor(op: Any, x: Any, *idx: Any) -> Any:
     core index of a Blockwise must start with an integer array; each batch
     axis then becomes one more integer array in front.
     """
-    entries = getattr(op, "core_op", op).idx_list
-    nb = _batch_ndim(op, x)
-    if nb:
-        if isinstance(entries[0], slice):
-            msg = f"The adapter does not support the Blockwise index {op.core_op}."
-            raise NotImplementedError(msg)
-        arrays = [idx[e] for e in entries if not isinstance(e, slice)]
-        batch = functools.reduce(
-            tf.broadcast_dynamic_shape, [tf.shape(a)[:nb] for a in [x, *arrays]]
-        )
-        x = tf.broadcast_to(x, tf.concat([batch, tf.shape(x)[nb:]], axis=0))
-        core_rank = max(len(a.shape) for a in arrays) - nb
-        # batch axis a indexes itself; its array broadcasts over the others
-        grids = [
-            tf.reshape(
-                tf.range(batch[a]), [1] * a + [-1] + [1] * (nb - a - 1 + core_rank)
-            )
-            for a in range(nb)
-        ]
-        idx = (*grids, *idx)
-        entries = (
-            *range(nb),
-            *(e if isinstance(e, slice) else e + nb for e in entries),
-        )
-
+    entries, x, idx = _batch_arrays(op, x, idx)
     is_array = [not isinstance(e, slice) for e in entries]
     first, n = is_array.index(True), sum(is_array)
     full = all(
@@ -285,6 +340,9 @@ RULES: dict[str, Callable[[Any, list[Any], Any], Any]] = {
     "BinomialRV": _rv(lambda n, p, seed: tfd.Binomial(n, probs=p).sample(seed=seed)),
     "CategoricalRV": _rv(lambda p, seed: tfd.Categorical(probs=p).sample(seed=seed)),
     "MatrixInverse": lambda op, args, seed: tf.linalg.inv(args[0]),
+    # Dot takes two matrices; a vector dot adds and drops axes around it
+    "Dot": lambda op, args, seed: tf.linalg.matmul(*args),
+    "AdvancedIncSubtensor": lambda op, args, seed: _advanced_inc_subtensor(op, *args),
     "DirichletRV": _rv(lambda a, seed: tfd.Dirichlet(a).sample(seed=seed)),
     "MultinomialRV": _rv(
         lambda n, p, seed: tfd.Multinomial(n, probs=p).sample(seed=seed)
@@ -294,6 +352,11 @@ RULES: dict[str, Callable[[Any, list[Any], Any], Any]] = {
             mu, tf.linalg.cholesky(cov)
         ).sample(seed=seed)
     ),
+    # WishartRV and _LKJCholeskyCovRV are symbolic RVs of PyMC
+    "WishartRV": _rv(
+        lambda nu, scale_chol, seed: tfd.WishartTriL(nu, scale_chol).sample(seed=seed)
+    ),
+    "_LKJCholeskyCovRV": _rv(_lkj_cholesky_cov),
 }
 
 

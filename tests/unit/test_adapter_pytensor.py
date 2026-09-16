@@ -67,6 +67,15 @@ def test_elementwise_op_upcasts_an_integer_input():
             lambda m: m[np.array([[0, 1], [1, 0]])], id="AdvancedSubtensor-2d"
         ),
         pytest.param(lambda m: m[:, np.array([-1])], id="AdvancedSubtensor-negative"),
+        pytest.param(lambda m: pt.dot(m, m.T), id="Dot"),
+        pytest.param(
+            lambda m: pt.set_subtensor(m[np.array([1, 0]), np.array([2, 0])], -1.0),
+            id="AdvancedIncSubtensor-set",
+        ),
+        pytest.param(
+            lambda m: pt.inc_subtensor(m[np.array([1, 1])], m[0]),
+            id="AdvancedIncSubtensor-inc",
+        ),
         pytest.param(lambda m: -1 * (m > 2), id="Mul-bool"),
         pytest.param(lambda m: pt.sum(m > 2, axis=1), id="Sum-bool"),
     ],
@@ -163,6 +172,19 @@ def test_blockwise_advanced_subtensor_two_arrays_and_a_slice():
     rows = np.array([[1, 0, 1], [0, 0, 1]])
     [value] = translate([out], [i_b])([tf.constant(rows, tf.int32)], SEED)
     np.testing.assert_allclose(value, [t[r, j, :] for r in rows])
+
+
+def test_blockwise_set_subtensor_and_dot():
+    """expand_packed_triangular of a batched vector, as for LKJCholeskyCov"""
+    v = pt.vector("v", shape=(3,))
+    v_b = pt.matrix("v_b", shape=(None, 3))
+    rows, cols = np.tril_indices(2)
+    chol = pt.set_subtensor(pt.zeros((2, 2))[rows, cols], v)
+    [out] = vectorize([pt.dot(chol, chol.T)], {v: v_b})
+    x = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    [value] = translate([out], [v_b])([tf.constant(x, tf.float32)], SEED)
+    expected = [out.eval({v_b: x[i : i + 1]})[0] for i in range(2)]
+    np.testing.assert_allclose(value, expected)
 
 
 def test_blockwise_repeat_and_reshape():
