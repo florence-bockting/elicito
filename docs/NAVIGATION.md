@@ -18,6 +18,7 @@ See https://oprypin.github.io/mkdocs-literate-nav/
     - [Signal detection theory](case-studies/signal-detection-theory.py)
     - [The BART model of risk taking](case-studies/bart-risk-taking.py)
     - [Psychophysical functions](case-studies/psychophysical-functions.py)
+    - [Memory retention](case-studies/memory-retention.py)
 - [Further background](further-background/index.md)
     - [Maximum Mean Discrepancy](further-background/maximum-mean-discrepancy.py)
     - [Package architecture](further-background/architecture.py)
