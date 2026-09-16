@@ -14,6 +14,7 @@ See https://oprypin.github.io/mkdocs-literate-nav/
     - [Specify the generative model](how-to-guides/define-generative-model.md)
     - [Choose an initialization method](how-to-guides/choose-initialization.py)
     - [Use a PyMC model](how-to-guides/use-pymc-model.py)
+- [Case studies](case-studies/index.md)
 - [Further background](further-background/index.md)
     - [Maximum Mean Discrepancy](further-background/maximum-mean-discrepancy.py)
     - [Package architecture](further-background/architecture.py)

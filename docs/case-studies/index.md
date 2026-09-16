@@ -1,0 +1,21 @@
+# Case studies
+
+These case studies use the models of the book *Bayesian Cognitive Modeling:
+A Practical Course* (Lee & Wagenmakers, 2013). Each notebook:
+
+- ports the PyMC3 version of a model to the current PyMC,
+- translates the model with `elicito.adapter.pymc`,
+- compares the TensorFlow samples with the samples of `pm.draw`.
+
+The notebooks check the translation only. They do not elicit a prior.
+
+## Source and licence
+
+The PyMC3 models and the data come from the
+[pymc-resources](https://github.com/pymc-devs/pymc-resources/tree/main/BCM/CaseStudies)
+repository (commit `c24940c`). That repository uses the MIT licence,
+Copyright (c) 2017 Repository Contributors. The folder `data/` keeps the
+[licence text](data/LICENSE).
+
+Lee, M. D., & Wagenmakers, E.-J. (2013). *Bayesian Cognitive Modeling: A
+Practical Course*. Cambridge University Press.
