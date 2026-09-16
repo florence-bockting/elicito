@@ -17,6 +17,7 @@ The notebooks check the translation only. They do not elicit a prior.
 - [The SIMPLE model of memory](simple-memory.py) (chapter 15)
 - [Heuristic decision-making](heuristic-decision-making.py) (chapter 18)
 - [Extrasensory perception](extrasensory-perception.py) (chapter 13)
+- [Multinomial processing trees](multinomial-processing-trees.py) (chapter 14)
 
 ## Source and licence
 

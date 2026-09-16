@@ -23,6 +23,7 @@ See https://oprypin.github.io/mkdocs-literate-nav/
     - [The SIMPLE model of memory](case-studies/simple-memory.py)
     - [Heuristic decision-making](case-studies/heuristic-decision-making.py)
     - [Extrasensory perception](case-studies/extrasensory-perception.py)
+    - [Multinomial processing trees](case-studies/multinomial-processing-trees.py)
 - [Further background](further-background/index.md)
     - [Maximum Mean Discrepancy](further-background/maximum-mean-discrepancy.py)
     - [Package architecture](further-background/architecture.py)
