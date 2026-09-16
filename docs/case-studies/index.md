@@ -10,6 +10,7 @@ A Practical Course* (Lee & Wagenmakers, 2013). Each notebook:
 The notebooks check the translation only. They do not elicit a prior.
 
 - [Signal detection theory](signal-detection-theory.py) (chapter 11)
+- [The BART model of risk taking](bart-risk-taking.py) (chapter 16)
 
 ## Source and licence
 
