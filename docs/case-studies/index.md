@@ -14,6 +14,7 @@ The notebooks check the translation only. They do not elicit a prior.
 - [Psychophysical functions](psychophysical-functions.py) (chapter 12)
 - [Memory retention](memory-retention.py) (chapter 10)
 - [The GCM model of categorization](gcm-categorization.py) (chapter 17)
+- [The SIMPLE model of memory](simple-memory.py) (chapter 15)
 
 ## Source and licence
 

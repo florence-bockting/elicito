@@ -20,6 +20,7 @@ See https://oprypin.github.io/mkdocs-literate-nav/
     - [Psychophysical functions](case-studies/psychophysical-functions.py)
     - [Memory retention](case-studies/memory-retention.py)
     - [The GCM model of categorization](case-studies/gcm-categorization.py)
+    - [The SIMPLE model of memory](case-studies/simple-memory.py)
 - [Further background](further-background/index.md)
     - [Maximum Mean Discrepancy](further-background/maximum-mean-discrepancy.py)
     - [Package architecture](further-background/architecture.py)
