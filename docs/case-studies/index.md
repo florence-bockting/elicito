@@ -18,6 +18,7 @@ The notebooks check the translation only. They do not elicit a prior.
 - [Heuristic decision-making](heuristic-decision-making.py) (chapter 18)
 - [Extrasensory perception](extrasensory-perception.py) (chapter 13)
 - [Multinomial processing trees](multinomial-processing-trees.py) (chapter 14)
+- [Number concept development](number-concept-development.py) (chapter 19)
 
 ## Source and licence
 
