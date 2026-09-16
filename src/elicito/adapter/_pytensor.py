@@ -360,8 +360,14 @@ RULES: dict[str, Callable[[Any, list[Any], Any], Any]] = {
 }
 
 
-def _vectorize_rv(
-    op: Any, node: Any, batch: Any, rng: Any, size: Any, *params: Any
+def _vectorize_rv(  # noqa: PLR0913
+    op: Any,
+    node: Any,
+    batch: Any,
+    size_is_batched: bool,
+    rng: Any,
+    size: Any,
+    *params: Any,
 ) -> Any:
     """
     Batch a random variable; take the new axes from every input
@@ -371,13 +377,11 @@ def _vectorize_rv(
     RV without a batched input takes the batch shape `batch`, if given, and
     so draws once per batch element.
     """
-    from pytensor.graph.basic import equal_computations
     from pytensor.tensor.basic import concatenate
     from pytensor.tensor.random.utils import compute_batch_shape
     from pytensor.tensor.type_other import NoneTypeT
 
-    if not equal_computations([op.size_param(node)], [size]):
-        # the size itself is batched
+    if size_is_batched:
         return op.make_node(rng, size, *params)
     new_ndim = max(
         (
@@ -431,13 +435,20 @@ def vectorize(
     # the whole graph, also the parts that do not depend on a replaced
     # variable: an RV there still takes the batch axes
     batched = dict(replace)
+    # the variables that depend on a replaced variable or on an RV. A size
+    # outside this set is not batched, even if vectorize rebuilds it: a
+    # MakeVector of a scalar becomes an ExpandDims.
+    depends = set(replace)
     for node in toposort(outputs, blockers=list(replace)):
         args = [batched.get(inp, inp) for inp in node.inputs]
         if isinstance(node.op, RandomVariable):
-            new = _vectorize_rv(node.op, node, batch, *args)
+            size_is_batched = node.op.size_param(node) in depends
+            new = _vectorize_rv(node.op, node, batch, size_is_batched, *args)
         else:
             new = _vectorize_node(node.op, node, *args)
         new_outputs = new.outputs if isinstance(new, Apply) else new
+        if isinstance(node.op, RandomVariable) or depends.intersection(node.inputs):
+            depends.update(node.outputs)
         for out, new_out in zip(node.outputs, new_outputs, strict=True):
             # keep a replacement that the caller gave
             batched.setdefault(out, new_out)

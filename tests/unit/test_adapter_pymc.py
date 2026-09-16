@@ -272,6 +272,17 @@ def test_symbolic_rv_that_depends_on_a_free_rv_raises():
         adapter_pymc.model(m)
 
 
+def test_model_takes_the_size_of_a_pm_data_observation():
+    """the size of kobs is a shape op of k, and vectorize rebuilds it"""
+    with pm.Model() as m:
+        q = pm.Beta("q", pm.Data("a", 2.0), pm.Data("b", 2.0))
+        k = pm.Data("k", np.ones((5, 2), dtype=int))
+        pm.Multinomial("kobs", p=pm.math.stack([q, 1 - q]), n=2, observed=k)
+    out = adapter_pymc.model(m)()(tf.fill((1, 7, 1), 0.5), seed=SEED)
+    assert out["kobs"].shape == (1, 7, 5, 2)
+    np.testing.assert_allclose(tf.reduce_sum(out["kobs"], -1), 2.0)
+
+
 def test_model_returns_counts_as_float():
     with pm.Model() as m:
         p = pm.Beta("p", pm.Data("a", 2.0), pm.Data("b", 2.0))
