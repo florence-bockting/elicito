@@ -9,3 +9,4 @@ We'll go over how to solve common tasks.
 - ["How to specify the generative model"][specify-the-generative-model-object]
 - ["How to choose an initialization method"][choose-an-initialization-method]
 - ["How to use a PyMC model"][use-a-pymc-model]
+- ["How to check whether the expert information is consistent"][check-whether-the-expert-information-is-consistent]

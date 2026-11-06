@@ -5,7 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.6
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: .venv
 #     language: python
@@ -37,6 +37,8 @@ import warnings
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+# no GPU: hide the CUDA log lines of TensorFlow
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 # pm.draw runs the truncated Normal of PyMC in Numba object mode
 warnings.filterwarnings("ignore", message="Numba will use object mode")
 
@@ -46,12 +48,14 @@ warnings.filterwarnings("ignore", message="Numba will use object mode")
 # %%
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
 import tensorflow as tf
 import tensorflow_probability as tfp
 from scipy import stats
 
+import elicito as el
 from elicito.adapter import pymc as adapter_pymc
 
 SEED = tf.constant([2013, 10], dtype=tf.int32)
@@ -158,7 +162,7 @@ t_obs = t[:nt_obs]
 # which predicts participant 4 with `kij_ppc`.
 
 
-# %%
+# %% tags=["remove_input"]
 def beta_prior(name: str, shape: Any = None) -> Any:
     """Add a Beta(1, 1) prior with pm.Data inputs to the model"""
     a = pm.Data(f"{name}_a", 1.0)
@@ -189,6 +193,222 @@ with pm.Model() as model1:
     recall(pm.math.stack([alpha] * ns), pm.math.stack([beta] * ns))
 
 compare(model1, OUTPUTS)
+
+# %% [markdown]
+# ### Elicit the priors of 10.1
+#
+# `parameters` reads the priors. `model` translates `model1` into a
+# generative model.
+
+# %%
+parameters1 = adapter_pymc.parameters(model1)
+gen_model1 = el.model(obj=adapter_pymc.model(model1))
+
+# %% [markdown]
+# Participant 4 has no data, so the expert judges this participant. The
+# targets are the predicted count `kij_ppc` at the delays 4, 12 and 59. For
+# each delay, the expert gives the median and a plausible interval, the 5 %
+# and the 95 % quantile. A target function receives the model output by the
+# name of its argument.
+
+
+# %% tags=["remove_input"]
+def recall_at(j: int) -> Any:
+    """Return a target function that selects delay j of participant 4"""
+
+    def target(kij_ppc: Any) -> Any:
+        return kij_ppc[:, :, 3, j]
+
+    return target
+
+
+DELAYS = (2, 4, 7)  # indices of t: delays 4, 12 and 59
+QUANTILES = (0.05, 0.50, 0.95)
+
+
+def targets_at(delays: tuple[int, ...]) -> list[Any]:
+    """Return one quantile target for each delay index"""
+    return [
+        el.target(
+            name=f"k4_t{t[j]}",
+            query=el.queries.quantiles(QUANTILES),
+            loss=el.losses.MMD2(kernel="energy"),
+            target_method=recall_at(j),
+            weight=1.0,
+        )
+        for j in delays
+    ]
+
+
+# %% [markdown]
+# Three experts give the median and the 5 % and 95 % quantiles of the recalled
+# items of participant 4. Expert 2 gives wider intervals than expert 1 at
+# all three delays. Expert 3 gives the quantiles of a known prior.
+#
+# | expert | delay 4 | delay 12 | delay 59 |
+# | :-- | :-- | :-- | :-- |
+# | expert 1 | 15, 16, 18 | 10, 14, 17 | 2, 9, 16 |
+# | expert 2 | 12, 16, 18 | 7, 14, 18 | 0, 9, 18 |
+# | expert 3 | 9, 17, 18 | 3, 10, 18 | 1, 4, 11 |
+#
+# For each expert, CMA-ES learns the four hyperparameters. Five replications
+# with different seeds show whether the result depends on the seed.
+# `kappa` weights a spread penalty, the negative mean log standard deviation
+# of the priors. It keeps a prior from collapsing to a point mass.
+
+
+# %% tags=["remove_input"]
+def ground_truth(alpha: tuple[float, float], beta: tuple[float, float]) -> Any:
+    """Return the quantiles of participant 4 under known Beta priors"""
+    values = {
+        "alpha_a": alpha[0],
+        "alpha_b": alpha[1],
+        "beta_a": beta[0],
+        "beta_b": beta[1],
+    }
+    with model1:
+        pm.set_data(values)
+    counts = pm.draw(model1["kij_ppc"][3, list(DELAYS)], draws=10_000, random_seed=2013)
+    with model1:
+        pm.set_data({name: 1.0 for name in values})
+    quantiles = np.quantile(counts, QUANTILES, axis=0).T
+    return {f"quantiles_k4_t{t[j]}": list(q) for j, q in zip(DELAYS, quantiles)}
+
+# %%
+experts = {
+    "expert 1": {
+        "quantiles_k4_t4": [15, 16, 18],
+        "quantiles_k4_t12": [10, 14, 17],
+        "quantiles_k4_t59": [2, 9, 16],
+    },
+    "expert 2": {
+        "quantiles_k4_t4": [12, 16, 18],
+        "quantiles_k4_t12": [7, 14, 18],
+        "quantiles_k4_t59": [0, 9, 18],
+    },
+    "expert 3": ground_truth(alpha=(2, 18), beta=(4, 16)),
+}
+
+
+def elicit(quantiles: dict[str, list[int]], delays: tuple[int, ...]) -> Any:
+    """Fit the priors to the expert quantiles at the given delay indices"""
+    targets = targets_at(delays)
+    data = {
+        f"quantiles_{target['name']}": quantiles[f"quantiles_{target['name']}"]
+        for target in targets
+    }
+    eliobj = el.Elicit(
+        model=gen_model1,
+        parameters=parameters1,
+        targets=targets,
+        expert=el.expert.data(dat=data),
+        optimizer=el.optimizer(optimizer="cmaes"),
+        trainer=el.trainer(
+            method="parametric_prior", seed=2025, epochs=400, progress=0, kappa=0.1
+        ),
+    )
+    eliobj.fit(parallel=el.utils.parallel(runs=5, seeds=[1, 2, 3, 4, 5]))
+    return eliobj
+
+
+eliobjs = {expert: elicit(quantiles, DELAYS) for expert, quantiles in experts.items()}
+
+# %% [markdown]
+# ### Check the fit
+#
+# `hyperparameters(replication=r)` returns the learned values of one
+# replication, by name. The loss plot shows whether the fit converged.
+
+# %%
+for expert, eliobj in eliobjs.items():
+    for r in range(5):
+        values = eliobj.hyperparameters(replication=r)
+        print(expert, r, {name: round(value, 2) for name, value in values.items()})
+    fig, _ = el.plots.loss(eliobj)
+    fig.suptitle(expert)
+
+# %% [markdown]
+# The validity check compares the elicited statistics with the statistics of
+# the expert. A point on the diagonal is a quantile that the learned priors
+# reproduce.
+
+# %%
+for expert, eliobj in eliobjs.items():
+    fig, _ = el.plots.elicits(eliobj)
+    fig.suptitle(f"{expert}: expert vs. model-simulated statistics")
+
+# %% [markdown]
+# The learned priors of all experts.
+
+# %%
+for expert, eliobj in eliobjs.items():
+    fig, _ = el.plots.prior_marginals(eliobj)
+    fig.suptitle(f"{expert}: learned marginal priors")
+
+# %% [markdown]
+# ### Back to PyMC
+#
+# `model1` observes the counts `k`. We sample the posterior first with the
+# Beta(1, 1) priors. For each expert, `set_hyperparameters` then writes the
+# learned values of replication 0 into the `pm.Data` nodes, and we sample
+# again. The model gives divergences at the default `target_accept`, with
+# any prior, so all runs use 0.95.
+#
+# Where `exp(-alpha * t) + beta` exceeds 1, `clip` sets the rate to 1, and
+# the observed counts below 18 have zero probability. The elicited priors put
+# mass there, so a random start can fail. `INITVALS` starts every chain in
+# the region of the posterior.
+
+# %%
+INITVALS = {"alpha": 0.3, "beta": 0.2}
+
+
+def sample(eliobj: Any = None) -> tuple[Any, Any]:
+    """Return prior and posterior draws, with the priors of eliobj if given"""
+    if eliobj is not None:
+        adapter_pymc.set_hyperparameters(model1, eliobj, replication=0)
+    prior = pm.sample_prior_predictive(draws=2_000, random_seed=2013, model=model1)
+    post = pm.sample(
+        500,
+        tune=500,
+        chains=4,
+        target_accept=0.95,
+        initvals=INITVALS,
+        random_seed=2013,
+        model=model1,
+    )
+    return prior, post
+
+
+runs = {"Beta(1, 1)": sample()}
+for expert, eliobj in eliobjs.items():
+    runs[expert] = sample(eliobj)
+
+for run, (_, post) in runs.items():
+    s = post.posterior.to_dataset()[["alpha", "beta"]].mean(("chain", "draw"))
+    print(run, {v: round(float(s[v]), 3) for v in ("alpha", "beta")})
+
+# %% [markdown]
+# The priors and posteriors of all runs. The rows are the runs, the columns
+# the parameters. All panels share the x-scale.
+
+# %%
+grid = np.linspace(0, 1, 400)
+fig, axes = plt.subplots(
+    len(runs), 2, figsize=(8, 7.5), sharex=True, constrained_layout=True
+)
+for row, (run, (prior, post)) in zip(axes, runs.items()):
+    for ax, name in zip(row, ["alpha", "beta"]):
+        for label, idata, group in [
+            ("prior", prior, "prior"),
+            ("posterior", post, "posterior"),
+        ]:
+            values = idata[group].to_dataset()[name].values.ravel()
+            ax.plot(grid, stats.gaussian_kde(values)(grid), label=label)
+        ax.set_title(f"{name}, {run}")
+        ax.set_yticks([])
+axes[0, 0].legend()
+axes[-1, 0].set_xlim(0, 1)
 
 # %% [markdown]
 # ## 10.2 Full individual differences

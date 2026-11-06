@@ -113,6 +113,8 @@ dev = [
 docs = [
     # Key dependencies
     # ----------------
+    # TensorFlow 2.21 ignores TF_CPP_MIN_LOG_LEVEL for its import log lines
+    "tensorflow==2.20.0",
     "attrs==24.3.0",
     "mkdocs-autorefs==1.2.0",
     "mkdocs-gen-files==0.5.0",
