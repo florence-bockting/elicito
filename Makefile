@@ -72,7 +72,8 @@ docs-notebooks:  ## run the doc pages and update their notebooks (slow); one pag
 	@for page in $(PAGES); do \
 		echo "Running $$page"; \
 		uv run jupytext --sync "$$page" || exit 1; \
-		uv run jupyter nbconvert --to notebook --execute --inplace "$${page%.py}.ipynb" || exit 1; \
+		uv run jupyter nbconvert --clear-output --inplace "$${page%.py}.ipynb" || exit 1; \
+		TF_CPP_MIN_LOG_LEVEL=3 CUDA_VISIBLE_DEVICES= uv run jupyter nbconvert --to notebook --execute --inplace "$${page%.py}.ipynb" || exit 1; \
 	done
 	uv run python scripts/check-notebooks.py $(PAGES)
 
