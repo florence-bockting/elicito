@@ -27,6 +27,7 @@ from elicito import (
     utils,
 )
 from elicito._progress import SeedTable, run_in_worker
+from elicito.fit import Fit
 from elicito.parameters._base import _constraints
 from elicito.parameters.priors import Priors
 from elicito.types import (
@@ -388,7 +389,7 @@ class Elicit:
         self,
         overwrite: bool = False,
         parallel: Parallel | None = None,
-    ) -> None:
+    ) -> Fit:
         """
         Fit the eliobj and learn prior distributions.
 
@@ -403,6 +404,11 @@ class Elicit:
         parallel
             specify parallelization settings if multiple trainings should run
             in parallel. See [`parallel`][elicito.utils.parallel].
+
+        Returns
+        -------
+        :
+            learned priors, with methods to inspect them
 
         Raises
         ------
@@ -484,6 +490,7 @@ class Elicit:
 
         delattr(self, "temp_history")
         delattr(self, "temp_results")
+        return Fit(self)
 
     def sample(
         self,
