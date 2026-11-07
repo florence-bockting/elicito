@@ -1,5 +1,11 @@
 # Case studies
 
+## Elicitation
+
+- [The human growth model](human-growth.py): a prior for the Preece-Baines model, from five simulated experts.
+
+## PyMC translation checks
+
 These case studies use the models of the book *Bayesian Cognitive Modeling:
 A Practical Course* (Lee & Wagenmakers, 2013). Each notebook:
 

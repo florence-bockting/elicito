@@ -17,6 +17,7 @@ See https://oprypin.github.io/mkdocs-literate-nav/
     - [Use a custom elicitation technique](how-to-guides/use-custom-query.py)
     - [Share a hyperparameter](how-to-guides/share-a-hyperparameter.py)
 - [Case studies](case-studies/index.md)
+    - [The human growth model](case-studies/human-growth.py)
     - [Signal detection theory](case-studies/signal-detection-theory.py)
     - [The BART model of risk taking](case-studies/bart-risk-taking.py)
     - [Psychophysical functions](case-studies/psychophysical-functions.py)

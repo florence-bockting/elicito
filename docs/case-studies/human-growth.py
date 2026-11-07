@@ -26,6 +26,7 @@ import os
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -177,7 +178,7 @@ class GrowthModel:
     # `elicito` calls this inside a compiled forward pass. AutoGraph would
     # then rewrite the body, and it finds the body by file and line. A cell
     # of a notebook has no source file in a worker process of
-    # `fit(parallel=...)`, so AutoGraph rewrites the wrong function there.
+    # the parallel `seeds`, so AutoGraph rewrites the wrong function there.
     # This model has no Python branch to rewrite, so we switch it off.
     @tf.autograph.experimental.do_not_convert
     def __call__(
@@ -357,7 +358,7 @@ targets = [el.quantiles(f"y_t{i}", probs=QUANTILES) for i in range(4)]
 # ## The generative model and the oracle
 
 # %%
-model = el.model(obj=GrowthModel, ages=AGES)
+model = partial(GrowthModel(), ages=AGES)
 
 expert = el.expert.simulator(
     ground_truth=oracle(user=1),
@@ -386,7 +387,7 @@ expert = el.expert.simulator(
 # $b_{h_{t^*}}$ is at $y = -7.7$, a standard deviation of 0.14 cm for
 # $h_{t^*}$.
 #
-# Only the Adam run below reads this box. With `optimizer="cmaes"`, `elicito`
+# Only the Adam run below reads this box. With the default optimizer, CMA-ES, `elicito`
 # ignores the initializer, with a warning. The CMA-ES training then starts at
 # 0, the midpoint of every interval, which is also the centre of this box.
 # The training is itself a search. A search before it would only throw away
@@ -398,8 +399,6 @@ expert = el.expert.simulator(
 # local Nelder-Mead search from the centre, and `random`, `lhs` and `sobol`
 # rank independent draws. All three take the first usable basin, which is not
 # the best one.
-#
-# `cmaes` needs the optional dependency `cma`: `pip install "elicito[cma]"`.
 
 # %%
 BOX = el.initializers.uniform(mean=0.0, radius=6.0)
@@ -407,7 +406,7 @@ BOX = el.initializers.uniform(mean=0.0, radius=6.0)
 # %% [markdown]
 # ## Training
 #
-# We fit with CMA-ES, not with a gradient. `el.optimizer(optimizer="cmaes")`
+# We fit with CMA-ES, the default, not with a gradient. CMA-ES
 # replaces the gradient descent by one search over the whole budget, on the
 # full 400 prior draws.
 #
@@ -431,32 +430,25 @@ BOX = el.initializers.uniform(mean=0.0, radius=6.0)
 # page is therefore slow to render.
 #
 # This fit is one chain. The section on the five experts below runs five
-# replications of one fit with `fit(parallel=...)`.
+# replications of one fit with five `seeds`.
 
 # %%
 eliobj = el.Elicit(
-    model=model,
-    parameters=parameters,
-    targets=targets,
-    expert=expert,
-    optimizer=el.optimizer(
-        optimizer="cmaes",
-        sigma0=1.0,
-    ),
-    trainer=el.trainer(
-        method="parametric_prior",
-        seed=2025,
-        epochs=3000,
-        progress=0,
-        num_samples=400,
-    ),
+    model,
+    targets,
+    parameters,
+    cmaes={"sigma0": 1.0},
+    seeds=(2025,),
+    epochs=3000,
+    num_samples=400,
+    verbose=False,
 )
 
 # %%
 import time
 
 start = time.time()
-fit = eliobj.fit()
+fit = eliobj.fit(expert)
 
 # %% [markdown]
 # The results hold the learned hyperparameters and the loss. The prior
@@ -596,35 +588,24 @@ axes[0].legend(
 
 # %%
 eliobj_adam = el.Elicit(
-    model=eliobj.model,
-    parameters=eliobj.parameters,
-    targets=eliobj.targets,
-    expert=eliobj.expert,
-    optimizer=el.optimizer(
-        optimizer=tf.keras.optimizers.Adam,
+    model,
+    targets,
+    parameters,
+    initializer=el.initializer(method="cmaes", distribution=BOX, iterations=300),
+    optimizer=tf.keras.optimizers.Adam(
         learning_rate=tf.keras.optimizers.schedules.ExponentialDecay(
-            initial_learning_rate=0.01,
-            decay_steps=800,
-            decay_rate=0.02,
+            initial_learning_rate=0.01, decay_steps=800, decay_rate=0.02
         ),
         clipnorm=1.0,
     ),
-    trainer=el.trainer(
-        method="parametric_prior",
-        seed=2025,
-        epochs=800,
-        progress=0,
-        num_samples=400,
-    ),
-    initializer=el.initializer(
-        method="cmaes",
-        distribution=BOX,
-        iterations=300,
-    ),
+    seeds=(2025,),
+    epochs=800,
+    num_samples=400,
+    verbose=False,
 )
 
 start = time.time()
-fit_adam = eliobj_adam.fit()
+fit_adam = eliobj_adam.fit(expert)
 adam_seconds = time.time() - start
 
 
@@ -682,7 +663,7 @@ fit_adam.plot.prior_marginals(params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.
 # difference between two experts is the expert. A difference between two runs
 # of the same expert is the search.
 #
-# `fit(parallel=...)` runs the five replications, and `elicito` stores them
+# `seeds` runs the five replications, and `elicito` stores them
 # in the `replication` dimension of `fit.results`.
 
 # %%
@@ -695,28 +676,16 @@ SEEDS = [2025, 2026, 2027, 2028, 2029]
 def fit_user(user):
     """Fit the growth model to the prior of one user, five times."""
     obj = el.Elicit(
-        model=model,
-        parameters=parameters,
-        targets=targets,
-        expert=el.expert.simulator(
-            ground_truth=oracle(user),
-            num_samples=10_000,
-        ),
-        optimizer=el.optimizer(
-            optimizer="cmaes",
-            sigma0=1.0,
-        ),
-        trainer=el.trainer(
-            method="parametric_prior",
-            seed=2025,
-            epochs=3000,
-            progress=0,
-            num_samples=400,
-        ),
+        model,
+        targets,
+        parameters,
+        cmaes={"sigma0": 1.0},
+        seeds=tuple(SEEDS),
+        epochs=3000,
+        num_samples=400,
+        verbose=False,
     )
-    return obj.fit(
-        parallel=el.utils.parallel(runs=REPLICATIONS, cores=5, seeds=SEEDS)
-    )
+    return obj.fit(el.expert.simulator(ground_truth=oracle(user), num_samples=10_000))
 
 
 fits = {u: fit_user(u) for u in USERS}
