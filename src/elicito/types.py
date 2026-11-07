@@ -16,6 +16,7 @@ class Hyper(TypedDict):
 
     name: str
     constraint: Callable[[float], tf.Tensor]
+    unconstrain: Callable[[Any], tf.Tensor]
     constraint_name: str
     vtype: Callable[[Any], Any]
     dim: int

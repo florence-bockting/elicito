@@ -187,20 +187,24 @@ def hyper(  # noqa: PLR0913
     if (lower != float("-inf")) and (upper == float("inf")):
         lower_bound = LowerBound(lower=lower)
         transform = lower_bound.inverse
+        unconstrain = lower_bound.forward
         constraint_name = "softplusL"
     # only upper bound
     elif (upper != float("inf")) and (lower == float("-inf")):
         upper_bound = UpperBound(upper=upper)
         transform = upper_bound.inverse
+        unconstrain = upper_bound.forward
         constraint_name = "softplusU"
     # upper and lower bound
     elif (upper != float("inf")) and (lower != float("-inf")):
         double_bound = DoubleBound(lower=lower, upper=upper)
         transform = double_bound.inverse  # type: ignore
+        unconstrain = double_bound.forward  # type: ignore
         constraint_name = "invlogit"
     # unbounded
     else:
         transform = identity_bijection  # type: ignore
+        unconstrain = identity_bijection
         constraint_name = "identity"
 
     # value type
@@ -209,6 +213,7 @@ def hyper(  # noqa: PLR0913
     hyper_dict: Hyper = dict(
         name=name,
         constraint=transform,
+        unconstrain=unconstrain,
         constraint_name=constraint_name,
         vtype=dtype_dim,
         dim=dim,
