@@ -2,7 +2,7 @@
 
 ## Elicitation
 
-- [The human growth model](human-growth.py): a prior for the Preece-Baines model, from five simulated experts.
+- [The human growth model](human-growth.ipynb): a prior for the Preece-Baines model, from five simulated experts.
 
 ## PyMC translation checks
 
@@ -15,16 +15,16 @@ A Practical Course* (Lee & Wagenmakers, 2013). Each notebook:
 
 The notebooks check the translation only. They do not elicit a prior.
 
-- [Signal detection theory](signal-detection-theory.py) (chapter 11)
-- [The BART model of risk taking](bart-risk-taking.py) (chapter 16)
-- [Psychophysical functions](psychophysical-functions.py) (chapter 12)
-- [Memory retention](memory-retention.py) (chapter 10)
-- [The GCM model of categorization](gcm-categorization.py) (chapter 17)
-- [The SIMPLE model of memory](simple-memory.py) (chapter 15)
-- [Heuristic decision-making](heuristic-decision-making.py) (chapter 18)
-- [Extrasensory perception](extrasensory-perception.py) (chapter 13)
-- [Multinomial processing trees](multinomial-processing-trees.py) (chapter 14)
-- [Number concept development](number-concept-development.py) (chapter 19)
+- [Signal detection theory](signal-detection-theory.ipynb) (chapter 11)
+- [The BART model of risk taking](bart-risk-taking.ipynb) (chapter 16)
+- [Psychophysical functions](psychophysical-functions.ipynb) (chapter 12)
+- [Memory retention](memory-retention.ipynb) (chapter 10)
+- [The GCM model of categorization](gcm-categorization.ipynb) (chapter 17)
+- [The SIMPLE model of memory](simple-memory.ipynb) (chapter 15)
+- [Heuristic decision-making](heuristic-decision-making.ipynb) (chapter 18)
+- [Extrasensory perception](extrasensory-perception.ipynb) (chapter 13)
+- [Multinomial processing trees](multinomial-processing-trees.ipynb) (chapter 14)
+- [Number concept development](number-concept-development.ipynb) (chapter 19)
 
 ## Source and licence
 

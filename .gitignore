@@ -1,5 +1,7 @@
 # Notebooks
 *.ipynb
+# except the executed notebooks of the doc pages (see `make docs-notebooks`)
+!docs/**/*.ipynb
 
 # Auto-generated docs and helper files
 docs/api/*
