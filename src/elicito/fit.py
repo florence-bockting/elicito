@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 import xarray as xr
 
-from elicito import losses, models, plots, utils
+from elicito import losses, models, plots
 from elicito.types import Target
 
 if TYPE_CHECKING:
@@ -27,6 +27,12 @@ def _training_statistics(eliobj: "Elicit", replication: int) -> dict[str, tf.Ten
     return training
 
 
+def _expert_statistics(eliobj: "Elicit") -> xr.Dataset:
+    """Expert statistics of the fit; every replication holds the same values"""
+    group = "expert" if "expert" in eliobj.results.children else "oracle"
+    return eliobj.results[group].to_dataset().isel(replication=0)
+
+
 def _best_replication(eliobj: "Elicit") -> int:
     """
     Find the replication with the lowest loss, for a parametric prior
@@ -36,15 +42,10 @@ def _best_replication(eliobj: "Elicit") -> int:
     candidate of the last epoch, so the loss history does not give this
     loss. A replication whose loss is not finite is never the best.
     """
-    expert, _ = utils.get_expert_data(
-        eliobj.trainer,
-        eliobj.model,
-        eliobj.targets,
-        eliobj.expert,
-        eliobj.parameters,
-        eliobj.network,
-        eliobj.trainer["seed"],
-    )
+    stats = _expert_statistics(eliobj)
+    expert = {
+        tar["name"]: tf.constant(stats[tar["name"]].values) for tar in eliobj.targets
+    }
     num_replications = len(eliobj.results.history_stats.seed_replication.values)
     total = np.full(num_replications, np.inf)
     for i in range(num_replications):
@@ -301,8 +302,7 @@ class Fit:
         else:
             reps = [self.best() if replication == "best" else replication]
         samples = self.sample()
-        group = "expert" if "expert" in self.results.children else "oracle"
-        expert = self.results[group].to_dataset().isel(replication=0, batch=0)
+        expert = _expert_statistics(self._eliobj).isel(batch=0)
         # an identity statistic holds all draws; see notes/TODO.md
         draw_targets = [
             tar["name"]
