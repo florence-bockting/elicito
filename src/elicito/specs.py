@@ -19,6 +19,7 @@ from elicito.types import (
     ExpertDict,
     Hyper,
     Parameter,
+    Partial,
     QueriesDict,
     Target,
     VariableType,
@@ -186,20 +187,24 @@ def hyper(  # noqa: PLR0913
     if (lower != float("-inf")) and (upper == float("inf")):
         lower_bound = LowerBound(lower=lower)
         transform = lower_bound.inverse
+        unconstrain = lower_bound.forward
         constraint_name = "softplusL"
     # only upper bound
     elif (upper != float("inf")) and (lower == float("-inf")):
         upper_bound = UpperBound(upper=upper)
         transform = upper_bound.inverse
+        unconstrain = upper_bound.forward
         constraint_name = "softplusU"
     # upper and lower bound
     elif (upper != float("inf")) and (lower != float("-inf")):
         double_bound = DoubleBound(lower=lower, upper=upper)
         transform = double_bound.inverse  # type: ignore
+        unconstrain = double_bound.forward  # type: ignore
         constraint_name = "invlogit"
     # unbounded
     else:
         transform = identity_bijection  # type: ignore
+        unconstrain = identity_bijection
         constraint_name = "identity"
 
     # value type
@@ -208,6 +213,7 @@ def hyper(  # noqa: PLR0913
     hyper_dict: Hyper = dict(
         name=name,
         constraint=transform,
+        unconstrain=unconstrain,
         constraint_name=constraint_name,
         vtype=dtype_dim,
         dim=dim,
@@ -315,93 +321,6 @@ def parameter(
     )
 
 
-def model(obj: Callable[[str], tf.Tensor], **kwargs: dict[Any, Any]) -> dict[str, Any]:
-    """
-    Specify the generative model.
-
-    Parameters
-    ----------
-    obj
-        Generative model class as defined by the user.
-
-    **kwargs
-        additional keyword arguments expected by `obj`.
-
-    Returns
-    -------
-    generator_dict :
-        Dictionary including all generative model settings.
-
-    Raises
-    ------
-    ValueError
-        generative model in `obj` requires the input argument
-        'prior_samples', but argument has not been found.
-
-        optional argument(s) of the generative model specified in `obj` are
-        not specified
-
-    Examples
-    --------
-    >>> # specify the generative model class
-    >>> class ToyModel:  # doctest: +SKIP
-    >>>     def __call__(self, prior_samples, design_matrix):  # doctest: +SKIP
-    >>> # linear predictor
-    >>>         epred = tf.matmul(prior_samples, design_matrix,  # doctest: +SKIP
-    >>>                           transpose_b=True)  # doctest: +SKIP
-    >>> # data-generating model
-    >>>         likelihood = tfd.Normal(  # doctest: +SKIP
-    >>>             loc=epred,  # doctest: +SKIP
-    >>>             scale=tf.expand_dims(prior_samples[:, :, -1], -1)  # doctest: +SKIP
-    >>>             )  # doctest: +SKIP
-    >>> # prior predictive distribution
-    >>>         ypred = likelihood.sample()  # doctest: +SKIP
-    >>>
-    >>>         return dict(  # doctest: +SKIP
-    >>>             likelihood=likelihood,  # doctest: +SKIP
-    >>>             ypred=ypred, epred=epred,  # doctest: +SKIP
-    >>>             prior_samples=prior_samples  # doctest: +SKIP
-    >>>             )  # doctest: +SKIP
-
-    >>> # specify the model category in the elicit object
-    >>> el.model(obj=ToyModel,  # doctest: +SKIP
-    >>>          design_matrix=design_matrix  # doctest: +SKIP
-    >>>          )  # doctest: +SKIP
-    """
-    # get input arguments of generative model class
-    # `signature` follows a decorator that sets `__wrapped__`, and
-    # `getfullargspec` does not. A model whose `__call__` carries
-    # `tf.autograph.experimental.do_not_convert` is then still read.
-    input_args = list(inspect.signature(obj.__call__).parameters)  # type: ignore
-    # check correct input form of generative model class
-    if "prior_samples" not in input_args:
-        msg = (
-            "The generative model class 'obj' requires the"
-            " input variable 'prior_samples' but argument has not been found"
-            " in 'obj'."
-        )
-        raise ValueError(msg)
-
-    # check that all optional arguments have been provided by the user.
-    # `seed` is the exception: `elicito` passes a stateless seed to a model
-    # that names it, so the user does not provide it.
-    optional_args = set(input_args).difference({"prior_samples", "self", "seed"})
-    for arg in optional_args:
-        if arg not in list(kwargs.keys()):
-            msg = (
-                f"The argument {arg=} required by the"
-                "generative model class 'obj' is missing."
-            )
-            raise ValueError(msg)
-
-    generator_dict = dict(obj=obj)
-
-    for key in kwargs:  # noqa: PLC0206
-        generator_dict[key] = kwargs[key]  # type: ignore
-
-    return generator_dict
-
-
 class Queries:
     """
     specify elicitation techniques
@@ -498,9 +417,10 @@ class Queries:
 queries = Queries()
 
 
-def quantiles(
+def quantiles(  # noqa: PLR0913
     name: str,
     output: str | Callable[..., Any] | None = None,
+    select: int | dict[str, Any] | None = None,
     probs: tuple[float, ...] = (0.05, 0.5, 0.95),
     weight: float = 1.0,
     loss: Callable[..., Any] | None = None,
@@ -516,6 +436,11 @@ def quantiles(
     output
         Model output to summarize. A string names a model output. A callable
         receives the model outputs by argument name. The default is ``name``.
+
+    select
+        Part of the output to keep. An integer indexes the last axis. A
+        dict maps the dims of a PyMC output to coord labels, such as
+        ``{"participant": 3, "delay": 12}``. The default keeps all.
 
     probs
         Probabilities of the quantiles, each between 0 and 1.
@@ -542,12 +467,14 @@ def quantiles(
         output=name if output is None else output,
         loss=losses.MMD2(kernel="energy") if loss is None else loss,
         weight=weight,
+        select=select,
     )
 
 
 def identity(
     name: str,
     output: str | Callable[..., Any] | None = None,
+    select: int | dict[str, Any] | None = None,
     weight: float = 1.0,
     loss: Callable[..., Any] | None = None,
 ) -> Target:
@@ -562,6 +489,11 @@ def identity(
     output
         Model output to compare. A string names a model output. A callable
         receives the model outputs by argument name. The default is ``name``.
+
+    select
+        Part of the output to keep. An integer indexes the last axis. A
+        dict maps the dims of a PyMC output to coord labels, such as
+        ``{"participant": 3, "delay": 12}``. The default keeps all.
 
     weight
         Weight of the target in the total loss.
@@ -581,6 +513,7 @@ def identity(
         output=name if output is None else output,
         loss=losses.MMD2(kernel="energy") if loss is None else loss,
         weight=weight,
+        select=select,
     )
 
 
@@ -623,6 +556,7 @@ def custom(
     func: Callable[..., Any],
     loss: Callable[..., Any],
     weight: float = 1.0,
+    select: int | dict[str, Any] | None = None,
 ) -> Target:
     """
     Ask the expert for a statistic that you define.
@@ -642,6 +576,11 @@ def custom(
     weight
         Weight of the target in the total loss.
 
+    select
+        Part of the output to keep. An integer indexes the last axis. A
+        dict maps the dims of a PyMC output to coord labels, such as
+        ``{"participant": 3, "delay": 12}``. The default keeps all.
+
     Returns
     -------
     target :
@@ -653,7 +592,43 @@ def custom(
         output=name,
         loss=loss,
         weight=weight,
+        select=select,
     )
+
+
+def partial(
+    over: list[str] | tuple[str, ...],
+    tau: float | dict[str, float] | None = None,
+) -> Partial:
+    """
+    Pool a panel of experts partially.
+
+    Each expert gets an offset from the panel value of the named
+    hyperparameters. The other hyperparameters are shared by all experts.
+
+    Parameters
+    ----------
+    over
+        Names of the hyperparameters that differ between the experts.
+
+    tau
+        Spread of the offsets: the disagreement in the panel. A small value
+        pulls the experts toward the panel value. A float applies to all
+        names in ``over``. A dict gives one value for each name. ``None``
+        estimates the spread from the answers.
+
+    Returns
+    -------
+    pool :
+        Specification of the pooling. Give it to ``Elicit(pool=...)``.
+
+    Examples
+    --------
+    >>> el.partial(over=["mu0", "mu1"])  # doctest: +SKIP
+
+    >>> el.partial(over=["mu0", "mu1"], tau={"mu0": 1.5, "mu1": 0.5})  # doctest: +SKIP
+    """
+    return Partial(over=tuple(over), tau=tau)
 
 
 class Expert:

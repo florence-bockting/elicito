@@ -5,6 +5,7 @@ Unittest for init.py module
 import re
 import warnings
 from copy import deepcopy
+from functools import partial
 
 import numpy as np
 import pytest
@@ -17,6 +18,7 @@ from tests.utils import eliobj as base_eliobj
 import elicito as el
 from elicito import Elicit
 from elicito.optimizers.search import box_vector, start_vector
+from elicito.parameters._base import hyperparameter_values
 
 tfd = tfp.distributions
 scipy = pytest.importorskip("scipy")
@@ -31,7 +33,7 @@ class TestModel:
 @pytest.fixture
 def eliobj():
     return Elicit(
-        model=el.model(TestModel),
+        model=TestModel(),
         parameters=[
             el.parameter(
                 name=f"b{i}",
@@ -336,7 +338,7 @@ def test_str_method(dry_run):
             return dict(y_obs=y_pred)
 
     eliobj = el.Elicit(
-        model=el.model(obj=GenerativeModel, N=50, se_y=tfd.Normal(0, 1).sample(50)),
+        model=partial(GenerativeModel(), N=50, se_y=tfd.Normal(0, 1).sample(50)),
         parameters=[
             el.parameter(
                 name="mu",
@@ -398,7 +400,7 @@ def test_eliobj_fit():
             return dict(y_obs=y_pred)
 
     eliobj = el.Elicit(
-        model=el.model(obj=GenerativeModel, N=50, se_y=tfd.Normal(0, 1).sample(50)),
+        model=partial(GenerativeModel(), N=50, se_y=tfd.Normal(0, 1).sample(50)),
         parameters=[
             el.parameter(
                 name="mu",
@@ -497,7 +499,7 @@ def test_warmup_epochs_changes_candidate_loss():
 
     def build(warmup_epochs):
         return el.Elicit(
-            model=el.model(obj=GenerativeModel, N=10),
+            model=partial(GenerativeModel(), N=10),
             parameters=[
                 el.parameter(
                     name="mu",
@@ -635,7 +637,7 @@ def _overflow_eliobj(overflow):
             return dict(y_obs=y_obs)
 
     return el.Elicit(
-        model=el.model(obj=GenerativeModel, N=30),
+        model=partial(GenerativeModel(), N=30),
         parameters=[
             el.parameter(
                 name="mu",
@@ -838,9 +840,10 @@ def _cmaes_eliobj(
     sigma0=0.5,
     popsize=4,
     network=None,
+    penalty=None,
 ):
     """an eliobj that is fitted with the CMA-ES search instead of a gradient"""
-    return Elicit(
+    eliobj = Elicit(
         model=base_eliobj.model,
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
@@ -851,6 +854,9 @@ def _cmaes_eliobj(
         verbose=False,
         network=network,
     )
+    # the penalty is internal: a panel sets it, not the user
+    eliobj.trainer["penalty"] = penalty
+    return eliobj
 
 
 def test_cmaes_fills_a_missing_initializer(eliobj):
@@ -955,6 +961,54 @@ def test_cma_training_accepts_a_step_size_per_hyperparameter():
     assert "sigma0=2 values" in repr(eliobj)
 
 
+def _pull_mu0(hyper):
+    """a large term that pulls mu0 to -10, against the fit (true mu0 is 5)"""
+    return 100.0 * (hyper["mu0"] + 10.0) ** 2
+
+
+def _last_mu0(eliobj):
+    return eliobj.results["history_stats/hyperparameter"]["mu0"].values[0, -1]
+
+
+def test_hyperparameter_values_are_constrained():
+    variables = [
+        tf.Variable(0.0, name="identity.mu0"),
+        tf.Variable(0.0, name="softplusL.sigma0"),
+    ]
+    values = hyperparameter_values(variables, base_eliobj.parameters)
+
+    assert float(values["mu0"]) == 0.0
+    assert float(values["sigma0"]) > 0.0
+
+
+def test_cma_training_adds_the_penalty():
+    free = _cmaes_eliobj(epochs=40)
+    free.fit(base_eliobj.expert)
+    pulled = _cmaes_eliobj(epochs=40, penalty=_pull_mu0)
+    pulled.fit(base_eliobj.expert)
+
+    assert _last_mu0(pulled) < _last_mu0(free)
+
+
+def test_sgd_training_adds_the_penalty():
+    def fit(penalty):
+        eliobj = Elicit(
+            model=base_eliobj.model,
+            parameters=base_eliobj.parameters,
+            targets=base_eliobj.targets,
+            optimizer="adam",
+            initializer=base_eliobj.initializer,
+            seeds=(0,),
+            epochs=20,
+            verbose=False,
+        )
+        eliobj.trainer["penalty"] = penalty
+        eliobj.fit(base_eliobj.expert)
+        return eliobj
+
+    assert _last_mu0(fit(_pull_mu0)) < _last_mu0(fit(None))
+
+
 def test_cmaes_init_drops_its_search_for_a_cmaes_training():
     box = el.initializers.uniform(radius=1.0, mean=0.0)
     method = el.initializers.methods.resolve_init_method(
@@ -1027,3 +1081,19 @@ def test_cmaes_optimizer_ignores_an_initializer():
 def test_seeds_must_be_a_tuple_of_integers(eliobj, seeds):
     with pytest.raises(ValueError, match="seeds must be"):
         eliobj.update(seeds=seeds)
+
+
+def test_fit_accepts_a_learning_rate_schedule():
+    schedule = tf.keras.optimizers.schedules.ExponentialDecay(0.1, 10, 0.5)
+    eliobj = el.Elicit(
+        base_eliobj.model,
+        base_eliobj.targets,
+        base_eliobj.parameters,
+        optimizer=tf.keras.optimizers.Adam(learning_rate=schedule),
+        initializer=base_eliobj.initializer,
+        epochs=2,
+        verbose=False,
+    )
+    eliobj.fit(base_eliobj.expert)
+    loss = eliobj.results["history_stats"]["loss"]["total_loss"].values
+    assert np.all(np.isfinite(loss))

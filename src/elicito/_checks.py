@@ -2,6 +2,8 @@
 Check user input of Elicit object
 """
 
+import inspect
+from collections.abc import Callable
 from typing import Any
 
 from elicito.optimizers import cmaes
@@ -21,6 +23,7 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
     """
     Check whether input values to Elicit() are valid
     """
+    check_model(model)
     check_target_names(targets)
 
     # CMA-ES keeps a full covariance matrix of the search space. The weights
@@ -34,6 +37,34 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
         raise ValueError(msg)
 
     methods.get_method(trainer["method"]).check(parameters, network, initializer)
+
+
+def check_model(model: Callable[..., Any]) -> None:
+    """
+    Check that the generative model is callable with the prior samples
+    """
+    if isinstance(model, type) or not callable(model):
+        msg = (
+            "The model must be a PyMC model or a callable, such as an "
+            f"instance of a class with __call__. Got {model!r}."
+        )
+        raise TypeError(msg)
+    params = inspect.signature(model).parameters
+    if "prior_samples" not in params:
+        msg = "The model must take the argument 'prior_samples'."
+        raise ValueError(msg)
+    # elicito passes a stateless seed to a model that names `seed`
+    missing = [
+        name
+        for name, p in params.items()
+        if name not in {"prior_samples", "seed"} and p.default is p.empty
+    ]
+    if missing:
+        msg = (
+            f"The model arguments {missing} have no value. "
+            "Bind them with functools.partial."
+        )
+        raise ValueError(msg)
 
 
 def check_expert(expert: Any, targets: list[Target], parameters: Any) -> None:

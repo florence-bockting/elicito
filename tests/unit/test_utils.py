@@ -15,6 +15,7 @@ import xarray as xr
 
 import elicito as el
 from elicito._storage import save, save_as_pkl
+from elicito.fit import Fit
 from elicito.parameters.bijections import DoubleBound, LowerBound, UpperBound
 from elicito.utils import gumbel_softmax_trick
 
@@ -180,7 +181,7 @@ def test_inverse_forward_upperbound(upperbound, x):
 
 class DummyEliobj_empty:
     def __init__(self):
-        self.model = el.model(TestModel)
+        self.model = TestModel()
         self.parameters = [
             el.parameter(
                 name="b0",
@@ -207,7 +208,7 @@ class DummyEliobj_empty:
 
 class DummyEliobj_fitted:
     def __init__(self):
-        self.model = el.model(TestModel)
+        self.model = TestModel()
         self.parameters = [
             el.parameter(
                 name="b0",
@@ -263,9 +264,11 @@ def test_save_and_load_path(monkeypatch, eliobj, fit, test_path, overwrite):
     assert os.path.isfile(expected_file)
 
     # Check that loading object works
-    loaded_eliobj = el.Elicit.load(expected_file)
+    loaded = el.load(expected_file)
+    loaded_eliobj = loaded.eliobj if fit else loaded
+    assert isinstance(loaded, Fit) == fit
 
-    assert loaded_eliobj.model["obj"] == TestModel
+    assert isinstance(loaded_eliobj.model, TestModel)
     assert loaded_eliobj.parameters[0]["name"] == "b0"
     assert loaded_eliobj.targets[0]["name"] == "b0"
     assert loaded_eliobj.trainer["method"] == "parametric_prior"
@@ -273,8 +276,7 @@ def test_save_and_load_path(monkeypatch, eliobj, fit, test_path, overwrite):
     if fit:
         assert loaded_eliobj.results == eliobj.results
     else:
-        assert loaded_eliobj.temp_history == eliobj.temp_history
-        assert loaded_eliobj.temp_results == eliobj.temp_results
+        assert not hasattr(loaded_eliobj, "results")
 
     # clean-up directory
     shutil.rmtree("tests/test-data")
@@ -293,10 +295,12 @@ def test_save_and_load_name(eliobj, fit, test_file):
 
     assert os.path.exists(expected_path)
 
-    loaded_eliobj = el.Elicit.load(expected_path)
+    loaded = el.load(expected_path)
+    loaded_eliobj = loaded.eliobj if fit else loaded
+    assert isinstance(loaded, Fit) == fit
 
     # Check that loaded object is correct
-    assert loaded_eliobj.model["obj"] == TestModel
+    assert isinstance(loaded_eliobj.model, TestModel)
     assert loaded_eliobj.parameters[0]["name"] == "b0"
     assert loaded_eliobj.targets[0]["name"] == "b0"
     assert loaded_eliobj.trainer["method"] == "parametric_prior"
@@ -304,8 +308,7 @@ def test_save_and_load_name(eliobj, fit, test_file):
     if fit:
         assert loaded_eliobj.results == eliobj.results
     else:
-        assert loaded_eliobj.temp_history == eliobj.temp_history
-        assert loaded_eliobj.temp_results == eliobj.temp_results
+        assert not hasattr(loaded_eliobj, "results")
 
     # clean-up directory
     shutil.rmtree("results/parametric_prior")
@@ -341,3 +344,16 @@ def test_gumble_softmax_trick():
 
     # dtype should be float32
     assert ypred.dtype == tf.float32
+
+
+@pytest.mark.parametrize("relative", [True, False])
+def test_save_takes_a_relative_or_an_absolute_file(monkeypatch, tmp_path, relative):
+    pytest.importorskip("scipy")
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "sub" / "eliobj"
+    file = "eliobj" if relative else str(target)
+
+    save(DummyEliobj_fitted(), file=file)
+
+    expected = tmp_path / "eliobj.pkl" if relative else target.with_suffix(".pkl")
+    assert expected.is_file()

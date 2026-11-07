@@ -195,7 +195,7 @@ def _resize_symbolic_rvs(model: Any, priors: list[Any], batch: Any) -> dict[Any,
 
 def model(model: Any) -> type:
     """
-    Translate a PyMC model into a generative model for `el.model`
+    Translate a PyMC model into a generative model for `Elicit`
 
     The generative model takes the samples of the priors that `parameters`
     reads. It samples every other free random variable itself, once per
@@ -229,6 +229,14 @@ def model(model: Any) -> type:
         ) from exc
 
     names = [v.name for v in model.observed_RVs + model.deterministics]
+    # the coord labels on each axis after (B, S), for select=
+    output_dims = {
+        name: [
+            (dim, model.coords.get(dim))
+            for dim in model.named_vars_to_dims.get(name, ())
+        ]
+        for name in names
+    }
     # a batched input of shape (B, S, *shape) replaces each prior
     priors = [rv for rv in model.free_RVs if _is_prior(rv)]
     batched = [
@@ -250,6 +258,8 @@ def model(model: Any) -> type:
 
     class PyMCModel:
         """Generative model translated from a PyMC model"""
+
+        dims: dict[str, list[tuple[str, Any]]] = output_dims
 
         def __call__(self, prior_samples: Any, seed: Any) -> dict[str, Any]:
             batch = tf.shape(prior_samples)[:2]

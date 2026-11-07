@@ -58,7 +58,7 @@ DRAWS = 10_000
 # ## The check
 #
 # The port of a model follows the rules of the how-to guide
-# ["Use a PyMC model"](../how-to-guides/use-pymc-model.py): each input of a
+# [Use a PyMC model][use-a-pymc-model]: each input of a
 # prior is a named `pm.Data` node. `adapter_pymc.parameters` reads the priors.
 # `sample_priors` samples each prior in TensorFlow, with the current values
 # of its `pm.Data` nodes.

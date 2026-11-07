@@ -2,6 +2,8 @@
 Unit tests for output hyperparameter names.
 """
 
+from functools import partial
+
 import tensorflow as tf
 import tensorflow_probability as tfp
 
@@ -27,7 +29,7 @@ def test_output_hyperparameter_names():
             return dict(y_obs=y_pred)
 
     eliobj = el.Elicit(
-        model=el.model(obj=GenerativeModel, N=50, se_y=tfd.Normal(0, 1).sample(50)),
+        model=partial(GenerativeModel(), N=50, se_y=tfd.Normal(0, 1).sample(50)),
         parameters=[
             el.parameter(
                 name="mu",

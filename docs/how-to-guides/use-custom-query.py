@@ -19,9 +19,6 @@
 # questions. For another question, define the statistic yourself with
 # `el.custom`. This guide asks the expert for the probability that the
 # outcome is larger than 10.
-#
-# > **Note:** this guide uses CMA-ES, which needs the optional dependency
-# > `cma`. Install it with `pip install "elicito[cma]"`.
 
 # %% tags=["hide"]
 import os
@@ -115,22 +112,15 @@ targets = [
 # larger than 10. The key of each answer is the name of its target.
 
 # %%
-expert = el.expert.data(dat={"y": [6.5, 8.0, 9.5], "ypred": [0.19]})
+expert = {"y": [6.5, 8.0, 9.5], "ypred": [0.19]}
 
 # %% [markdown]
 # ## Training
 
 # %%
-eliobj = el.Elicit(
-    model=el.model(obj=Model),
-    parameters=parameters,
-    targets=targets,
-    expert=expert,
-    optimizer=el.optimizer(optimizer="cmaes"),
-    trainer=el.trainer(method="parametric_prior", seed=2025, epochs=400, progress=0),
-)
+eliobj = el.Elicit(Model(), targets, parameters, seeds=(2025,), epochs=400, verbose=False)
 
-fit = eliobj.fit()
+fit = eliobj.fit(expert)
 fit
 
 # %% [markdown]

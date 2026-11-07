@@ -3,7 +3,7 @@ Initialization by sampling candidates from a box
 """
 
 import logging
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any, Optional, Union
 
 import numpy as np
@@ -52,7 +52,7 @@ class BoxSample:
         parameters: list[Parameter],
         trainer: Trainer,
         optimizer: dict[str, Any],
-        model: dict[str, Any],
+        model: Callable[..., Any],
         targets: list[Target],
         network: Optional[NFDict],
         expert: ExpertDict,
@@ -280,7 +280,7 @@ def init_runs(  # noqa: PLR0913
     parameters: list[Parameter],
     trainer: Trainer,
     optimizer: dict[str, Any],
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     network: Optional[NFDict],
     expert: ExpertDict,
@@ -311,7 +311,7 @@ def init_runs(  # noqa: PLR0913
         the warm-up epochs of a candidate.
 
     model
-        User-input from [`model`][elicito.specs.model].
+        Generative model: a callable that takes the prior samples.
 
     targets
         User-input from a target constructor such as

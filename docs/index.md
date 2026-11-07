@@ -81,8 +81,8 @@ multivariate as well as parametric and nonparametric prior distributions.
 ## Getting started
 + See introductory tutorials for learning
 
-    + independent, parametric prior distributions [Notebook](tutorials/getting-started-param.py)
-    + joint, non-parametric prior distributions [Notebook](tutorials/getting-started-deep.py)
+    + independent, parametric prior distributions [Notebook](tutorials/getting-started-param.ipynb)
+    + joint, non-parametric prior distributions [Notebook](tutorials/getting-started-deep.ipynb)
 
 + Browse through the
 

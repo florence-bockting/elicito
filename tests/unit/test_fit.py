@@ -25,7 +25,7 @@ class LinearModel:
 @pytest.fixture(scope="module")
 def fit():
     eliobj = el.Elicit(
-        model=el.model(LinearModel),
+        model=LinearModel(),
         parameters=[
             el.parameter(
                 name=f"b{i}",

@@ -81,3 +81,15 @@ def _constraints(parameters: list[Parameter]) -> dict[str, Any]:
         for hyp in hyperparams:
             constraints[hyperparams[hyp]["name"]] = hyperparams[hyp]["constraint"]
     return constraints
+
+
+def hyperparameter_values(
+    variables: Any, parameters: list[Parameter]
+) -> dict[str, Any]:
+    """Map each hyperparameter name to its value on the constrained scale."""
+    constraints = _constraints(parameters)
+    values: dict[str, Any] = {}
+    for var in variables:
+        name = var.name[:-2].split(".")[1]
+        values[name] = constraints[name](var)
+    return values

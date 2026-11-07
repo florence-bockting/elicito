@@ -4,6 +4,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 import elicito as el
+from elicito._checks import check_model
 from elicito.adapter import pymc as adapter_pymc
 from elicito.adapter._pytensor import translate, vectorize
 
@@ -150,8 +151,8 @@ def test_model_samples_a_latent_rv(hierarchical_model):
     assert abs(float(tf.math.reduce_std(out["y"])) - np.sqrt(1.25)) < 0.05
 
 
-def test_model_is_accepted_by_el_model(toy_model):
-    el.model(obj=adapter_pymc.model(toy_model))
+def test_model_passes_check_model(toy_model):
+    check_model(adapter_pymc.model(toy_model)())
 
 
 def test_model_computes_epred(toy_model):
@@ -292,23 +293,14 @@ def test_model_returns_counts_as_float():
     assert set(np.unique(out["k"])) <= set(range(11))
 
 
-def _slice(i):
-    """target function that selects design point i of ypred"""
-
-    def target(ypred):
-        return ypred[:, :, i]
-
-    return target
-
-
 def test_set_hyperparameters_writes_the_learned_values(toy_model):
     eliobj = el.Elicit(
-        model=el.model(obj=adapter_pymc.model(toy_model)),
-        parameters=adapter_pymc.parameters(toy_model),
+        model=toy_model,
         targets=[
             el.quantiles(
                 f"y_X{i}",
-                output=_slice(i),
+                output="ypred",
+                select=i,
                 probs=(0.25, 0.5, 0.75),
                 loss=el.losses.MMD2(kernel="energy"),
             )
@@ -342,3 +334,42 @@ def test_set_hyperparameters_writes_the_learned_values(toy_model):
     # the PyMC prior now draws with the learned values
     draws = pm.draw(toy_model["beta0"], draws=20_000, random_seed=1)
     assert abs(draws.mean() - learned["mu0"]) < 5 * learned["sigma0"] / np.sqrt(20_000)
+
+
+def test_elicit_reads_the_priors_of_a_pymc_model(toy_model):
+    eliobj = el.Elicit(toy_model, [el.identity("y")], dry_run=False)
+    expected = [p["name"] for p in adapter_pymc.parameters(toy_model)]
+    assert [p["name"] for p in eliobj.parameters] == expected
+    check_model(eliobj.model)
+
+
+def test_a_given_parameter_list_replaces_the_priors(toy_model):
+    given = adapter_pymc.parameters(toy_model)[:1]
+    eliobj = el.Elicit(toy_model, [el.identity("y")], given, dry_run=False)
+    assert eliobj.parameters is given
+
+
+@pytest.fixture
+def coords_model():
+    """a PyMC model whose output has a dim with coords"""
+    x = np.array([0.5, 1.0, 1.5])
+    with pm.Model(coords={"x": x}) as m:
+        beta0 = pm.Normal("beta0", pm.Data("mu0", 0.0), pm.Data("sigma0", 1.0))
+        pm.Deterministic("epred", beta0 * x, dims="x")
+    return m
+
+
+def test_translated_model_carries_the_dims(coords_model):
+    generator = adapter_pymc.model(coords_model)()
+    ((dim, labels),) = generator.dims["epred"]
+    assert dim == "x"
+    assert list(labels) == [0.5, 1.0, 1.5]
+
+
+def test_select_with_coords_picks_one_column(coords_model):
+    target = el.identity("e1", output="epred", select={"x": 1.0})
+    eliobj = el.Elicit(coords_model, [target], dry_run=False)
+    assert eliobj.targets[0]["select"] == (slice(None), slice(None), 1)
+    sims = {"epred": tf.reshape(tf.range(6.0), (1, 2, 3))}
+    out = el.targets.computation_target_quantities(sims, None, eliobj.targets)
+    np.testing.assert_array_equal(out["e1"], [[1.0, 4.0]])

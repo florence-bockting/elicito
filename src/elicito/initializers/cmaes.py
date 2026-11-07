@@ -2,6 +2,7 @@
 Initialization with a CMA-ES search
 """
 
+from collections.abc import Callable
 from typing import Any
 
 import tensorflow as tf
@@ -39,7 +40,7 @@ class CmaEs(_SearchStart):
         expert_elicited_statistics: dict[str, tf.Tensor],
         parameters: list[Parameter],
         trainer: Trainer,
-        model: dict[str, Any],
+        model: Callable[..., Any],
         targets: list[Target],
         expert: ExpertDict,
         distribution: dict[str, Any],

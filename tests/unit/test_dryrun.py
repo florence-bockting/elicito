@@ -25,7 +25,7 @@ parameters = [
     )
 ]
 
-model = el.model(obj=TestModel)
+model = TestModel()
 
 targets = [
     el.identity("mu", loss=el.losses.MMD2(kernel="energy")),

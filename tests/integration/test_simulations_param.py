@@ -339,7 +339,7 @@ def model(predictor):
                 likelihood=likelihood,
             )
 
-    return dict(obj=Model)
+    return Model()
 
 
 def test_model_samples(prior_samples, model):

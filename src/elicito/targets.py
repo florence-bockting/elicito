@@ -2,6 +2,7 @@
 Specification of target quantities and elicited statistics
 """
 
+import inspect
 from typing import Any
 
 import tensorflow as tf
@@ -57,11 +58,8 @@ def use_custom_functions(simulations: dict[str, Any], custom_func: Any) -> Any:
     custom_function :
         Custom function with keyword arguments
     """
-    # co_varnames holds arguments and local variables;
-    # only the first co_argcount entries are arguments
-    vars_from_func = custom_func.__code__.co_varnames[
-        : custom_func.__code__.co_argcount
-    ]
+    # the signature, not __code__, so that a wrapper can rename the arguments
+    vars_from_func = inspect.signature(custom_func).parameters
     res = {f"{var}": simulations[var] for var in vars_from_func if var in simulations}
     return custom_func(**res)
 
@@ -187,13 +185,19 @@ def computation_target_quantities(
         tar = targets[i]
         # use correlation between model parameters
         if tar["query"]["name"] == "pearson_correlation":
-            target_quantity = prior_samples
+            # a panel gives each expert its own prior samples as an output
+            target_quantity = (model_simulations or {}).get(
+                tar["output"], prior_samples
+            )
         # use custom target method
         elif callable(tar["output"]):
             target_quantity = use_custom_functions(model_simulations, tar["output"])
         # target quantity equal to output of GenerativeModel
         else:
             target_quantity = model_simulations[tar["output"]]
+        # select= keeps one part, as an index from Elicit
+        if tar.get("select") is not None:
+            target_quantity = target_quantity[tar["select"]]
 
         # save target quantities
         targets_res[tar["name"]] = target_quantity
