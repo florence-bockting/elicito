@@ -276,15 +276,10 @@ parameters.append(
 # design points. That gives 5 x 3 = 15 targets.
 
 # %%
+PROBS = (0.05, 0.25, 0.50, 0.75, 0.95)
+
 targets = [
-    el.target(
-        name=f"y_X{k}_e{e}",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    )
-    for e in EXPERTS
-    for k in range(3)
+    el.quantiles(f"y_X{k}_e{e}", probs=PROBS) for e in EXPERTS for k in range(3)
 ]
 
 # %% [markdown]
@@ -389,24 +384,23 @@ def fit_panel(tau: tuple[float, float], seed: int = 2025) -> Any:
             penalty=ridge(tau),
         ),
     )
-    eliobj.fit(
+    return eliobj.fit(
         parallel=el.utils.parallel(runs=len(SEEDS), cores=len(SEEDS), seeds=SEEDS)
     )
-    return eliobj
 
 
-def learned(eliobj: Any) -> dict[str, float]:
+def learned(fit: Any) -> dict[str, float]:
     """Return the hyperparameters of the best generation of all replications"""
-    hyper = eliobj.results["history_stats/hyperparameter"]
-    score = eliobj.results["history_stats/loss"]["total_loss"].values
+    hyper = fit.results["history_stats/hyperparameter"]
+    score = fit.results["history_stats/loss"]["total_loss"].values
     rep, best = np.unravel_index(np.nanargmin(score), score.shape)
     return {name: float(hyper[name].values[rep, best]) for name in hyper.data_vars}
 
 
-def learned_runs(eliobj: Any) -> list[dict[str, float]]:
+def learned_runs(fit: Any) -> list[dict[str, float]]:
     """Return the hyperparameters of the best generation of each replication"""
-    hyper = eliobj.results["history_stats/hyperparameter"]
-    score = eliobj.results["history_stats/loss"]["total_loss"].values
+    hyper = fit.results["history_stats/hyperparameter"]
+    score = fit.results["history_stats/loss"]["total_loss"].values
     best = np.nanargmin(score, axis=1)
     return [
         {name: float(hyper[name].values[r, b]) for name in hyper.data_vars}
@@ -438,7 +432,7 @@ stage2 = fit_panel(tau=TAU_HAT)
 hyper2 = learned(stage2)
 
 # %%
-el.plots.elicits(stage2, cols=3, figsize=(7, 11));
+stage2.plot.elicits(cols=3, figsize=(7, 11));
 
 # %%
 # the ridge moves the mean offset into mu, so centre the truth

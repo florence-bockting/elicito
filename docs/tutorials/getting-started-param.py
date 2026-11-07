@@ -232,32 +232,13 @@ def custom_r2(ypred: Any, epred: Any) -> Any:
     return tf.divide(var_epred, var_total)
 
 
+PROBS = (0.05, 0.25, 0.50, 0.75, 0.95)
+
 targets = [
-    el.target(
-        name="y_X0",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    ),
-    el.target(
-        name="y_X1",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    ),
-    el.target(
-        name="y_X2",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    ),
-    el.target(
-        name="R2",
-        query=el.queries.quantiles((0.05, 0.50, 0.95)),
-        loss=el.losses.L2,
-        weight=0.5,
-        target_method=custom_r2,
-    ),
+    el.quantiles("y_X0", probs=PROBS),
+    el.quantiles("y_X1", probs=PROBS),
+    el.quantiles("y_X2", probs=PROBS),
+    el.quantiles("R2", output=custom_r2, loss=el.losses.L2, weight=0.5),
 ]
 
 # %% [markdown]
@@ -318,18 +299,21 @@ eliobj = el.Elicit(
 eliobj
 
 # %%
-eliobj.fit(parallel=el.utils.parallel(runs=4))
+fit = eliobj.fit(parallel=el.utils.parallel(runs=4))
+
+# %% [markdown]
+# `fit()` returns a `Fit` object. Print it to see a summary of the result.
+
+# %%
+fit
 
 # %% [markdown]
 # The results keep the learned hyperparameters, the loss and the expert
-# data. `sample()` computes the prior samples and the model simulations from
-# them. We compute them once and give them to every plot.
+# data. `fit.sample()` computes the prior samples and the model simulations
+# from them. The plots in `fit.plot` call it once and reuse the samples.
 
 # %%
-eliobj.results
-
-# %%
-samples = eliobj.sample()
+fit.results
 
 # %% [markdown]
 # ## Results
@@ -339,7 +323,7 @@ samples = eliobj.sample()
 # The loss must decrease and then stay flat. Each line is one replication.
 
 # %%
-el.plots.loss(eliobj, figsize=(7, 3));
+fit.plot.loss(figsize=(7, 3));
 
 # %% [markdown]
 # ### Convergence of the hyperparameters
@@ -348,7 +332,7 @@ el.plots.loss(eliobj, figsize=(7, 3));
 # on the same value, the result does not depend on the seed.
 
 # %%
-el.plots.hyperparameter(eliobj, titles=TITLES, cols=5, figsize=(11, 2.4));
+fit.plot.hyperparameter(titles=TITLES, cols=5, figsize=(11, 2.4));
 
 # %% [markdown]
 # ### Expert expectations
@@ -358,19 +342,19 @@ el.plots.hyperparameter(eliobj, titles=TITLES, cols=5, figsize=(11, 2.4));
 # learned prior reproduces the expert data.
 
 # %%
-el.plots.elicits(eliobj, cols=4, figsize=(9, 2.6), samples=samples);
+fit.plot.elicits(cols=4, figsize=(9, 2.6));
 
 # %% [markdown]
 # ### Learned prior distributions
 
 # %%
-el.plots.prior_marginals(eliobj, cols=3, figsize=(8, 2.4), samples=samples);
+fit.plot.prior_marginals(cols=3, figsize=(8, 2.4));
 
 # %% [markdown]
 # ### Prior predictive distribution of $R^2$
 
 # %%
-el.plots.priorpredictive(eliobj, target="R2", samples=samples);
+fit.plot.priorpredictive(target="R2");
 
 # %% [markdown]
 # ### Averaged prior over the replications
@@ -380,7 +364,7 @@ el.plots.priorpredictive(eliobj, target="R2", samples=samples);
 # points.
 
 # %%
-el.plots.prior_averaging(eliobj, samples=samples);
+fit.plot.prior_averaging();
 
 # %% [markdown]
 # ## Variant A: a shared scale hyperparameter
@@ -421,43 +405,35 @@ eliobj_shared = el.Elicit(
     trainer=el.trainer(method="parametric_prior", seed=2025, epochs=800, progress=0),
 )
 
-eliobj_shared.fit()
-samples_shared = eliobj_shared.sample()
+fit_shared = eliobj_shared.fit()
 
 # %% [markdown]
 # ### Results
 
 # %%
-el.plots.loss(eliobj_shared, figsize=(7, 3));
+fit_shared.plot.loss(figsize=(7, 3));
 
 # %%
-el.plots.hyperparameter(eliobj_shared, cols=4, figsize=(9, 2.4));
+fit_shared.plot.hyperparameter(cols=4, figsize=(9, 2.4));
 
 # %%
-el.plots.elicits(eliobj_shared, cols=4, figsize=(9, 2.6), samples=samples_shared);
+fit_shared.plot.elicits(cols=4, figsize=(9, 2.6));
 
 # %%
-el.plots.prior_marginals(
-    eliobj_shared, cols=3, figsize=(8, 2.4), samples=samples_shared
-);
+fit_shared.plot.prior_marginals(cols=3, figsize=(8, 2.4));
 
 # %% [markdown]
 # ## Variant B: expert data as input
 #
-# With a real expert, you enter the elicited statistics by hand. Each key
-# combines the elicitation technique and the target name.
-# `el.utils.get_expert_datformat(targets)` shows the keys that the targets
-# expect.
-
-# %%
-el.utils.get_expert_datformat(targets)
+# With a real expert, you enter the elicited statistics by hand. The key of
+# each answer is the name of its target.
 
 # %%
 expert_dat = {
-    "quantiles_y_X0": [-12.5, -0.6, 3.3, 7.1, 19.1],
-    "quantiles_y_X1": [-11.2, 1.5, 5.0, 8.8, 20.4],
-    "quantiles_y_X2": [-9.3, 3.1, 6.8, 10.5, 23.3],
-    "quantiles_R2": [0.001, 0.09, 0.96],
+    "y_X0": [-12.5, -0.6, 3.3, 7.1, 19.1],
+    "y_X1": [-11.2, 1.5, 5.0, 8.8, 20.4],
+    "y_X2": [-9.3, 3.1, 6.8, 10.5, 23.3],
+    "R2": [0.001, 0.09, 0.96],
 }
 
 eliobj_dat = el.Elicit(
@@ -469,20 +445,19 @@ eliobj_dat = el.Elicit(
     trainer=el.trainer(method="parametric_prior", seed=2025, epochs=800, progress=0),
 )
 
-eliobj_dat.fit()
-samples_dat = eliobj_dat.sample()
+fit_dat = eliobj_dat.fit()
 
 # %% [markdown]
 # ### Results
 
 # %%
-el.plots.loss(eliobj_dat, figsize=(7, 3));
+fit_dat.plot.loss(figsize=(7, 3));
 
 # %%
-el.plots.hyperparameter(eliobj_dat, titles=TITLES, cols=5, figsize=(11, 2.4));
+fit_dat.plot.hyperparameter(titles=TITLES, cols=5, figsize=(11, 2.4));
 
 # %%
-el.plots.elicits(eliobj_dat, cols=4, figsize=(9, 2.6), samples=samples_dat);
+fit_dat.plot.elicits(cols=4, figsize=(9, 2.6));
 
 # %%
-el.plots.prior_marginals(eliobj_dat, cols=3, figsize=(8, 2.4), samples=samples_dat);
+fit_dat.plot.prior_marginals(cols=3, figsize=(8, 2.4));

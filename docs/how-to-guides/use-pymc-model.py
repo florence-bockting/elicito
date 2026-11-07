@@ -141,25 +141,15 @@ def custom_r2(ypred: Any, epred: Any) -> Any:
     return tf.divide(var_epred, var_epred + var_diff)
 
 
+PROBS = (0.05, 0.25, 0.50, 0.75, 0.95)
+
 targets = [
-    el.target(
-        name=f"y_X{i}",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        target_method=outcome_at(i),
-        weight=1.0,
-    )
-    for i in range(3)
+    *(
+        el.quantiles(f"y_X{i}", output=outcome_at(i), probs=PROBS)
+        for i in range(3)
+    ),
+    el.quantiles("R2", output=custom_r2, loss=el.losses.L2, weight=0.5),
 ]
-targets.append(
-    el.target(
-        name="R2",
-        query=el.queries.quantiles((0.05, 0.50, 0.95)),
-        loss=el.losses.L2,
-        target_method=custom_r2,
-        weight=0.5,
-    )
-)
 
 # %% [markdown]
 # ## Expert and training
@@ -185,7 +175,7 @@ eliobj = el.Elicit(
         method="parametric_prior", seed=2025, epochs=400, progress=1, kappa=0.0
     ),
 )
-eliobj.fit(parallel=el.utils.parallel(runs=5, seeds=[1, 2, 3, 4, 5]))
+fit = eliobj.fit(parallel=el.utils.parallel(runs=5, seeds=[1, 2, 3, 4, 5]))
 
 # %% [markdown]
 # `hyperparameters(replication=r)` returns the learned values of one
@@ -194,7 +184,7 @@ eliobj.fit(parallel=el.utils.parallel(runs=5, seeds=[1, 2, 3, 4, 5]))
 
 # %%
 for r in range(5):
-    values = eliobj.hyperparameters(replication=r)
+    values = fit.hyperparameters(replication=r)
     print(r, {name: round(value, 2) for name, value in values.items()})
 
 # %% [markdown]

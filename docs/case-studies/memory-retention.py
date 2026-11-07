@@ -229,13 +229,7 @@ QUANTILES = (0.05, 0.50, 0.95)
 def targets_at(delays: tuple[int, ...]) -> list[Any]:
     """Return one quantile target for each delay index"""
     return [
-        el.target(
-            name=f"k4_t{t[j]}",
-            query=el.queries.quantiles(QUANTILES),
-            loss=el.losses.MMD2(kernel="energy"),
-            target_method=recall_at(j),
-            weight=1.0,
-        )
+        el.quantiles(f"k4_t{t[j]}", output=recall_at(j), probs=QUANTILES)
         for j in delays
     ]
 
@@ -272,19 +266,19 @@ def ground_truth(alpha: tuple[float, float], beta: tuple[float, float]) -> Any:
     with model1:
         pm.set_data({name: 1.0 for name in values})
     quantiles = np.quantile(counts, QUANTILES, axis=0).T
-    return {f"quantiles_k4_t{t[j]}": list(q) for j, q in zip(DELAYS, quantiles)}
+    return {f"k4_t{t[j]}": list(q) for j, q in zip(DELAYS, quantiles)}
 
 # %%
 experts = {
     "expert 1": {
-        "quantiles_k4_t4": [15, 16, 18],
-        "quantiles_k4_t12": [10, 14, 17],
-        "quantiles_k4_t59": [2, 9, 16],
+        "k4_t4": [15, 16, 18],
+        "k4_t12": [10, 14, 17],
+        "k4_t59": [2, 9, 16],
     },
     "expert 2": {
-        "quantiles_k4_t4": [12, 16, 18],
-        "quantiles_k4_t12": [7, 14, 18],
-        "quantiles_k4_t59": [0, 9, 18],
+        "k4_t4": [12, 16, 18],
+        "k4_t12": [7, 14, 18],
+        "k4_t59": [0, 9, 18],
     },
     "expert 3": ground_truth(alpha=(2, 18), beta=(4, 16)),
 }
@@ -294,8 +288,7 @@ def elicit(quantiles: dict[str, list[int]], delays: tuple[int, ...]) -> Any:
     """Fit the priors to the expert quantiles at the given delay indices"""
     targets = targets_at(delays)
     data = {
-        f"quantiles_{target['name']}": quantiles[f"quantiles_{target['name']}"]
-        for target in targets
+        target["name"]: quantiles[target["name"]] for target in targets
     }
     eliobj = el.Elicit(
         model=gen_model1,
@@ -307,11 +300,10 @@ def elicit(quantiles: dict[str, list[int]], delays: tuple[int, ...]) -> Any:
             method="parametric_prior", seed=2025, epochs=400, progress=0, kappa=0.1
         ),
     )
-    eliobj.fit(parallel=el.utils.parallel(runs=5, seeds=[1, 2, 3, 4, 5]))
-    return eliobj
+    return eliobj.fit(parallel=el.utils.parallel(runs=5, seeds=[1, 2, 3, 4, 5]))
 
 
-eliobjs = {expert: elicit(quantiles, DELAYS) for expert, quantiles in experts.items()}
+fits = {expert: elicit(quantiles, DELAYS) for expert, quantiles in experts.items()}
 
 # %% [markdown]
 # ### Check the fit
@@ -320,11 +312,11 @@ eliobjs = {expert: elicit(quantiles, DELAYS) for expert, quantiles in experts.it
 # replication, by name. The loss plot shows whether the fit converged.
 
 # %%
-for expert, eliobj in eliobjs.items():
+for expert, fit in fits.items():
     for r in range(5):
-        values = eliobj.hyperparameters(replication=r)
+        values = fit.hyperparameters(replication=r)
         print(expert, r, {name: round(value, 2) for name, value in values.items()})
-    fig, _ = el.plots.loss(eliobj)
+    fig, _ = fit.plot.loss()
     fig.suptitle(expert)
 
 # %% [markdown]
@@ -333,16 +325,16 @@ for expert, eliobj in eliobjs.items():
 # reproduce.
 
 # %%
-for expert, eliobj in eliobjs.items():
-    fig, _ = el.plots.elicits(eliobj)
+for expert, fit in fits.items():
+    fig, _ = fit.plot.elicits()
     fig.suptitle(f"{expert}: expert vs. model-simulated statistics")
 
 # %% [markdown]
 # The learned priors of all experts.
 
 # %%
-for expert, eliobj in eliobjs.items():
-    fig, _ = el.plots.prior_marginals(eliobj)
+for expert, fit in fits.items():
+    fig, _ = fit.plot.prior_marginals()
     fig.suptitle(f"{expert}: learned marginal priors")
 
 # %% [markdown]
@@ -363,10 +355,10 @@ for expert, eliobj in eliobjs.items():
 INITVALS = {"alpha": 0.3, "beta": 0.2}
 
 
-def sample(eliobj: Any = None) -> tuple[Any, Any]:
-    """Return prior and posterior draws, with the priors of eliobj if given"""
-    if eliobj is not None:
-        adapter_pymc.set_hyperparameters(model1, eliobj, replication=0)
+def sample(fit: Any = None) -> tuple[Any, Any]:
+    """Return prior and posterior draws, with the priors of fit if given"""
+    if fit is not None:
+        adapter_pymc.set_hyperparameters(model1, fit, replication=0)
     prior = pm.sample_prior_predictive(draws=2_000, random_seed=2013, model=model1)
     post = pm.sample(
         500,
@@ -381,8 +373,8 @@ def sample(eliobj: Any = None) -> tuple[Any, Any]:
 
 
 runs = {"Beta(1, 1)": sample()}
-for expert, eliobj in eliobjs.items():
-    runs[expert] = sample(eliobj)
+for expert, fit in fits.items():
+    runs[expert] = sample(fit)
 
 for run, (_, post) in runs.items():
     s = post.posterior.to_dataset()[["alpha", "beta"]].mean(("chain", "draw"))

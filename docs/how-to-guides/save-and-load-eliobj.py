@@ -156,12 +156,7 @@ parameters = [
 
 # specify the target quantities and corresponding elicitation technique
 targets = [
-    el.target(
-        name=f"y_X{i}",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    )
+    el.quantiles(f"y_X{i}", probs=(0.05, 0.25, 0.50, 0.75, 0.95))
     for i in range(3)
 ]
 

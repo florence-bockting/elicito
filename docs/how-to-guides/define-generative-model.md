@@ -132,12 +132,8 @@ eliobj = el.Elicit(
         ) for i in range(2)
     ],
     targets=[
-        el.target(
-            name=f"y_X{i}",
-            query=el.queries.quantiles((.05, .25, .50, .75, .95)),
-            loss=el.losses.MMD2(kernel="energy"),
-            weight=1.0
-        ) for i in range(1,4)
+        el.quantiles(f"y_X{i}", probs=(.05, .25, .50, .75, .95))
+        for i in range(1,4)
     ],
     ...
 )

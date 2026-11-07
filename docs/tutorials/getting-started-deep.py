@@ -217,38 +217,14 @@ def custom_r2(ypred: Any, epred: Any) -> Any:
     return tf.divide(var_epred, var_total)
 
 
+PROBS = (0.05, 0.25, 0.50, 0.75, 0.95)
+
 targets = [
-    el.target(
-        name="y_X0",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    ),
-    el.target(
-        name="y_X1",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    ),
-    el.target(
-        name="y_X2",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    ),
-    el.target(
-        name="R2",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=10.0,
-        target_method=custom_r2,
-    ),
-    el.target(
-        name="cor",
-        query=el.queries.correlation(),
-        loss=el.losses.L2,
-        weight=0.1,
-    ),
+    el.quantiles("y_X0", probs=PROBS),
+    el.quantiles("y_X1", probs=PROBS),
+    el.quantiles("y_X2", probs=PROBS),
+    el.quantiles("R2", output=custom_r2, probs=PROBS, weight=10.0),
+    el.correlation("cor", weight=0.1),
 ]
 
 # %% [markdown]
@@ -328,18 +304,21 @@ eliobj = el.Elicit(
 eliobj
 
 # %%
-eliobj.fit()
+fit = eliobj.fit()
+
+# %% [markdown]
+# `fit()` returns a `Fit` object. Print it to see a summary of the result.
+
+# %%
+fit
 
 # %% [markdown]
 # The results keep the learned weights, the loss and the expert data.
-# `sample()` computes the prior samples and the model simulations from them.
-# We compute them once and give them to every plot.
+# `fit.sample()` computes the prior samples and the model simulations from
+# them. The plots in `fit.plot` call it once and reuse the samples.
 
 # %%
-eliobj.results
-
-# %%
-samples = eliobj.sample()
+fit.results
 
 # %% [markdown]
 # ## Results
@@ -349,7 +328,7 @@ samples = eliobj.sample()
 # The loss must decrease and then stay flat.
 
 # %%
-el.plots.loss(eliobj, figsize=(7, 3));
+fit.plot.loss(figsize=(7, 3));
 
 # %% [markdown]
 # ### Convergence of the prior marginals
@@ -359,7 +338,7 @@ el.plots.loss(eliobj, figsize=(7, 3));
 # value.
 
 # %%
-el.plots.marginals(eliobj, figsize=(8.5, 3.5));
+fit.plot.marginals(figsize=(8.5, 3.5));
 
 # %% [markdown]
 # ### Expert expectations
@@ -369,13 +348,13 @@ el.plots.marginals(eliobj, figsize=(8.5, 3.5));
 # learned prior reproduces the expert data.
 
 # %%
-el.plots.elicits(eliobj, cols=5, figsize=(11, 2.4), samples=samples);
+fit.plot.elicits(cols=5, figsize=(11, 2.4));
 
 # %% [markdown]
 # ### Learned prior distributions
 
 # %%
-el.plots.prior_marginals(eliobj, cols=3, figsize=(8, 2.4), samples=samples);
+fit.plot.prior_marginals(cols=3, figsize=(8, 2.4));
 
 # %% [markdown]
 # ### Learned joint prior
@@ -384,4 +363,4 @@ el.plots.prior_marginals(eliobj, cols=3, figsize=(8, 2.4), samples=samples);
 # expert assumes independence, so the pairs must show no correlation.
 
 # %%
-el.plots.prior_joint(eliobj, samples=samples);
+fit.plot.prior_joint();

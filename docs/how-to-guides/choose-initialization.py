@@ -128,14 +128,9 @@ parameters = [
     )
 ]
 
-targets = [
-    el.target(
-        name="y",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    )
-]
+PROBS = (0.05, 0.25, 0.50, 0.75, 0.95)
+
+targets = [el.quantiles("y", probs=PROBS)]
 
 ground_truth = {"mu": tfd.Normal(loc=1.0, scale=2.0)}
 
@@ -827,15 +822,9 @@ parameters = [
     ),
 ]
 
-targets = [
-    el.target(
-        name=name,
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    )
-    for name in ("y_X0", "y_X1", "y_X2")
-]
+PROBS = (0.05, 0.25, 0.50, 0.75, 0.95)
+
+targets = [el.quantiles(name, probs=PROBS) for name in ("y_X0", "y_X1", "y_X2")]
 
 ground_truth = {
     "beta0": tfd.Normal(loc=1.0, scale=0.5),
@@ -1302,10 +1291,10 @@ long_run = build(
     ),
     epochs=600,
 )
-long_run.fit()
+fit_long = long_run.fit()
 
 # %% tags=["remove_input"]
-el.plots.elicits(long_run, cols=3, figsize=(9, 2.6))
+fit_long.plot.elicits(cols=3, figsize=(9, 2.6))
 plt.show()
 
 # %% [markdown]

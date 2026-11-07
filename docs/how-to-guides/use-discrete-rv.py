@@ -193,12 +193,7 @@ eliobj = el.Elicit(
         ),
     ],
     targets=[
-        el.target(
-            name=f"y_X{i}",
-            query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-            loss=el.losses.MMD2(kernel="energy"),
-            weight=1.0,
-        )
+        el.quantiles(f"y_X{i}", probs=(0.05, 0.25, 0.50, 0.75, 0.95))
         for i in range(3)
     ],
     expert=el.expert.simulator(ground_truth=ground_truth, num_samples=10_000),
@@ -217,29 +212,29 @@ eliobj = el.Elicit(
 # ### Train the eliobj
 
 # %%
-eliobj.fit()
+fit = eliobj.fit()
 
 # %% [markdown]
 # ### Results
 # #### Convergence - Loss
 
 # %%
-el.plots.loss(eliobj, figsize=(6, 2))
+fit.plot.loss(figsize=(6, 2))
 
 # %% [markdown]
 # #### Convergence - Hyperparameter
 
 # %%
-el.plots.hyperparameter(eliobj, figsize=(6, 2))
+fit.plot.hyperparameter(figsize=(6, 2))
 
 # %% [markdown]
 # #### Expert data (oracle) vs. simulated data
 
 # %%
-el.plots.elicits(eliobj, cols=3, figsize=(6, 2))
+fit.plot.elicits(cols=3, figsize=(6, 2))
 
 # %% [markdown]
 # #### Learned prior distributions
 
 # %%
-el.plots.prior_marginals(eliobj, figsize=(6, 2))
+fit.plot.prior_marginals(figsize=(6, 2))

@@ -351,15 +351,7 @@ parameters = [
 # %%
 QUANTILES = (0.10, 0.25, 0.50, 0.75, 0.90)
 
-targets = [
-    el.target(
-        name=f"y_t{i}",
-        query=el.queries.quantiles(QUANTILES),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    )
-    for i in range(4)
-]
+targets = [el.quantiles(f"y_t{i}", probs=QUANTILES) for i in range(4)]
 
 # %% [markdown]
 # ## The generative model and the oracle
@@ -464,7 +456,7 @@ eliobj = el.Elicit(
 import time
 
 start = time.time()
-eliobj.fit()
+fit = eliobj.fit()
 
 # %% [markdown]
 # The results hold the learned hyperparameters and the loss. The prior
@@ -472,7 +464,7 @@ eliobj.fit()
 # summaries follow from them, and `sample` computes them.
 
 # %%
-samples = eliobj.sample()
+samples = fit.sample()
 cma_seconds = time.time() - start
 
 # %% [markdown]
@@ -482,10 +474,10 @@ cma_seconds = time.time() - start
 # whether the simulated quantiles reach the expert values at each age.
 
 # %%
-el.plots.loss(eliobj, figsize=(7, 3));
+fit.plot.loss(figsize=(7, 3));
 
 # %%
-el.plots.elicits(eliobj, cols=4, figsize=(9, 3), samples=samples);
+fit.plot.elicits(cols=4, figsize=(9, 3));
 
 # %% [markdown]
 # The parameters of interest are $h_{t_s}$, $h_1$, $s_0$, $s_1$ and $t_s$.
@@ -507,9 +499,7 @@ def add_h1_s1(draws):
 
 
 add_h1_s1(samples)
-el.plots.prior_marginals(
-    eliobj, params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4), samples=samples
-);
+fit.plot.prior_marginals(params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4));
 
 # %% tags=["remove_input"]
 import matplotlib.pyplot as plt
@@ -561,7 +551,7 @@ for ax, name, age, color in zip(axes, TARGETS, AGES.numpy(), COLORS):
         color=color, alpha=0.5, edgecolor="none",
     )
     expert_quantiles = (
-        eliobj.results.oracle.sel(replication=0)[f"quantiles_{name}"].values[0]
+        fit.results.oracle.sel(replication=0)[name].values[0]
     )
     for q, x in zip(QUANTILES, expert_quantiles):
         ax.axvline(
@@ -634,7 +624,7 @@ eliobj_adam = el.Elicit(
 )
 
 start = time.time()
-eliobj_adam.fit()
+fit_adam = eliobj_adam.fit()
 adam_seconds = time.time() - start
 
 
@@ -651,25 +641,19 @@ def report(obj, label, seconds):
     )
 
 
-report(eliobj, "cmaes", cma_seconds)
-report(eliobj_adam, "adam", adam_seconds)
+report(fit, "cmaes", cma_seconds)
+report(fit_adam, "adam", adam_seconds)
 
 # %%
-el.plots.loss(eliobj_adam, figsize=(7, 3));
+fit_adam.plot.loss(figsize=(7, 3));
 
 # %%
-samples_adam = eliobj_adam.sample()
-el.plots.elicits(eliobj_adam, cols=4, figsize=(9, 3), samples=samples_adam);
+samples_adam = fit_adam.sample()
+fit_adam.plot.elicits(cols=4, figsize=(9, 3));
 
 # %%
 add_h1_s1(samples_adam)
-el.plots.prior_marginals(
-    eliobj_adam,
-    params=PARAMS_OF_INTEREST,
-    cols=5,
-    figsize=(11, 2.4),
-    samples=samples_adam,
-);
+fit_adam.plot.prior_marginals(params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4));
 
 # %% [markdown]
 # ## Five experts
@@ -699,7 +683,7 @@ el.plots.prior_marginals(
 # of the same expert is the search.
 #
 # `fit(parallel=...)` runs the five replications, and `elicito` stores them
-# in the `replication` dimension of `eliobj.results`.
+# in the `replication` dimension of `fit.results`.
 
 # %%
 USERS = (1, 2, 3, 4, 5)
@@ -730,8 +714,9 @@ def fit_user(user):
             num_samples=400,
         ),
     )
-    obj.fit(parallel=el.utils.parallel(runs=REPLICATIONS, cores=5, seeds=SEEDS))
-    return obj
+    return obj.fit(
+        parallel=el.utils.parallel(runs=REPLICATIONS, cores=5, seeds=SEEDS)
+    )
 
 
 fits = {u: fit_user(u) for u in USERS}
@@ -749,7 +734,7 @@ fits = {u: fit_user(u) for u in USERS}
 
 # %%
 for u in USERS:
-    fig, _ = el.plots.loss(fits[u], figsize=(7, 3))
+    fig, _ = fits[u].plot.loss(figsize=(7, 3))
     fig.suptitle(f"user {u}")
 
 
@@ -804,10 +789,8 @@ for row, u in zip(axes, USERS):
     summary = samples_user[u]["elicited_summary"]
     for ax, name, age in zip(row, TARGETS, AGES.numpy()):
         for i in successful(samples_user[u]):
-            expert_q = res.oracle.sel(replication=i)[f"quantiles_{name}"].values[0]
-            model_q = summary.sel(replication=i)[f"quantiles_{name}"].values.mean(
-                axis=0
-            )
+            expert_q = res.oracle.sel(replication=i)[name].values[0]
+            model_q = summary.sel(replication=i)[name].values.mean(axis=0)
             ax.plot(expert_q, model_q, "o", ms=5, alpha=0.5, color=USER_COLORS[u])
         ax.axline((0, 0), slope=1, color="darkgrey", linestyle="dashed", lw=1)
         ax.set_title(f"user {u}, age {age:g}", fontsize="small")
