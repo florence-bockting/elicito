@@ -2,6 +2,8 @@
 Shows a progress table for training and initialization
 """
 
+import linecache
+import os
 import threading
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
@@ -112,8 +114,32 @@ class ProgressTable:
         self._progress.stop()
 
 
+def notebook_sources() -> dict[str, Any]:
+    """
+    Return the source lines of the code cells that IPython has run
+
+    A worker gets the functions of a notebook by value, without their source.
+    TensorFlow autograph then reads the source from a wrong file. Give these
+    entries to `run_in_worker`.
+
+    Returns
+    -------
+    :
+        the `linecache` entries that have no file on disk
+    """
+    return {
+        name: entry
+        for name, entry in linecache.cache.items()
+        if len(entry) > 1 and entry[1] is None and not os.path.exists(name)
+    }
+
+
 def run_in_worker(
-    function: Callable[[int], Any], seed: int, row: int, queue: Any
+    function: Callable[[int], Any],
+    seed: int,
+    row: int,
+    queue: Any,
+    sources: dict[str, Any] | None = None,
 ) -> Any:
     """
     Run `function(seed)` in a worker, and send its tables to `queue`
@@ -128,12 +154,15 @@ def run_in_worker(
         the row of this worker in the `SeedTable`
     queue
         the queue that the `SeedTable` of the parent process reads
+    sources
+        the `linecache` entries of the parent, from `notebook_sources()`
 
     Returns
     -------
     :
         the return value of the function
     """
+    linecache.cache.update(sources or {})
     _WORKER.update(queue=queue, row=row)
     try:
         return function(seed)

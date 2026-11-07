@@ -199,3 +199,42 @@ def test_the_panel_prints_a_row_for_the_panel_and_each_expert(partial_panel):
     assert "tau: mu0=1" in text
     for row in ("panel", "expert 1", "expert 2"):
         assert row in text
+
+
+@pytest.mark.parametrize("name", ["partial_panel", "complete_panel", "unpooled_panel"])
+def test_a_saved_panel_loads_with_the_same_values(request, monkeypatch, tmp_path, name):
+    panel = request.getfixturevalue(name)
+    monkeypatch.chdir(tmp_path)
+    panel.eliobj.save(file="panel")
+
+    loaded = el.load("panel.pkl")
+
+    assert isinstance(loaded, Panel)
+    assert loaded.eliobj is not None
+    assert loaded.experts == panel.experts
+    assert loaded.tau == panel.tau
+    for expert in panel.experts:
+        assert loaded.hyperparameters(expert) == panel.hyperparameters(expert)
+    assert repr(loaded) == repr(panel)
+
+
+def test_a_loaded_partial_panel_keeps_its_penalty(partial_panel, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    partial_panel.eliobj.save(file="panel")
+
+    loaded = el.load("panel.pkl")
+
+    assert loaded.joint.eliobj.trainer["penalty"] is not None
+
+
+def test_a_fitted_panel_refits_only_with_overwrite():
+    eliobj = _eliobj(pool="complete")
+    eliobj.update(epochs=2)
+    first = eliobj.fit(EXPERTS)
+
+    with pytest.raises(ValueError, match="already fitted"):
+        eliobj.fit(EXPERTS)
+    second = eliobj.fit(EXPERTS, overwrite=True)
+
+    assert eliobj.panel is second
+    assert first is not second

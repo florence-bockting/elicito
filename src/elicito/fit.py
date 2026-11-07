@@ -259,6 +259,11 @@ class Fit:
         return _format(self._summary)
 
     @property
+    def eliobj(self) -> "Elicit":
+        """Return the Elicit object that produced this fit"""
+        return self._eliobj
+
+    @property
     def results(self) -> Any:
         """Return the stored results as a DataTree"""
         return self._eliobj.results
@@ -348,7 +353,10 @@ class Panel:
         fits: dict[str, Fit] | None = None,
         joint: Fit | None = None,
         tau: dict[str, float] | None = None,
+        eliobj: "Elicit | None" = None,
     ) -> None:
+        # the Elicit object that fitted the panel
+        self.eliobj = eliobj
         self.experts = experts
         self.pool = pool
         # one fit for each expert without pooling, else one joint fit

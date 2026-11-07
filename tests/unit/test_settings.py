@@ -53,7 +53,7 @@ def test_auto_picks_adam_with_a_network():
 def test_a_keras_optimizer_keeps_its_settings():
     given = tf.keras.optimizers.Adam(learning_rate=0.01, clipnorm=1.0)
     opt = _settings.optimizer(given, None, None)
-    built = opt.pop("optimizer")(**opt)
+    built = opt.pop("optimizer").from_config(opt)
     assert isinstance(built, tf.keras.optimizers.Adam)
     assert built is not given
     assert built.clipnorm == 1.0

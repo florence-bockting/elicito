@@ -27,6 +27,10 @@ theme:
         icon: material/brightness-7
         name: Switch to light mode
 
+# Let autorefs resolve the reference links of the notebooks
+hooks:
+  - scripts/notebook_autorefs.py
+
 plugins:
   # https://mkdocstrings.github.io/autorefs/
   - autorefs
@@ -40,19 +44,14 @@ plugins:
   - literate-nav:
       nav_file: NAVIGATION.md
   # Notebook support.
-  # Working out how to make this play with nb-exec would be nice,
-  # then it wouldn't run every time.
-  # See also: https://github.com/danielfrg/mkdocs-jupyter/issues/161
-  # We could also get the nb-exec-table mentioned here:
-  # https://myst-nb.readthedocs.io/en/v0.12.2/use/execute.html
-  # One for another day.
+  # The site renders the committed, executed notebooks and runs nothing.
+  # Each notebook is paired with a .py page (jupytext). `make docs-notebooks`
+  # runs the pages, and scripts/check-notebooks.py checks the pairs in the CI.
   - mkdocs-jupyter:
       # Use filenames for titles
       ignore_h1_titles: True
-      include: ["*.py"]
-      execute: true
-      # Toggle off for faster builds
-      # execute: false
+      include: ["*.ipynb"]
+      execute: false
       allow_errors: false
       # Remove cells with this tag from the rendered page
       remove_tag_config:
@@ -60,7 +59,7 @@ plugins:
         remove_input_tags: ["remove_input"]
       # theme: dark
       include_source: True
-      ignore: ["*.ipynb", "*.md", "docs/gen_doc_stubs.py"]
+      ignore: [".ipynb_checkpoints/*", "*.md"]
   # Docstring generation
   - mkdocstrings:
       # See https://analog-garage.github.io/mkdocstrings-python-xref/1.6.0/

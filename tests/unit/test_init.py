@@ -1081,3 +1081,19 @@ def test_cmaes_optimizer_ignores_an_initializer():
 def test_seeds_must_be_a_tuple_of_integers(eliobj, seeds):
     with pytest.raises(ValueError, match="seeds must be"):
         eliobj.update(seeds=seeds)
+
+
+def test_fit_accepts_a_learning_rate_schedule():
+    schedule = tf.keras.optimizers.schedules.ExponentialDecay(0.1, 10, 0.5)
+    eliobj = el.Elicit(
+        base_eliobj.model,
+        base_eliobj.targets,
+        base_eliobj.parameters,
+        optimizer=tf.keras.optimizers.Adam(learning_rate=schedule),
+        initializer=base_eliobj.initializer,
+        epochs=2,
+        verbose=False,
+    )
+    eliobj.fit(base_eliobj.expert)
+    loss = eliobj.results["history_stats"]["loss"]["total_loss"].values
+    assert np.all(np.isfinite(loss))

@@ -120,7 +120,7 @@ def sgd_training(  # noqa: PLR0913, PLR0915
     optimizer_copy = optimizer.copy()
     init_sgd_optimizer = optimizer["optimizer"]
     optimizer_copy.pop("optimizer")
-    sgd_optimizer = init_sgd_optimizer(**optimizer_copy)
+    sgd_optimizer = init_sgd_optimizer.from_config(optimizer_copy)
 
     # start training loop
     epochs = tf.range(trainer["epochs"])

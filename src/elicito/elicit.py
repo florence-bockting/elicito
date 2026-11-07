@@ -28,7 +28,7 @@ from elicito import (
     parameters,
     utils,
 )
-from elicito._progress import SeedTable, run_in_worker
+from elicito._progress import SeedTable, notebook_sources, run_in_worker
 from elicito.fit import Fit, Panel
 from elicito.parameters._base import _constraints
 from elicito.parameters.priors import Priors
@@ -511,10 +511,8 @@ class Elicit:
             is fitted.
 
         overwrite
-            If the eliobj was already fitted and the user wants to refit it,
-            the user is asked whether they want to overwrite the previous
-            fitting results. Setting ``overwrite=True`` allows the user to
-            force overfitting without being prompted.
+            replace the results of an earlier fit. Without it, a fitted eliobj
+            raises an error.
 
         Returns
         -------
@@ -545,7 +543,12 @@ class Elicit:
 
         """
         if _is_panel(experts):
-            return self._fit_panel(experts)
+            # check the answers before the old results are deleted
+            for answers in experts.values():
+                _checks.check_expert(_expert(answers), self.targets, self.parameters)
+            self._delete_results(overwrite)
+            self.panel = self._fit_panel(experts)
+            return self.panel
         if self.settings["pool"] is not None:
             warnings.warn(
                 "pool= is ignored, because the answers are of one expert.",
@@ -560,15 +563,7 @@ class Elicit:
         expert = _expert(experts)
         _checks.check_expert(expert, self.targets, self.parameters)
 
-        # check whether elicit object is already fitted
-        if hasattr(self, "results"):
-            if not overwrite:
-                msg = (
-                    "eliobj is already fitted. Use overwrite=True to fit it "
-                    "again and replace the results."
-                )
-                raise ValueError(msg)
-            delattr(self, "results")
+        self._delete_results(overwrite)
         self.expert = expert
 
         self.temp_results = []
@@ -592,10 +587,13 @@ class Elicit:
             # can deadlock in a multi-threaded process.
             with get_context("loky").Manager() as manager:
                 queue = manager.Queue()
+                sources = notebook_sources()
                 table = SeedTable(seeds, queue, disable=self.trainer["progress"] == 0)
                 try:
                     res = joblib.Parallel(n_jobs=min(len(seeds), os.cpu_count() or 1))(
-                        joblib.delayed(run_in_worker)(self.workflow, seed, row, queue)
+                        joblib.delayed(run_in_worker)(
+                            self.workflow, seed, row, queue, sources
+                        )
                         for row, seed in enumerate(seeds)
                     )
                 finally:
@@ -787,32 +785,33 @@ class Elicit:
         overwrite: bool = False,
     ) -> None:
         """
-        Save data on disk
+        Save the eliobj on disk, with its results if it was fitted
+
+        A fitted panel of experts is saved too.
+        [`load`][elicito.elicit.load] reads the file again.
 
         Parameters
         ----------
         name
-            file name used to store the eliobj. Saving is done
-            according to the following rule: ``./{method}/{name}_{seed}.pkl``
-            with 'method' (``parametric_prior`` or ``deep_prior``) and 'seed'
-            the first of the ``seeds`` of [`Elicit`][elicito.elicit.Elicit].
+            file name of the eliobj. The file is
+            ``./results/{method}/{name}_{seed}.pkl``, with 'method'
+            ``parametric_prior`` or ``deep_prior``, and 'seed' the first of
+            the ``seeds`` of [`Elicit`][elicito.elicit.Elicit].
 
         file
-            user-specific path for saving the eliobj. If file is specified
-            **name** must be ``None``.
+            path of the file, with or without ``.pkl``. If you give
+            ``file``, ``name`` must be ``None``.
 
         overwrite
-            If already a fitted object exists in the same path, the user is
-            asked whether the eliobj should be refitted and the results
-            overwritten.
-            With the ``overwrite`` argument, you can disable this
-            behavior. In this case the results are automatically overwritten
-            without prompting the user.
+            replace a file that exists at the same path. Without it, an
+            existing file raises an error.
 
         Raises
         ------
         AssertionError
-            ``name`` and ``file`` can't be specified simultaneously.
+            ``name`` and ``file`` are both given, or both ``None``.
+        FileExistsError
+            The file exists and ``overwrite`` is ``False``.
 
         Examples
         --------
@@ -822,44 +821,6 @@ class Elicit:
 
         """
         return _storage.save(self, name=name, file=file, overwrite=overwrite)
-
-    @classmethod
-    def load(cls, file: str) -> "Elicit":
-        """
-        Load a saved ``eliobj`` from specified path
-
-        Parameters
-        ----------
-        file
-            path where ``eliobj`` object is saved.
-
-        Returns
-        -------
-        eliobj :
-            loaded ``eliobj`` object.
-
-        Examples
-        --------
-        >>> eliobj = el.Elicit.load("res/toymodel.pkl")  # doctest: +SKIP
-
-        """
-        storage = _storage.read_storage(file)
-        eliobj = cls(
-            model=storage["model"],
-            parameters=storage["parameters"],
-            targets=storage["targets"],
-            **storage["settings"],
-        )
-        eliobj.expert = storage["expert"]
-
-        # add results if already fitted
-        if "results" in storage:
-            eliobj.results = storage["results"]
-        else:
-            eliobj.temp_history = storage["temp_history"]
-            eliobj.temp_results = storage["temp_results"]
-
-        return eliobj
 
     def update(self, **kwargs: Any) -> None:
         """
@@ -903,6 +864,18 @@ class Elicit:
         self.__dict__.update(updated.__dict__)
         if kwargs:
             print("INFO: Results have been reset.")
+
+    def _delete_results(self, overwrite: bool) -> None:
+        """Delete the results of an earlier fit; refuse without overwrite"""
+        fitted = [name for name in ("results", "panel") if hasattr(self, name)]
+        if fitted and not overwrite:
+            msg = (
+                "eliobj is already fitted. Use overwrite=True to fit it "
+                "again and replace the results."
+            )
+            raise ValueError(msg)
+        for name in fitted:
+            delattr(self, name)
 
     def _inputs(self) -> dict[str, Any]:
         """Return the arguments that build this eliobj"""
@@ -956,7 +929,7 @@ class Elicit:
                 name: type(self)(**{**self._inputs(), "pool": None}).fit(experts[name])
                 for name in names
             }
-            return Panel(names, None, self.parameters, fits=fits)
+            return Panel(names, None, self.parameters, fits=fits, eliobj=self)
 
         n = len(names)
         partial = pool != _settings.COMPLETE
@@ -977,7 +950,7 @@ class Elicit:
         }
         if not partial:
             joint = self._fit_joint(inputs, answers, None)
-            return Panel(names, pool, self.parameters, joint=joint)
+            return Panel(names, pool, self.parameters, joint=joint, eliobj=self)
 
         over = pool["over"]
         tau = pool["tau"]
@@ -1000,7 +973,7 @@ class Elicit:
         elif not isinstance(tau, dict):
             tau = dict.fromkeys(over, float(tau))
         joint = self._fit_joint(inputs, answers, _ridge(over, tau, n))
-        return Panel(names, pool, self.parameters, joint=joint, tau=tau)
+        return Panel(names, pool, self.parameters, joint=joint, tau=tau, eliobj=self)
 
     def _answers(self) -> ExpertDict:
         """Return the answers of the last fit"""
@@ -1106,3 +1079,62 @@ class Elicit:
             results["init_matrix"] = init_matrix
 
         return tuple((results, history))
+
+
+def _restore(stored: dict[str, Any]) -> Elicit:
+    """Build an eliobj again from what [`record`][elicito._storage.record] stored"""
+    eliobj = Elicit(
+        model=stored["model"],
+        parameters=stored["parameters"],
+        targets=stored["targets"],
+        **stored["settings"],
+    )
+    eliobj.expert = stored["expert"]
+    if stored.get("penalty") is not None:
+        eliobj.trainer["penalty"] = stored["penalty"]
+    if "results" in stored:
+        eliobj.results = stored["results"]
+    return eliobj
+
+
+def load(file: str) -> "Elicit | Fit | Panel":
+    """
+    Load a saved ``eliobj``
+
+    Parameters
+    ----------
+    file
+        path where the ``eliobj`` is saved.
+
+    Returns
+    -------
+    result :
+        the [`Fit`][elicito.fit.Fit] if the ``eliobj`` was fitted, the
+        ``Panel`` if it was fitted to a panel of experts, else the
+        [`Elicit`][elicito.elicit.Elicit] object.
+
+    Examples
+    --------
+    >>> fit = el.load("res/toymodel.pkl")  # doctest: +SKIP
+    """
+    storage = _storage.read_storage(file)
+    eliobj = _restore(storage)
+    if "panel" in storage:
+        stored = storage["panel"]
+        fits = stored["fits"]
+        joint = stored["joint"]
+        eliobj.panel = Panel(
+            stored["experts"],
+            stored["pool"],
+            eliobj.parameters,
+            fits=None
+            if fits is None
+            else {name: Fit(_restore(fit)) for name, fit in fits.items()},
+            joint=None if joint is None else Fit(_restore(joint)),
+            tau=stored["tau"],
+            eliobj=eliobj,
+        )
+        return eliobj.panel
+    if hasattr(eliobj, "results"):
+        return Fit(eliobj)
+    return eliobj

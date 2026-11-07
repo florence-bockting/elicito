@@ -94,6 +94,30 @@ to build locked versions of our package.
 It is for these reasons that we create a `pdm.lock` file
 before any step related to building the package in the CI.
 
+## Notebooks of the docs
+
+The docs build executes nothing.
+It renders the executed notebooks (`.ipynb`) that are in the repository.
+Each notebook has a paired `.py` page, which `jupytext` keeps in sync.
+Edit the `.py` page, not the notebook: its diffs are easy to review.
+
+After you change a page, run it, and commit both files:
+
+```sh
+# one page
+make docs-notebooks PAGES=docs/tutorials/getting-started-param.py
+# all pages (slow)
+make docs-notebooks
+```
+
+The target syncs each pair with `jupytext --sync`.
+It then executes the notebook with `jupyter nbconvert --execute --inplace`.
+
+The CI runs `scripts/check-notebooks.py` (or `make docs-check-notebooks`).
+The check fails if a notebook is missing, if its cells differ from its page,
+or if its code cells did not run once from top to bottom.
+It also fails for a notebook without a page.
+
 ## Read the Docs
 
 Our documentation is hosted by [Read the Docs (RtD)](https://www.readthedocs.org/),
