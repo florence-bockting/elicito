@@ -3,6 +3,7 @@ Base class of the initialization methods that run a search
 """
 
 import logging
+from collections.abc import Callable
 from typing import Any, Optional
 
 import tensorflow as tf
@@ -42,7 +43,7 @@ class _SearchStart:
         expert_elicited_statistics: dict[str, tf.Tensor],
         parameters: list[Parameter],
         trainer: Trainer,
-        model: dict[str, Any],
+        model: Callable[..., Any],
         targets: list[Target],
         expert: ExpertDict,
         distribution: dict[str, Any],
@@ -59,7 +60,7 @@ class _SearchStart:
         parameters: list[Parameter],
         trainer: Trainer,
         optimizer: dict[str, Any],
-        model: dict[str, Any],
+        model: Callable[..., Any],
         targets: list[Target],
         network: Optional[NFDict],
         expert: ExpertDict,

@@ -25,7 +25,7 @@ class LinearModel:
 @pytest.fixture(scope="module")
 def fit():
     eliobj = el.Elicit(
-        model=el.model(LinearModel),
+        model=LinearModel(),
         parameters=[
             el.parameter(
                 name=f"b{i}",
@@ -37,37 +37,30 @@ def fit():
             for i in range(2)
         ],
         targets=[
-            el.target(
-                name=f"y{i}",
-                query=el.queries.quantiles((0.25, 0.5, 0.75)),
-                loss=el.losses.MMD2(kernel="energy"),
-                weight=1.0,
+            el.quantiles(
+                f"y{i}", probs=(0.25, 0.5, 0.75), loss=el.losses.MMD2(kernel="energy")
             )
             for i in range(3)
         ],
-        expert=el.expert.data(
-            {
-                "quantiles_y0": [-1.0, 0.0, 1.0],
-                "quantiles_y1": [0.0, 1.0, 2.0],
-                "quantiles_y2": [1.0, 2.0, 3.0],
-            }
-        ),
-        optimizer=el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.1),
-        trainer=el.trainer(
-            method="parametric_prior",
-            seed=1,
-            epochs=2,
-            B=8,
-            num_samples=50,
-            progress=0,
-        ),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
+        seeds=(1, 2),
+        epochs=2,
+        verbose=False,
+        B=8,
+        num_samples=50,
         initializer=el.initializer(
             "random",
             distribution=el.initializers.uniform(radius=1, mean=0),
             iterations=2,
         ),
     )
-    return eliobj.fit(parallel=el.utils.parallel(runs=2, cores=1))
+    return eliobj.fit(
+        {
+            "y0": [-1.0, 0.0, 1.0],
+            "y1": [0.0, 1.0, 2.0],
+            "y2": [1.0, 2.0, 3.0],
+        }
+    )
 
 
 def test_fit_returns_a_fit(fit):
@@ -101,6 +94,13 @@ def test_summary_has_one_group_per_table(fit):
         "loss",
     }
     assert summary.attrs["reps"] == [fit.best()]
+
+
+def test_summary_names_the_technique_of_each_target(fit):
+    target_loss = fit.summary()["target_loss"]
+
+    assert list(target_loss["technique"].values) == ["quantiles"] * 3
+    assert "technique" in repr(fit)
 
 
 def test_summary_of_all_replications_keeps_each_replication(fit):

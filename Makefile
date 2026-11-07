@@ -64,6 +64,23 @@ docs-strict:  ## build the docs strictly (e.g. raise an error on warnings, this 
 docs-serve:  ## serve the docs locally
 	uv run mkdocs serve
 
+# The doc pages that are notebooks: every .py file with a jupytext header
+PAGES ?= $(shell grep -rl --include='*.py' 'jupytext:' docs | grep -v ipynb_checkpoints | sort)
+
+.PHONY: docs-notebooks
+docs-notebooks:  ## run the doc pages and update their notebooks (slow); one page: make docs-notebooks PAGES=docs/tutorials/getting-started-param.py
+	@for page in $(PAGES); do \
+		echo "Running $$page"; \
+		uv run jupytext --sync "$$page" || exit 1; \
+		uv run jupyter nbconvert --clear-output --inplace "$${page%.py}.ipynb" || exit 1; \
+		TF_CPP_MIN_LOG_LEVEL=3 CUDA_VISIBLE_DEVICES= uv run jupyter nbconvert --to notebook --execute --inplace "$${page%.py}.ipynb" || exit 1; \
+	done
+	uv run python scripts/check-notebooks.py $(PAGES)
+
+.PHONY: docs-check-notebooks
+docs-check-notebooks:  ## check that the notebooks of the docs are up to date with their pages
+	uv run python scripts/check-notebooks.py
+
 .PHONY: changelog-draft
 changelog-draft:  ## compile a draft of the next changelog
 	uv run towncrier build --draft --version draft

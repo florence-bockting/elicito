@@ -7,9 +7,12 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp  # type: ignore
 import xarray as xr
 
-from elicito import losses, models, plots, utils
+from elicito import _panel, losses, models, plots
+from elicito.parameters._base import seed_pair
+from elicito.types import Parameter, Target
 
 if TYPE_CHECKING:
     from elicito.elicit import Elicit
@@ -26,6 +29,12 @@ def _training_statistics(eliobj: "Elicit", replication: int) -> dict[str, tf.Ten
     return training
 
 
+def _expert_statistics(eliobj: "Elicit") -> xr.Dataset:
+    """Expert statistics of the fit; every replication holds the same values"""
+    group = "expert" if "expert" in eliobj.results.children else "oracle"
+    return eliobj.results[group].to_dataset().isel(replication=0)
+
+
 def _best_replication(eliobj: "Elicit") -> int:
     """
     Find the replication with the lowest loss, for a parametric prior
@@ -35,15 +44,10 @@ def _best_replication(eliobj: "Elicit") -> int:
     candidate of the last epoch, so the loss history does not give this
     loss. A replication whose loss is not finite is never the best.
     """
-    expert, _ = utils.get_expert_data(
-        eliobj.trainer,
-        eliobj.model,
-        eliobj.targets,
-        eliobj.expert,
-        eliobj.parameters,
-        eliobj.network,
-        eliobj.trainer["seed"],
-    )
+    stats = _expert_statistics(eliobj)
+    expert = {
+        tar["name"]: tf.constant(stats[tar["name"]].values) for tar in eliobj.targets
+    }
     num_replications = len(eliobj.results.history_stats.seed_replication.values)
     total = np.full(num_replications, np.inf)
     for i in range(num_replications):
@@ -152,11 +156,25 @@ def _expert_table(
     )
 
 
-def _target_loss_table(loss: xr.Dataset, reps: list[int]) -> xr.Dataset:
-    """Tabulate the final loss term of each target"""
+# name of each query, as the user calls its constructor
+_TECHNIQUES = dict(
+    quantiles="quantiles",
+    pearson_correlation="correlation",
+    identity="identity",
+    custom="custom",
+)
+
+
+def _target_loss_table(
+    loss: xr.Dataset, reps: list[int], targets: list[Target]
+) -> xr.Dataset:
+    """Tabulate the final loss term and the elicitation technique of each target"""
     terms = [name for name in loss.data_vars if name not in ("total_loss", "penalty")]
     final = loss[terms].isel(epoch=-1, replication=reps).drop_vars("epoch")
-    return xr.Dataset(dict(loss=final.to_dataarray("target")))
+    table = xr.Dataset(dict(loss=final.to_dataarray("target")))
+    technique = {tar["name"]: _TECHNIQUES[tar["query"]["name"]] for tar in targets}
+    names = [technique[str(name)] for name in table["target"].values]
+    return table.assign_coords(technique=("target", names))
 
 
 _GROUPS = dict(
@@ -175,22 +193,32 @@ def _table(ds: xr.Dataset, row_dim: str) -> str:
     columns = [str(name) for name in ds.data_vars]
     rep_column = len(reps) > 1
     labels = [str(label) for label in ds[row_dim].values]
+    # a string coordinate on the rows, such as the technique, is a text column
+    text = {
+        str(name): [str(value) for value in coord.values]
+        for name, coord in ds.coords.items()
+        if name != row_dim and coord.dims == (row_dim,) and coord.dtype.kind in "OU"
+    }
     pad = max(len(label) for label in labels)
-    rows: list[tuple[str, list[float]]] = []
+    rows: list[tuple[str, list[str], list[float]]] = []
     for i, label in enumerate(labels):
         for r in reps:
             sub = ds.isel({row_dim: i})
             if r is not None:
                 sub = sub.sel(replication=r)
             name = f"{label:<{pad}}  {r:>3}" if rep_column else label
-            rows.append((name, [float(sub[c]) for c in columns]))
-    left = max(len(name) for name, _ in rows)
+            texts = [values[i] for values in text.values()]
+            rows.append((name, texts, [float(sub[c]) for c in columns]))
+    left = max(len(name) for name, _, _ in rows)
+    text_widths = [max(len(c), *map(len, v)) + 2 for c, v in text.items()]
     widths = [max(9, len(c)) + 2 for c in columns]
     head = f"{'rep':>{left}}" if rep_column else " " * left
+    head += "".join(f"{c:>{w}}" for c, w in zip(text, text_widths))
     lines = [head + "".join(f"{c:>{w}}" for c, w in zip(columns, widths))]
-    for name, values in rows:
+    for name, texts, values in rows:
+        words = "".join(f"{t:>{w}}" for t, w in zip(texts, text_widths))
         cells = "".join(f"{v:>{w}.3g}" for v, w in zip(values, widths))
-        lines.append(f"{name:<{left}}{cells}")
+        lines.append(f"{name:<{left}}{words}{cells}")
     return "\n".join(lines)
 
 
@@ -229,6 +257,11 @@ class Fit:
         if self._summary is None:
             self._summary = self.summary()
         return _format(self._summary)
+
+    @property
+    def eliobj(self) -> "Elicit":
+        """Return the Elicit object that produced this fit"""
+        return self._eliobj
 
     @property
     def results(self) -> Any:
@@ -276,17 +309,18 @@ class Fit:
         else:
             reps = [self.best() if replication == "best" else replication]
         samples = self.sample()
-        group = "expert" if "expert" in self.results.children else "oracle"
-        expert = self.results[group].to_dataset().isel(replication=0, batch=0)
+        expert = _expert_statistics(self._eliobj).isel(batch=0)
         # an identity statistic holds all draws; see notes/TODO.md
         draw_targets = [
-            str(name) for name in expert.data_vars if str(name).startswith("identity_")
+            tar["name"]
+            for tar in self._eliobj.targets
+            if tar["query"]["name"] == "identity"
         ]
         expert = expert.drop_vars(draw_targets)
         loss = self.results["history_stats/loss"].to_dataset()
         groups = dict(
             priors=_prior_table(samples["prior"].to_dataset(), reps),
-            target_loss=_target_loss_table(loss, reps),
+            target_loss=_target_loss_table(loss, reps, self._eliobj.targets),
             loss=loss["total_loss"].isel(epoch=-1).to_dataset(name="final_loss"),
         )
         expert_fit = _expert_table(
@@ -306,3 +340,154 @@ class Fit:
             draw_targets=draw_targets,
         )
         return tree
+
+
+class Panel:
+    """Learned priors of a panel of experts"""
+
+    def __init__(  # noqa: PLR0913
+        self,
+        experts: list[str],
+        pool: Any,
+        parameters: list[Parameter],
+        fits: dict[str, Fit] | None = None,
+        joint: Fit | None = None,
+        tau: dict[str, float] | None = None,
+        eliobj: "Elicit | None" = None,
+    ) -> None:
+        # the Elicit object that fitted the panel
+        self.eliobj = eliobj
+        self.experts = experts
+        self.pool = pool
+        # one fit for each expert without pooling, else one joint fit
+        self.fits = fits
+        self.joint = joint
+        self.tau = tau
+        self._parameters = parameters
+        self._hypers = {
+            hyp["name"]: hyp
+            for par in parameters
+            for hyp in par["hyperparams"].values()
+        }
+
+    def __getitem__(self, expert: str) -> Fit:
+        """Return the fit of one expert; only without pooling"""
+        if self.fits is None:
+            msg = (
+                "A pooled panel has one joint fit, not one fit for each "
+                "expert. Use panel.joint or panel.hyperparameters(expert)."
+            )
+            raise KeyError(msg)
+        return self.fits[expert]
+
+    def __repr__(self) -> str:
+        """Show the pool, the spread and the hyperparameters of each expert"""
+        pool = self.pool if isinstance(self.pool, str | None) else "partial"
+        lines = [f"Panel of {len(self.experts)} experts, pool={pool!r}"]
+        if self.tau is not None:
+            spread = ", ".join(f"{name}={v:.3g}" for name, v in self.tau.items())
+            lines.append(f"tau: {spread}")
+        rows = ([] if self.joint is None else ["panel"]) + self.experts
+        values = [self.hyperparameters(None if r == "panel" else r) for r in rows]
+        table = xr.Dataset(
+            {name: ("expert", [v[name] for v in values]) for name in values[0]},
+            coords=dict(expert=rows),
+        )
+        lines += ["", "Hyperparameters:", _table(table, "expert")]
+        return "\n".join(lines)
+
+    def _index(self, expert: str) -> int:
+        if expert not in self.experts:
+            msg = f"Unknown expert {expert!r}. Known: {self.experts}."
+            raise KeyError(msg)
+        return self.experts.index(expert)
+
+    def hyperparameters(
+        self,
+        expert: str | None = None,
+        replication: int | Literal["best"] = "best",
+    ) -> dict[str, float]:
+        """Return the hyperparameters of the panel, or of one expert, by name"""
+        if self.joint is None:
+            if expert is None:
+                msg = (
+                    "A panel without pooling has no panel values. Give an "
+                    "expert, for example panel.hyperparameters('expert 1')."
+                )
+                raise ValueError(msg)
+            return self[expert].hyperparameters(replication)
+        learned = self.joint.hyperparameters(replication)
+        values = {name: learned[name] for name in self._hypers}
+        if expert is None or self.tau is None:
+            if expert is not None:
+                self._index(expert)
+            return values
+        e = self._index(expert)
+        for name in self.tau:
+            hyp = self._hypers[name]
+            offset = learned[_panel.suffix(name, e)]
+            values[name] = float(
+                hyp["constraint"](hyp["unconstrain"](values[name]) + offset)
+            )
+        return values
+
+    def offsets(self, replication: int | Literal["best"] = "best") -> xr.Dataset:
+        """Return the offset of each expert, on the unconstrained scale"""
+        if self.joint is None or self.tau is None:
+            msg = "Only pool=el.partial(...) has offsets."
+            raise ValueError(msg)
+        learned = self.joint.hyperparameters(replication)
+        return xr.Dataset(
+            {
+                name: (
+                    "expert",
+                    [learned[_panel.suffix(name, e)] for e in range(len(self.experts))],
+                )
+                for name in self.tau
+            },
+            coords=dict(expert=self.experts),
+        )
+
+    def population_prior(self, num_samples: int = 10_000, seed: int = 0) -> xr.Dataset:
+        """
+        Sample the prior of the whole panel
+
+        With partial pooling, each draw first draws an offset with the
+        learned spread ``tau``. The prior is then wider than the prior of one
+        expert, because it holds the disagreement in the panel.
+        """
+        if self.joint is None:
+            msg = (
+                "A panel without pooling has no population prior. Set "
+                "pool='complete' or pool=el.partial(...)."
+            )
+            raise ValueError(msg)
+        values = self.hyperparameters()
+        tau = self.tau or {}
+        seeds = tfp.random.split_seed(
+            seed_pair(seed), n=len(tau) + len(self._parameters), salt="population"
+        )
+        # one offset for each name, shared by every parameter that uses it
+        offsets = {
+            name: tf.random.stateless_normal((num_samples,), seed=seeds[i]) * spread
+            for i, (name, spread) in enumerate(tau.items())
+        }
+        draws = {}
+        for i, par in enumerate(self._parameters):
+            kwargs = {}
+            for key, hyp in par["hyperparams"].items():
+                value = tf.constant(values[hyp["name"]], tf.float32)
+                if hyp["name"] in offsets:
+                    value = hyp["constraint"](
+                        hyp["unconstrain"](value) + offsets[hyp["name"]]
+                    )
+                kwargs[key] = value
+            shifted = any(h["name"] in offsets for h in par["hyperparams"].values())
+            shape = () if shifted else (num_samples,)
+            sample = np.asarray(
+                par["family"](**kwargs).sample(shape, seed=seeds[len(tau) + i])
+            )
+            extra = [f"{par['name']}_dim_{k}" for k in range(sample.ndim - 1)]
+            dims = ("draw", *extra)
+            draws[par["name"]] = (dims, sample)
+        return xr.Dataset(draws)

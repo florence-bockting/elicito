@@ -13,296 +13,146 @@
 # ---
 
 # %% [markdown]
-# # Save and Load the eliobj
+# # Save and load the eliobj
 #
-# Here we introduce a method for harmonising two timeseries.
-# This part may be more unusual or unfamiliar
-# to people used to working with arrays,
-# so it serves as an introduction
-# into some of the concepts used in this package.
+# This guide shows how to save an `eliobj` to disk and load it again.
+# It works before and after the fit.
+
+# %% tags=["hide"]
+import os
+import shutil
+
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+# remove the files of an earlier run
+shutil.rmtree("results", ignore_errors=True)
 
 # %% [markdown]
 # ## Imports
 
 # %%
-import os
-import shutil
+from typing import Any
 
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-
-from typing import Any, Union
-
-import numpy as np
-import tensorflow as tf
 import tensorflow_probability as tfp
 
 import elicito as el
 
 tfd = tfp.distributions
 
-# %%
-# prepare notebook and remove results from previous runs
-if os.path.isdir("results"):
-    shutil.rmtree("results")
-
 # %% [markdown]
-# ## Save an unfitted `eliobj` object
-# ### Step 0: Load necessary libraries and functions/classes
+# ## Set up the eliobj
+#
+# Any `eliobj` works.
+# This guide uses a normal outcome with an unknown mean.
 
 
 # %%
-# numeric, standardized predictor
-def std_predictor(N: int, quantiles: list[Union[float, int]]) -> Any:
-    """
-    Compute design matrix
+class Model:
+    """Normal outcome with an unknown mean"""
 
-    Parameters
-    ----------
-    N
-        number of observations
-
-    quantiles
-        quantiles to use in percentage
-
-    Returns
-    -------
-    :
-        design matrix
-    """
-    X = tf.cast(np.arange(N), tf.float32)
-    X_std = (X - tf.reduce_mean(X)) / tf.math.reduce_std(X)
-    X_sel = tfp.stats.percentile(X_std, quantiles)
-    return X_sel
-
-
-# implemented, generative model
-class ToyModel:
-    """
-    Generative model
-    """
-
-    def __call__(self, prior_samples: Any, design_matrix: Any) -> dict[str, Any]:
+    def __call__(self, prior_samples: Any) -> dict[str, Any]:
         """
-        Run the generative model
+        Simulate the outcome
 
         Parameters
         ----------
         prior_samples
-            samples from the prior distribution
-
-        design_matrix
-            design matrix
+            samples from the prior distributions
 
         Returns
         -------
         :
-            dictionary with stored target quantities
+            dictionary with the model outputs
         """
-        B = prior_samples.shape[0]
-        S = prior_samples.shape[1]
-
-        # preprocess shape of design matrix
-        X = tf.broadcast_to(design_matrix[None, None, :], (B, S, len(design_matrix)))
-        # linear predictor (= mu)
-        epred = tf.add(
-            prior_samples[:, :, 0][:, :, None],
-            tf.multiply(prior_samples[:, :, 1][:, :, None], X),
-        )
-        # data-generating model
-        likelihood = tfd.Normal(
-            loc=epred, scale=tf.expand_dims(prior_samples[:, :, -1], -1)
-        )
-        # prior predictive distribution (=height)
-        ypred = likelihood.sample()
-
-        # selected observations
-        y_X0, y_X1, y_X2 = (ypred[:, :, 0], ypred[:, :, 1], ypred[:, :, 2])
-
-        return dict(y_X0=y_X0, y_X1=y_X1, y_X2=y_X2)
+        ypred = tfd.Normal(loc=prior_samples[:, :, 0], scale=1.0).sample()
+        return dict(ypred=ypred)
 
 
-# %% [markdown]
-# ### Step 1: Create the eliobj
-
-# %%
-# define the generative model
-model = el.model(
-    obj=ToyModel, design_matrix=std_predictor(N=200, quantiles=[25, 50, 75])
-)
-
-
-# specify the model parameters and their prior distribution families
 parameters = [
     el.parameter(
-        name="beta0",
+        name="mu",
         family=tfd.Normal,
         hyperparams=dict(loc=el.hyper("mu0"), scale=el.hyper("sigma0", lower=0)),
-    ),
-    el.parameter(
-        name="beta1",
-        family=tfd.Normal,
-        hyperparams=dict(
-            loc=el.hyper("mu1"),
-            scale=el.hyper("sigma1", lower=0),  # TODO specify error message
-        ),
-    ),
-    el.parameter(
-        name="sigma",
-        family=tfd.HalfNormal,
-        hyperparams=dict(scale=el.hyper("sigma2", lower=0)),
-    ),
-]
-
-
-# specify the target quantities and corresponding elicitation technique
-targets = [
-    el.target(
-        name=f"y_X{i}",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
     )
-    for i in range(3)
 ]
+targets = [el.quantiles("ypred", probs=(0.25, 0.50, 0.75))]
+expert = {"ypred": [6.5, 8.0, 9.5]}
 
-
-# use an oracle to simulate a ground truth for the expert data
-expert = el.expert.simulator(
-    ground_truth={
-        "beta0": tfd.Normal(loc=5, scale=1),
-        "beta1": tfd.Normal(loc=2, scale=1),
-        "sigma": tfd.HalfNormal(scale=10.0),
-    },
-    num_samples=10_000,
-)
-
-
-# specify the optimizer for gradient descent
-optimizer = el.optimizer(
-    optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
-)
-
-
-# define the trainer model with used approach, seed, etc.
-trainer = el.trainer(method="parametric_prior", seed=0, epochs=4, progress=0)
-
-
-# specify the initialization distribution, used to draw the initial values
-# for the hyperparameters
-initializer = el.initializer(
-    method="sobol",
-    iterations=32,
-    distribution=el.initializers.uniform(radius=1, mean=0),
-)
-
-eliobj = el.Elicit(
-    model=model,
-    parameters=parameters,
-    targets=targets,
-    expert=expert,
-    optimizer=optimizer,
-    trainer=trainer,
-    initializer=initializer,
-)
+eliobj = el.Elicit(Model(), targets, parameters, epochs=100, verbose=False)
 
 # %% [markdown]
-# ### Step 2: Save the unfitted `eliobj` object
-# Two approaches are possible:
-# + automatic saving:
-#     + `name` has to be specified.
-#     + The results are then saved according to the
-#     + following rule: `res/{method}/{name}_{seed}.pkl`
-# + user-specific path:
-#     + `file` has to be specified.
-#     + The path can be freely specified by the user.
-
-# %%
-# use automatic saving approach
-eliobj.save(name="m1")
-
-# use user-specific file location
-eliobj.save(file="results/m1_1")
-
-# %% [markdown]
-# ## Load and fit the *unfitted* eliobj
-
-# %%
-# load the eliobj
-eliobj_m1 = el.Elicit.load("results/m1_1.pkl")
-
-# fit the eliobj
-eliobj_m1.fit()
-
-# %% [markdown]
-# ## Inspect the *fitted* eliobj
-
-# %% [markdown]
-# **Inspect configuration**
-
-# %%
-eliobj_m1
-
-# %% [markdown]
-# **Inspect results**
+# ## Save the eliobj
 #
-# + results for each epoch are stored in `history`
-# + results saved only for the last epoch are stored in `results`
+# Give a `name` or a `file`, not both.
+#
+# - `name="m1"` saves to `./results/{method}/{name}_{seed}.pkl`.
+#   `method` is `parametric_prior` or `deep_prior`.
+#   `seed` is the first of the `seeds`.
+# - `file="results/m1"` saves to `results/m1.pkl`.
 
 # %%
-# information saved in the results object
-list(eliobj_m1.results.groups)
+eliobj.save(name="m1")
+eliobj.save(file="results/m1")
 
 # %% [markdown]
-# ## Save and reload the *fitted* eliobj
+# ## Load and fit the eliobj
+#
+# `el.load` returns the saved `eliobj`.
+# An unfitted `eliobj` needs the answers of the expert to fit.
 
 # %%
-# save the fitted object
+eliobj_m1 = el.load("results/m1.pkl")
+fit = eliobj_m1.fit(expert)
+fit
+
+# %% [markdown]
+# ## Save and load a fitted eliobj
+#
+# A fitted `eliobj` keeps its results and the answers of the expert.
+# `el.load` then returns the fit, with the same methods as the result of `fit()`.
+
+# %%
 eliobj_m1.save(name="m2")
 
-# load the fitted object
-eliobj_m1_reload = el.Elicit.load("./results/parametric_prior/m2_0.pkl")
-eliobj_m1_reload.results
+fit_m2 = el.load("results/parametric_prior/m2_0.pkl")
+fit_m2
 
 # %% [markdown]
-# ## Q & A
-# ### Can I fit an already fitted eliobj?
+# ## Fit a fitted eliobj again
+#
+# `fit.eliobj` is the loaded `eliobj`.
+# `fit()` raises a `ValueError` for a fitted `eliobj`.
+# To replace the results, set `overwrite=True`.
 
 # %%
-# eliobj_m2_reload.fit()
-
-# prompt:
-# elicit object is already fitted.
-# Do you want to fit it again and overwrite the results?
-# Press 'n' to stop process and 'y' to continue fitting.
-
-# user input: n
-
+eliobj_m2 = fit_m2.eliobj
+fit = eliobj_m2.fit(expert, overwrite=True)
 
 # %% [markdown]
-# ### Can I force re-fitting?
-# Sometimes, especially when we only want to test something, it can be
-# inconvenient to repeatedly confirm whether
-# results should be overwritten. To address this issue, you can set
-# `overwrite=True` to enable re-fitting without any prompts.
+# ## Replace a saved file
+#
+# `save()` raises a `FileExistsError` if the file exists.
+# To replace the file, set `overwrite=True`.
 
 # %%
-eliobj_m1_reload.fit(overwrite=True)
+eliobj_m2.save(name="m1", overwrite=True)
 
 # %% [markdown]
-# ### Can I overwrite an eliobj that already exits as file on disk?
+# ## Save and load a panel of experts
+#
+# A fitted panel is saved with its `eliobj`.
+# `el.load` then returns the panel.
 
 # %%
-# eliobj_m2_reload.save(name="m2")
+experts = {
+    "expert 1": {"ypred": [6.5, 8.0, 9.5]},
+    "expert 2": {"ypred": [7.5, 9.0, 10.5]},
+}
+eliobj_panel = el.Elicit(
+    Model(), targets, parameters, pool="complete", epochs=100, verbose=False
+)
+eliobj_panel.fit(experts)
+eliobj_panel.save(file="results/panel")
 
-# prompt:
-# In provided directory exists already a file with identical name.
-# Do you want to overwrite it?
-# Press 'y' for overwriting and 'n' for abording.
-
-# user input: n
-
-# %% [markdown]
-# ### Can I force overwriting an existing eliobj file?
-
-# %%
-eliobj_m1_reload.save(name="m1", overwrite=True)
+el.load("results/panel.pkl")

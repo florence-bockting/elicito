@@ -26,8 +26,10 @@ def save_as_pkl(obj: Any, save_dir: str) -> None:
     >>> save_as_pkl(obj, "results/file.pkl")  # doctest: +SKIP
 
     """
-    # if directory does not exist, create it
-    os.makedirs(os.path.dirname(save_dir), exist_ok=True)
+    # if directory does not exist, create it; a bare file name has none
+    directory = os.path.dirname(save_dir)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
     # save obj to location as pickle
     serialized_obj = cloudpickle.dumps(obj)
     with open(save_dir, "wb") as file:
@@ -50,7 +52,7 @@ def save(
 
     name
         Name of the saved .pkl file.
-        File is saved as .results/{method}/{name}_{seed}.pkl
+        File is saved as ./results/{method}/{name}_{seed}.pkl
 
     file
         Path to file, including file name,
@@ -76,7 +78,7 @@ def save(
         # postprocess file to avoid file.pkl.pkl
         if file.endswith(".pkl"):
             file = file.removesuffix(".pkl")
-        path = "./" + file
+        path = file
     else:
         msg = (
             "Name and file cannot be both None or both specified. "
@@ -91,26 +93,51 @@ def save(
         )
         raise FileExistsError(msg)
 
-    storage = dict()
-    # user inputs
-    storage["model"] = eliobj.model
-    storage["parameters"] = eliobj.parameters
-    storage["targets"] = eliobj.targets
-    storage["expert"] = eliobj.expert
-    storage["optimizer"] = eliobj.optimizer
-    storage["trainer"] = eliobj.trainer
-    storage["initializer"] = eliobj.initializer
-    storage["network"] = eliobj.network
-    # results
-    if hasattr(eliobj, "results"):
-        storage["results"] = eliobj.results
-    else:
-        storage["temp_results"] = []
-        storage["temp_history"] = []
+    storage = record(eliobj)
+    if hasattr(eliobj, "panel"):
+        panel = eliobj.panel
+        storage["panel"] = dict(
+            experts=panel.experts,
+            pool=panel.pool,
+            tau=panel.tau,
+            fits=None
+            if panel.fits is None
+            else {name: record(fit.eliobj) for name, fit in panel.fits.items()},
+            joint=None if panel.joint is None else record(panel.joint.eliobj),
+        )
 
     save_as_pkl(storage, path + ".pkl")
 
     print(f"saved in: {path}.pkl")
+
+
+def record(eliobj: Any) -> dict[str, Any]:
+    """
+    Return the inputs of one ``eliobj``, and its results if it was fitted
+
+    Parameters
+    ----------
+    eliobj
+        Instance of the [`Elicit`][elicito.elicit.Elicit] class.
+
+    Returns
+    -------
+    record :
+        the arguments that build the ``eliobj`` again, its answers, the
+        penalty of a pooled panel, and the results.
+
+    """
+    stored = dict(
+        model=eliobj.model,
+        parameters=eliobj.parameters,
+        targets=eliobj.targets,
+        expert=eliobj.expert,
+        settings=eliobj.settings,
+        penalty=eliobj.trainer.get("penalty"),
+    )
+    if hasattr(eliobj, "results"):
+        stored["results"] = eliobj.results
+    return stored
 
 
 def read_storage(file: str) -> dict[str, Any]:
