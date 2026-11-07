@@ -23,6 +23,7 @@ from elicito.optimizers.search import (
     variable_names,
 )
 from elicito.parameters import methods
+from elicito.parameters._base import hyperparameter_values
 from elicito.types import ExpertDict, Parameter, Target, Trainer
 
 if TYPE_CHECKING:
@@ -385,6 +386,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
     )
 
     kappa = trainer.get("kappa", 0.0)
+    hyper_penalty = trainer.get("penalty")
 
     def objective(values: Any) -> tuple[float, dict[str, Any]]:
         assign(values)
@@ -399,8 +401,12 @@ def cma_training(  # noqa: PLR0913, PLR0915
         # the penalty enters the score of the search, not the recorded loss.
         # A failed point already carries the PENALTY sentinel, and must keep
         # its order against the usable points.
-        if kappa and value < PENALTY:
-            value += kappa * float(spread_penalty(output["prior_samples"]))
+        if value < PENALTY:
+            if kappa:
+                value += kappa * float(spread_penalty(output["prior_samples"]))
+            if hyper_penalty is not None:
+                hyper = hyperparameter_values(variables, parameters)
+                value += float(hyper_penalty(hyper))
         return value, output
 
     total_losses = []

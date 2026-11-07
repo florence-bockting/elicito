@@ -163,6 +163,7 @@ class Trainer(TypedDict, total=False):
     seed_chain: int
     progress: int
     kappa: float
+    penalty: Callable[[dict[str, Any]], Any] | None
 
 
 class NFDict(TypedDict):

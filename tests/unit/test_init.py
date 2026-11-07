@@ -18,6 +18,7 @@ from tests.utils import eliobj as base_eliobj
 import elicito as el
 from elicito import Elicit
 from elicito.optimizers.search import box_vector, start_vector
+from elicito.parameters._base import hyperparameter_values
 
 tfd = tfp.distributions
 scipy = pytest.importorskip("scipy")
@@ -839,9 +840,10 @@ def _cmaes_eliobj(
     sigma0=0.5,
     popsize=4,
     network=None,
+    penalty=None,
 ):
     """an eliobj that is fitted with the CMA-ES search instead of a gradient"""
-    return Elicit(
+    eliobj = Elicit(
         model=base_eliobj.model,
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
@@ -852,6 +854,9 @@ def _cmaes_eliobj(
         verbose=False,
         network=network,
     )
+    # the penalty is internal: a panel sets it, not the user
+    eliobj.trainer["penalty"] = penalty
+    return eliobj
 
 
 def test_cmaes_fills_a_missing_initializer(eliobj):
@@ -954,6 +959,54 @@ def test_cma_training_accepts_a_step_size_per_hyperparameter():
     loss = eliobj.results["history_stats/loss"]["total_loss"].values
     assert np.all(np.isfinite(loss))
     assert "sigma0=2 values" in repr(eliobj)
+
+
+def _pull_mu0(hyper):
+    """a large term that pulls mu0 to -10, against the fit (true mu0 is 5)"""
+    return 100.0 * (hyper["mu0"] + 10.0) ** 2
+
+
+def _last_mu0(eliobj):
+    return eliobj.results["history_stats/hyperparameter"]["mu0"].values[0, -1]
+
+
+def test_hyperparameter_values_are_constrained():
+    variables = [
+        tf.Variable(0.0, name="identity.mu0"),
+        tf.Variable(0.0, name="softplusL.sigma0"),
+    ]
+    values = hyperparameter_values(variables, base_eliobj.parameters)
+
+    assert float(values["mu0"]) == 0.0
+    assert float(values["sigma0"]) > 0.0
+
+
+def test_cma_training_adds_the_penalty():
+    free = _cmaes_eliobj(epochs=40)
+    free.fit(base_eliobj.expert)
+    pulled = _cmaes_eliobj(epochs=40, penalty=_pull_mu0)
+    pulled.fit(base_eliobj.expert)
+
+    assert _last_mu0(pulled) < _last_mu0(free)
+
+
+def test_sgd_training_adds_the_penalty():
+    def fit(penalty):
+        eliobj = Elicit(
+            model=base_eliobj.model,
+            parameters=base_eliobj.parameters,
+            targets=base_eliobj.targets,
+            optimizer="adam",
+            initializer=base_eliobj.initializer,
+            seeds=(0,),
+            epochs=20,
+            verbose=False,
+        )
+        eliobj.trainer["penalty"] = penalty
+        eliobj.fit(base_eliobj.expert)
+        return eliobj
+
+    assert _last_mu0(fit(_pull_mu0)) < _last_mu0(fit(None))
 
 
 def test_cmaes_init_drops_its_search_for_a_cmaes_training():
