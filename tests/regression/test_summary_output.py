@@ -74,7 +74,7 @@ def summary_tree(reps: list[int], n_reps: int) -> xr.DataTree:
     terms = ["y0", "cor", "y2"]
     target_loss = xr.Dataset(
         dict(loss=per_rep([[0.216, 0.031, 0.555], [0.9, 0.2, 1.4]], "target", terms).T)
-    )
+    ).assign_coords(technique=("target", ["quantiles", "correlation", "identity"]))
     tree = xr.DataTree.from_dict(
         dict(
             priors=priors,

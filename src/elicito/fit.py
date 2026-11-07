@@ -10,6 +10,7 @@ import tensorflow as tf
 import xarray as xr
 
 from elicito import losses, models, plots, utils
+from elicito.types import Target
 
 if TYPE_CHECKING:
     from elicito.elicit import Elicit
@@ -152,11 +153,25 @@ def _expert_table(
     )
 
 
-def _target_loss_table(loss: xr.Dataset, reps: list[int]) -> xr.Dataset:
-    """Tabulate the final loss term of each target"""
+# name of each query, as the user calls its constructor
+_TECHNIQUES = dict(
+    quantiles="quantiles",
+    pearson_correlation="correlation",
+    identity="identity",
+    custom="custom",
+)
+
+
+def _target_loss_table(
+    loss: xr.Dataset, reps: list[int], targets: list[Target]
+) -> xr.Dataset:
+    """Tabulate the final loss term and the elicitation technique of each target"""
     terms = [name for name in loss.data_vars if name not in ("total_loss", "penalty")]
     final = loss[terms].isel(epoch=-1, replication=reps).drop_vars("epoch")
-    return xr.Dataset(dict(loss=final.to_dataarray("target")))
+    table = xr.Dataset(dict(loss=final.to_dataarray("target")))
+    technique = {tar["name"]: _TECHNIQUES[tar["query"]["name"]] for tar in targets}
+    names = [technique[str(name)] for name in table["target"].values]
+    return table.assign_coords(technique=("target", names))
 
 
 _GROUPS = dict(
@@ -175,22 +190,32 @@ def _table(ds: xr.Dataset, row_dim: str) -> str:
     columns = [str(name) for name in ds.data_vars]
     rep_column = len(reps) > 1
     labels = [str(label) for label in ds[row_dim].values]
+    # a string coordinate on the rows, such as the technique, is a text column
+    text = {
+        str(name): [str(value) for value in coord.values]
+        for name, coord in ds.coords.items()
+        if name != row_dim and coord.dims == (row_dim,) and coord.dtype.kind in "OU"
+    }
     pad = max(len(label) for label in labels)
-    rows: list[tuple[str, list[float]]] = []
+    rows: list[tuple[str, list[str], list[float]]] = []
     for i, label in enumerate(labels):
         for r in reps:
             sub = ds.isel({row_dim: i})
             if r is not None:
                 sub = sub.sel(replication=r)
             name = f"{label:<{pad}}  {r:>3}" if rep_column else label
-            rows.append((name, [float(sub[c]) for c in columns]))
-    left = max(len(name) for name, _ in rows)
+            texts = [values[i] for values in text.values()]
+            rows.append((name, texts, [float(sub[c]) for c in columns]))
+    left = max(len(name) for name, _, _ in rows)
+    text_widths = [max(len(c), *map(len, v)) + 2 for c, v in text.items()]
     widths = [max(9, len(c)) + 2 for c in columns]
     head = f"{'rep':>{left}}" if rep_column else " " * left
+    head += "".join(f"{c:>{w}}" for c, w in zip(text, text_widths))
     lines = [head + "".join(f"{c:>{w}}" for c, w in zip(columns, widths))]
-    for name, values in rows:
+    for name, texts, values in rows:
+        words = "".join(f"{t:>{w}}" for t, w in zip(texts, text_widths))
         cells = "".join(f"{v:>{w}.3g}" for v, w in zip(values, widths))
-        lines.append(f"{name:<{left}}{cells}")
+        lines.append(f"{name:<{left}}{words}{cells}")
     return "\n".join(lines)
 
 
@@ -288,7 +313,7 @@ class Fit:
         loss = self.results["history_stats/loss"].to_dataset()
         groups = dict(
             priors=_prior_table(samples["prior"].to_dataset(), reps),
-            target_loss=_target_loss_table(loss, reps),
+            target_loss=_target_loss_table(loss, reps, self._eliobj.targets),
             loss=loss["total_loss"].isel(epoch=-1).to_dataset(name="final_loss"),
         )
         expert_fit = _expert_table(

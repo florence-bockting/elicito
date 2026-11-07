@@ -103,6 +103,13 @@ def test_summary_has_one_group_per_table(fit):
     assert summary.attrs["reps"] == [fit.best()]
 
 
+def test_summary_names_the_technique_of_each_target(fit):
+    target_loss = fit.summary()["target_loss"]
+
+    assert list(target_loss["technique"].values) == ["quantiles"] * 3
+    assert "technique" in repr(fit)
+
+
 def test_summary_of_all_replications_keeps_each_replication(fit):
     summary = fit.summary(replication="all")
 

@@ -26,13 +26,13 @@ cor[0]    1       0.01      0.004     -0.006
 y2: draws, not statistics; see its loss in 'Loss by target'.
 
 Loss by target:
-     rep       loss
-y0     0      0.216
-y0     1        0.9
-cor    0      0.031
-cor    1        0.2
-y2     0      0.555
-y2     1        1.4
+     rep    technique       loss
+y0     0    quantiles      0.216
+y0     1    quantiles        0.9
+cor    0  correlation      0.031
+cor    1  correlation        0.2
+y2     0     identity      0.555
+y2     1     identity        1.4
 
 Final loss:
    final_loss
