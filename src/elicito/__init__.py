@@ -18,7 +18,7 @@ from elicito import (
     types,
     utils,
 )
-from elicito.elicit import Elicit
+from elicito.elicit import Elicit, load
 from elicito.initializers import initializer
 from elicito.parameters import networks
 from elicito.specs import (
@@ -46,6 +46,7 @@ __all__ = [
     "identity",
     "initializer",
     "initializers",
+    "load",
     "losses",
     "models",
     "networks",

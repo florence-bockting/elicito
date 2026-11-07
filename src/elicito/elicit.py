@@ -826,44 +826,6 @@ class Elicit:
         """
         return _storage.save(self, name=name, file=file, overwrite=overwrite)
 
-    @classmethod
-    def load(cls, file: str) -> "Elicit":
-        """
-        Load a saved ``eliobj`` from specified path
-
-        Parameters
-        ----------
-        file
-            path where ``eliobj`` object is saved.
-
-        Returns
-        -------
-        eliobj :
-            loaded ``eliobj`` object.
-
-        Examples
-        --------
-        >>> eliobj = el.Elicit.load("res/toymodel.pkl")  # doctest: +SKIP
-
-        """
-        storage = _storage.read_storage(file)
-        eliobj = cls(
-            model=storage["model"],
-            parameters=storage["parameters"],
-            targets=storage["targets"],
-            **storage["settings"],
-        )
-        eliobj.expert = storage["expert"]
-
-        # add results if already fitted
-        if "results" in storage:
-            eliobj.results = storage["results"]
-        else:
-            eliobj.temp_history = storage["temp_history"]
-            eliobj.temp_results = storage["temp_results"]
-
-        return eliobj
-
     def update(self, **kwargs: Any) -> None:
         """
         Update the inputs of the Elicit object
@@ -1109,3 +1071,36 @@ class Elicit:
             results["init_matrix"] = init_matrix
 
         return tuple((results, history))
+
+
+def load(file: str) -> "Elicit | Fit":
+    """
+    Load a saved ``eliobj``
+
+    Parameters
+    ----------
+    file
+        path where the ``eliobj`` is saved.
+
+    Returns
+    -------
+    result :
+        the [`Fit`][elicito.fit.Fit] if the ``eliobj`` was fitted,
+        else the [`Elicit`][elicito.elicit.Elicit] object.
+
+    Examples
+    --------
+    >>> fit = el.load("res/toymodel.pkl")  # doctest: +SKIP
+    """
+    storage = _storage.read_storage(file)
+    eliobj = Elicit(
+        model=storage["model"],
+        parameters=storage["parameters"],
+        targets=storage["targets"],
+        **storage["settings"],
+    )
+    eliobj.expert = storage["expert"]
+    if "results" not in storage:
+        return eliobj
+    eliobj.results = storage["results"]
+    return Fit(eliobj)

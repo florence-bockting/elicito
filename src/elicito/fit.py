@@ -259,6 +259,11 @@ class Fit:
         return _format(self._summary)
 
     @property
+    def eliobj(self) -> "Elicit":
+        """Return the Elicit object that produced this fit"""
+        return self._eliobj
+
+    @property
     def results(self) -> Any:
         """Return the stored results as a DataTree"""
         return self._eliobj.results
