@@ -15,6 +15,7 @@ See https://oprypin.github.io/mkdocs-literate-nav/
     - [Choose an initialization method](how-to-guides/choose-initialization.py)
     - [Use a PyMC model](how-to-guides/use-pymc-model.py)
     - [Use a custom elicitation technique](how-to-guides/use-custom-query.py)
+    - [Share a hyperparameter](how-to-guides/share-a-hyperparameter.py)
 - [Case studies](case-studies/index.md)
     - [Signal detection theory](case-studies/signal-detection-theory.py)
     - [The BART model of risk taking](case-studies/bart-risk-taking.py)

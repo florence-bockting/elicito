@@ -10,3 +10,4 @@ We'll go over how to solve common tasks.
 - ["How to choose an initialization method"][choose-an-initialization-method]
 - ["How to use a PyMC model"][use-a-pymc-model]
 - ["How to use a custom elicitation technique"][use-a-custom-elicitation-technique]
+- ["How to share a hyperparameter"][share-a-hyperparameter]
