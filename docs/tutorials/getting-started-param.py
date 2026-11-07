@@ -376,5 +376,5 @@ fit_dat.plot.elicits(cols=4, figsize=(9, 2.6));
 # We checked it with the diagnostic plots.
 #
 # - [Getting started with a non-parametric joint prior][getting-started-with-a-non-parametric-joint-prior] learns a prior without a prior family.
-# - [A hierarchical prior for a panel of experts][a-hierarchical-prior-for-a-panel-of-experts] combines the answers of several experts.
+# - [A prior for a panel of experts][a-prior-for-a-panel-of-experts] combines the answers of several experts.
 # - The [how-to guides][how-to-guides] solve one task each, for example a PyMC model.

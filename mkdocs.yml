@@ -27,6 +27,10 @@ theme:
         icon: material/brightness-7
         name: Switch to light mode
 
+# Let autorefs resolve the reference links of the notebooks
+hooks:
+  - scripts/notebook_autorefs.py
+
 plugins:
   # https://mkdocstrings.github.io/autorefs/
   - autorefs
