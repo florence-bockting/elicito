@@ -3,6 +3,7 @@ import pytest
 import tensorflow_probability as tfp
 
 import elicito as el
+from elicito import _settings
 
 tfd = tfp.distributions
 
@@ -24,7 +25,7 @@ parameters = [
     )
 ]
 
-model = el.model(obj=TestModel)
+model = TestModel()
 
 targets = [
     el.identity("mu", loss=el.losses.MMD2(kernel="energy")),
@@ -35,7 +36,15 @@ targets = [
     ),
 ]
 
-trainer = el.trainer(method="parametric_prior", seed=123, epochs=1)
+trainer = _settings.trainer(
+    network=None,
+    seeds=(123,),
+    epochs=1,
+    B=128,
+    num_samples=200,
+    kappa=0.0,
+    verbose=True,
+)
 
 initializer = el.initializer(
     method="sobol",
@@ -47,7 +56,7 @@ initializer = el.initializer(
 def test_dryrun():
     pytest.importorskip("scipy")
 
-    res_dry = el.elicit.dry_run(
+    res_dry = el.elicit._dry_run(
         model, parameters, targets, trainer, initializer, network=None
     )
 

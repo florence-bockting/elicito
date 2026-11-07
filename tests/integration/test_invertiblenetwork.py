@@ -1,3 +1,5 @@
+from functools import partial
+
 import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -40,8 +42,8 @@ def test_parametric_prior():
         )
         return tf.cast(x, tf.float32)
 
-    model = el.model(
-        obj=GenerativeModel, n_gr=30, design_matrix=design_categorical(n_gr=30)
+    model = partial(
+        GenerativeModel(), n_gr=30, design_matrix=design_categorical(n_gr=30)
     )
 
     parameters = [
@@ -80,18 +82,14 @@ def test_parametric_prior():
         )
     ]
 
-    expert = el.expert.data(
-        dat={
-            "y_gr0": [0.64, 1.22, 1.89],
-            "y_gr1": [0.72, 1.39, 2.07],
-            "y_gr2": [0.76, 1.48, 2.22],
-            "r2": [0.07, 0.23, 0.61],
-        }
-    )
+    expert = {
+        "y_gr0": [0.64, 1.22, 1.89],
+        "y_gr1": [0.72, 1.39, 2.07],
+        "y_gr2": [0.76, 1.48, 2.22],
+        "r2": [0.07, 0.23, 0.61],
+    }
 
-    optimizer = el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.05)
-
-    trainer = el.trainer(method="parametric_prior", seed=2025, epochs=6)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.05)
 
     initializer = el.initializer(
         method="random",
@@ -103,13 +101,13 @@ def test_parametric_prior():
         model=model,
         parameters=parameters,
         targets=targets,
-        expert=expert,
         optimizer=optimizer,
-        trainer=trainer,
+        seeds=(2025,),
+        epochs=6,
         initializer=initializer,
     )
 
-    eliobj.fit()
+    eliobj.fit(expert)
 
 
 def test_invertible_network():
@@ -144,8 +142,8 @@ def test_invertible_network():
         )
         return tf.cast(x, tf.float32)
 
-    model = el.model(
-        obj=GenerativeModel, n_gr=30, design_matrix=design_categorical(n_gr=30)
+    model = partial(
+        GenerativeModel(), n_gr=30, design_matrix=design_categorical(n_gr=30)
     )
 
     parameters = [
@@ -184,18 +182,14 @@ def test_invertible_network():
         )
     ]
 
-    expert = el.expert.data(
-        dat={
-            "y_gr0": [0.64, 1.22, 1.89],
-            "y_gr1": [0.72, 1.39, 2.07],
-            "y_gr2": [0.76, 1.48, 2.22],
-            "r2": [0.07, 0.23, 0.61],
-        }
-    )
+    expert = {
+        "y_gr0": [0.64, 1.22, 1.89],
+        "y_gr1": [0.72, 1.39, 2.07],
+        "y_gr2": [0.76, 1.48, 2.22],
+        "r2": [0.07, 0.23, 0.61],
+    }
 
-    optimizer = el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.05)
-
-    trainer = el.trainer(method="parametric_prior", seed=2025, epochs=6)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.05)
 
     initializer = el.initializer(
         method="random",
@@ -207,9 +201,9 @@ def test_invertible_network():
         model=model,
         parameters=parameters,
         targets=targets,
-        expert=expert,
         optimizer=optimizer,
-        trainer=trainer,
+        seeds=(2025,),
+        epochs=6,
         initializer=initializer,
     )
 
@@ -217,11 +211,7 @@ def test_invertible_network():
         el.parameter(name="sigma", lower=0),
     ]
 
-    optimizer_deep = el.optimizer(
-        optimizer=tf.keras.optimizers.Adam, learning_rate=0.001
-    )
-
-    trainer_deep = el.trainer(method="deep_prior", seed=2025, epochs=6)
+    optimizer_deep = tf.keras.optimizers.Adam(learning_rate=0.001)
 
     network = el.networks.NF(
         inference_network=InvertibleNetwork,
@@ -248,12 +238,11 @@ def test_invertible_network():
     eliobj_deep.update(
         parameters=parameters_deep,
         optimizer=optimizer_deep,
-        trainer=trainer_deep,
         initializer=None,
         network=network,
     )
 
     # fit updated eliobj
-    eliobj_deep.fit()  # parallel=parallel=el.utils.parallel(runs=5))
+    eliobj_deep.fit(expert)
 
     assert len(eliobj_deep.results) != 0

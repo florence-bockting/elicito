@@ -18,7 +18,7 @@ from elicito import (
     types,
     utils,
 )
-from elicito.elicit import Elicit
+from elicito.elicit import Elicit, load
 from elicito.initializers import initializer
 from elicito.parameters import networks
 from elicito.specs import (
@@ -27,13 +27,10 @@ from elicito.specs import (
     expert,
     hyper,
     identity,
-    meta_settings,
-    model,
-    optimizer,
     parameter,
+    partial,
     quantiles,
     queries,
-    trainer,
 )
 
 tf.get_logger().setLevel("ERROR")
@@ -49,21 +46,19 @@ __all__ = [
     "identity",
     "initializer",
     "initializers",
+    "load",
     "losses",
-    "meta_settings",
-    "model",
     "models",
     "networks",
-    "optimizer",
     "optimizers",
     "parameter",
     "parameters",
+    "partial",
     "plots",
     "quantiles",
     "queries",
     "specs",
     "targets",
-    "trainer",
     "types",
     "utils",
 ]

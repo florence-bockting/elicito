@@ -552,8 +552,7 @@ def create_expert_ds(results: list[Any]) -> xr.Dataset:
     """
     Create expert group
 
-    Only used if expert information is provided
-    via el.expert.data.
+    Only used if the expert answers are given to ``fit()``.
 
     Parameters
     ----------

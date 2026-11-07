@@ -8,6 +8,7 @@ authors = [
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11, <3.14"
 dependencies = [
+    "cma >= 3.4.0",
     "joblib >= 1.4.2",
     "numpy >= 1.24",
     "rich >= 13.0",
@@ -51,9 +52,6 @@ plots = [
 scipy = [
     "scipy>=1.14.0"
 ]
-cma = [
-    "cma>=3.4.0"
-]
 pymc = [
     "pymc>=6.3.2; python_version >= '3.12'"
 ]
@@ -61,7 +59,6 @@ pymc = [
 full = [
     "elicito[plots]",
     "elicito[scipy]",
-    "elicito[cma]",
     "elicito[pymc]",
 ]
 

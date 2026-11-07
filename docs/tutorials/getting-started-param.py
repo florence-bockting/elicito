@@ -15,20 +15,18 @@
 # %% [markdown] editable=true slideshow={"slide_type": ""}
 # # Getting started with parametric priors
 #
-# This tutorial learns a **parametric prior** from expert knowledge. The
-# expert does not state the prior. The expert states what they expect to
-# observe, and `elicito` finds the prior that reproduces these expectations.
+# In this tutorial, we learn a prior for a linear regression from expert knowledge.
+# The expert does not state the prior.
+# The expert states what they expect to observe.
+# `elicito` finds the prior that reproduces these expectations.
 #
-# **You learn how to:**
+# We go through five steps:
 #
-# 1. write a generative model,
-# 2. give each model parameter a prior family with hyperparameters,
-# 3. define the target quantities that the expert is asked about,
-# 4. learn the hyperparameters with CMA-ES,
-# 5. check the result with the diagnostic plots.
-#
-# Two variants follow at the end: a hyperparameter that two priors share,
-# and expert data that you enter by hand.
+# 1. Write the generative model.
+# 2. Give each model parameter a prior family with hyperparameters.
+# 3. Define the target quantities that we ask the expert about.
+# 4. Learn the hyperparameters with CMA-ES.
+# 5. Check the result with the diagnostic plots.
 
 # %% tags=["hide"]
 import os
@@ -53,6 +51,7 @@ tf.constant(0.0)
 # ## Imports
 
 # %%
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -121,6 +120,7 @@ X_design(N=30, quantiles=[25, 50, 75])
 # The generative model is a class with a `__call__` method. It receives the
 # prior samples and the design matrix. It returns a dictionary with every
 # quantity that a target can use.
+# Bind every argument other than `prior_samples` with `functools.partial`.
 #
 # The prior samples have the shape `(B, num_samples, number of parameters)`.
 # The last column is $\sigma$. The other columns are the regression
@@ -167,7 +167,7 @@ class ToyModel:
 
 
 # %%
-model = el.model(obj=ToyModel, design_matrix=X_design(N=30, quantiles=[25, 50, 75]))
+model = partial(ToyModel(), design_matrix=X_design(N=30, quantiles=[25, 50, 75]))
 
 # %% [markdown]
 # ## Model parameters
@@ -260,36 +260,20 @@ expert = el.expert.simulator(ground_truth=ground_truth, num_samples=10_000)
 # %% [markdown]
 # ## Training
 #
-# We learn the hyperparameters with **CMA-ES**, a global search that needs
-# no gradient.
+# We learn the hyperparameters with **CMA-ES**, the default for a parametric prior.
+# We give three settings:
 #
-# - `el.optimizer(optimizer="cmaes")` replaces the gradient descent by the
-#   CMA-ES search.
-# - CMA-ES needs no `initializer`. The search starts at 0 on the unconstrained
-#   scale, and `elicito` chooses the first step size. Set it with
-#   `el.optimizer(sigma0=...)`.
-# - `epochs` is the budget in **forward simulations**, not the number of
-#   gradient steps. One generation of CMA-ES tests several candidates, so the
-#   loss curve has one point per generation.
-# - `el.utils.parallel()` runs four replications with different seeds. The
-#   replications show whether the result depends on the seed.
-# - `kappa` in `el.trainer()` sets the weight of a spread penalty in the loss.
-#   The penalty keeps a prior from collapsing to a point mass. `kappa=0`
-#   turns it off.
+# - `seeds` runs one replication for each seed, in parallel.
+#   The replications show if the result depends on the seed.
+# - `epochs` is the budget in forward simulations.
+#   The loss curve has one point per CMA-ES generation.
+# - `kappa` keeps a prior from collapsing to a point mass.
 #
-# > **Note:** CMA-ES needs the optional dependency `cma`. Install it with
-# > `pip install "elicito[cma]"`.
+# [`Elicit`][elicito.elicit.Elicit] lists all settings.
 
 # %%
 eliobj = el.Elicit(
-    model=model,
-    parameters=parameters,
-    targets=targets,
-    expert=expert,
-    optimizer=el.optimizer(optimizer="cmaes"),
-    trainer=el.trainer(
-        method="parametric_prior", seed=2025, epochs=800, progress=1, kappa=0.1
-    ),
+    model, targets, parameters, seeds=(2025, 2026, 2027, 2028), epochs=800, kappa=0.1
 )
 
 # %% [markdown]
@@ -299,21 +283,13 @@ eliobj = el.Elicit(
 eliobj
 
 # %%
-fit = eliobj.fit(parallel=el.utils.parallel(runs=4))
+fit = eliobj.fit(expert)
 
 # %% [markdown]
 # `fit()` returns a `Fit` object. Print it to see a summary of the result.
 
 # %%
 fit
-
-# %% [markdown]
-# The results keep the learned hyperparameters, the loss and the expert
-# data. `fit.sample()` computes the prior samples and the model simulations
-# from them. The plots in `fit.plot` call it once and reuse the samples.
-
-# %%
-fit.results
 
 # %% [markdown]
 # ## Results
@@ -367,66 +343,11 @@ fit.plot.priorpredictive(target="R2");
 fit.plot.prior_averaging();
 
 # %% [markdown]
-# ## Variant A: a shared scale hyperparameter
+# ## Use the answers of a real expert
 #
-# The intercept and the slope can share one scale hyperparameter. Give both
-# priors the same name, and set `shared=True`. The model then has four
-# hyperparameters instead of five.
-
-# %%
-parameters_shared = [
-    el.parameter(
-        name="beta0",
-        family=tfd.Normal,
-        hyperparams=dict(
-            loc=el.hyper("mu0"), scale=el.hyper("sigma1", lower=0, shared=True)
-        ),
-    ),
-    el.parameter(
-        name="beta1",
-        family=tfd.Normal,
-        hyperparams=dict(
-            loc=el.hyper("mu1"), scale=el.hyper("sigma1", lower=0, shared=True)
-        ),
-    ),
-    el.parameter(
-        name="sigma",
-        family=tfd.HalfNormal,
-        hyperparams=dict(scale=el.hyper("sigma2", lower=0)),
-    ),
-]
-
-eliobj_shared = el.Elicit(
-    model=model,
-    parameters=parameters_shared,
-    targets=targets,
-    expert=expert,
-    optimizer=el.optimizer(optimizer="cmaes"),
-    trainer=el.trainer(method="parametric_prior", seed=2025, epochs=800, progress=0),
-)
-
-fit_shared = eliobj_shared.fit()
-
-# %% [markdown]
-# ### Results
-
-# %%
-fit_shared.plot.loss(figsize=(7, 3));
-
-# %%
-fit_shared.plot.hyperparameter(cols=4, figsize=(9, 2.4));
-
-# %%
-fit_shared.plot.elicits(cols=4, figsize=(9, 2.6));
-
-# %%
-fit_shared.plot.prior_marginals(cols=3, figsize=(8, 2.4));
-
-# %% [markdown]
-# ## Variant B: expert data as input
-#
-# With a real expert, you enter the elicited statistics by hand. The key of
-# each answer is the name of its target.
+# A real expert gives the answers as numbers.
+# Give them to `fit()` as a dictionary.
+# The key of each answer is the name of its target.
 
 # %%
 expert_dat = {
@@ -437,27 +358,23 @@ expert_dat = {
 }
 
 eliobj_dat = el.Elicit(
-    model=model,
-    parameters=parameters,
-    targets=targets,
-    expert=el.expert.data(dat=expert_dat),
-    optimizer=el.optimizer(optimizer="cmaes"),
-    trainer=el.trainer(method="parametric_prior", seed=2025, epochs=800, progress=0),
+    model, targets, parameters, seeds=(2025,), epochs=800, verbose=False
 )
 
-fit_dat = eliobj_dat.fit()
+fit_dat = eliobj_dat.fit(expert_dat)
 
 # %% [markdown]
-# ### Results
-
-# %%
-fit_dat.plot.loss(figsize=(7, 3));
-
-# %%
-fit_dat.plot.hyperparameter(titles=TITLES, cols=5, figsize=(11, 2.4));
+# Check that the learned prior reproduces the answers.
 
 # %%
 fit_dat.plot.elicits(cols=4, figsize=(9, 2.6));
 
-# %%
-fit_dat.plot.prior_marginals(cols=3, figsize=(8, 2.4));
+# %% [markdown]
+# ## Next steps
+#
+# We learned a parametric prior from the answers of one expert.
+# We checked it with the diagnostic plots.
+#
+# - [Getting started with a non-parametric joint prior][getting-started-with-a-non-parametric-joint-prior] learns a prior without a prior family.
+# - [A prior for a panel of experts][a-prior-for-a-panel-of-experts] combines the answers of several experts.
+# - The [how-to guides][how-to-guides] solve one task each, for example a PyMC model.

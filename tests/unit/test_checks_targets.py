@@ -9,7 +9,7 @@ from elicito._checks import check_answers, check_target_names
 
 
 def _answers(**values):
-    return el.expert.data(values)["data"]
+    return el.elicit._expert(values)["data"]
 
 
 def test_check_answers_accepts_matching_answers():

@@ -2,6 +2,8 @@
 test for initialization of hyperparameter values
 """
 
+from functools import partial
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -164,8 +166,8 @@ def test_integration_initialization():
     }
 
     eliobj = el.Elicit(
-        model=el.model(
-            obj=ToyModel, design_matrix=std_predictor(N=200, quantiles=[0.25, 0.75])
+        model=partial(
+            ToyModel(), design_matrix=std_predictor(N=200, quantiles=[0.25, 0.75])
         ),
         parameters=[
             el.parameter(
@@ -195,11 +197,9 @@ def test_integration_initialization():
                 loss=el.losses.MMD2(kernel="energy"),
             ),
         ],
-        expert=el.expert.simulator(ground_truth=ground_truth, num_samples=10_000),
-        optimizer=el.optimizer(
-            optimizer=tf.keras.optimizers.Adam, learning_rate=0.001, clipnorm=1.0
-        ),
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=2),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001, clipnorm=1.0),
+        seeds=(0,),
+        epochs=2,
         initializer=el.initializer(
             method="sobol",
             iterations=1,
@@ -219,7 +219,7 @@ def test_integration_initialization():
     assert "Optimizer:" in repr_str
     assert "Initializer:" in repr_str
 
-    eliobj.fit()
+    eliobj.fit(el.expert.simulator(ground_truth=ground_truth, num_samples=10_000))
 
     # check that initial values drawn from the initialization distribution
     # match with the specification of the initialization distr.

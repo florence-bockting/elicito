@@ -2,6 +2,8 @@
 helper functions for tests
 """
 
+from functools import partial
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -92,8 +94,8 @@ ground_truth = {
 
 
 eliobj = el.Elicit(
-    model=el.model(
-        obj=ToyModel2, design_matrix=std_predictor(N=200, quantiles=[25, 50, 75])
+    model=partial(
+        ToyModel2(), design_matrix=std_predictor(N=200, quantiles=[25, 50, 75])
     ),
     parameters=[
         el.parameter(
@@ -130,12 +132,9 @@ eliobj = el.Elicit(
         ),
         # el.quantiles("log_R2", probs=(.05, .25, .50, .75, .95)),
     ],
-    # expert=el.expert.data(dat = expert_dat),
-    expert=el.expert.simulator(ground_truth=ground_truth, num_samples=10_000),
-    optimizer=el.optimizer(
-        optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
-    ),
-    trainer=el.trainer(method="parametric_prior", seed=0, epochs=100),
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.1, clipnorm=1.0),
+    seeds=(0,),
+    epochs=100,
     initializer=el.initializer(
         method="random",
         iterations=2,
@@ -144,4 +143,4 @@ eliobj = el.Elicit(
     # network = el.networks.NF(...) # TODO vs. el.normalizing_flow(...)
 )
 
-eliobj.fit()
+eliobj.fit(el.expert.simulator(ground_truth=ground_truth, num_samples=10_000))

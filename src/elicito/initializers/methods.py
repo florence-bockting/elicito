@@ -2,6 +2,7 @@
 Protocol of the initialization methods, their registry, and the entry point
 """
 
+from collections.abc import Callable
 from typing import Any, Optional, Protocol
 
 import tensorflow as tf
@@ -43,7 +44,7 @@ class InitMethod(Protocol):
         parameters: list[Parameter],
         trainer: Trainer,
         optimizer: dict[str, Any],
-        model: dict[str, Any],
+        model: Callable[..., Any],
         targets: list[Target],
         network: Optional[NFDict],
         expert: ExpertDict,
@@ -110,7 +111,7 @@ def init_prior(  # noqa: PLR0913
     parameters: list[Parameter],
     trainer: Trainer,
     optimizer: dict[str, Any],
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     network: Optional[NFDict],
     expert: ExpertDict,
@@ -135,7 +136,7 @@ def init_prior(  # noqa: PLR0913
         Specification of trainer settings for the optimization process
 
     optimizer
-        User-input from [`optimizer`][elicito.specs.optimizer]. Used to run
+        Optimizer settings of [`Elicit`][elicito.elicit.Elicit]. Used to run
         the warm-up epochs of a candidate.
 
     model

@@ -2,6 +2,8 @@
 Check user input of Elicit object
 """
 
+import inspect
+from collections.abc import Callable
 from typing import Any
 
 from elicito.optimizers import cmaes
@@ -13,17 +15,62 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
     model,
     parameters,
     targets,
-    expert,
     trainer,
     optimizer,
     network,
     initializer,
-    meta_settings,
 ) -> None:
     """
     Check whether input values to Elicit() are valid
     """
+    check_model(model)
     check_target_names(targets)
+
+    # CMA-ES keeps a full covariance matrix of the search space. The weights
+    # of a normalizing flow are thousands of dimensions, which it cannot search.
+    if optimizer["optimizer"] == cmaes.CMAES and trainer["method"] == "deep_prior":
+        msg = (
+            f"optimizer='{cmaes.CMAES}' cannot learn a deep prior. A network "
+            "has too many trainable variables for a derivative-free search. "
+            "Use optimizer='auto' or a tf.keras optimizer instead."
+        )
+        raise ValueError(msg)
+
+    methods.get_method(trainer["method"]).check(parameters, network, initializer)
+
+
+def check_model(model: Callable[..., Any]) -> None:
+    """
+    Check that the generative model is callable with the prior samples
+    """
+    if isinstance(model, type) or not callable(model):
+        msg = (
+            "The model must be a PyMC model or a callable, such as an "
+            f"instance of a class with __call__. Got {model!r}."
+        )
+        raise TypeError(msg)
+    params = inspect.signature(model).parameters
+    if "prior_samples" not in params:
+        msg = "The model must take the argument 'prior_samples'."
+        raise ValueError(msg)
+    # elicito passes a stateless seed to a model that names `seed`
+    missing = [
+        name
+        for name, p in params.items()
+        if name not in {"prior_samples", "seed"} and p.default is p.empty
+    ]
+    if missing:
+        msg = (
+            f"The model arguments {missing} have no value. "
+            "Bind them with functools.partial."
+        )
+        raise ValueError(msg)
+
+
+def check_expert(expert: Any, targets: list[Target], parameters: Any) -> None:
+    """
+    Check the answers of an expert, or the ground truth of an oracle
+    """
     # check expert data
     try:
         expert["ground_truth"]
@@ -57,19 +104,6 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
                 f"{len(expected_params)}."
             )
             raise AssertionError(msg)
-
-    # CMA-ES keeps a full covariance matrix of the search space. The weights
-    # of a normalizing flow are thousands of dimensions, which it cannot search.
-    if optimizer["optimizer"] == cmaes.CMAES and trainer["method"] == "deep_prior":
-        msg = (
-            f"optimizer='{cmaes.CMAES}' can only be used with "
-            "method='parametric_prior'. The 'deep_prior' method has too many "
-            "trainable variables for a derivative-free search. Use a "
-            "tf.keras optimizer instead."
-        )
-        raise ValueError(msg)
-
-    methods.get_method(trainer["method"]).check(parameters, network, initializer)
 
 
 def check_answers(answers: dict[str, Any], targets: list[Target]) -> None:

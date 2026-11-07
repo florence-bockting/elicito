@@ -15,25 +15,23 @@
 # %% [markdown]
 # # Getting started with a non-parametric joint prior
 #
-# This tutorial learns a **non-parametric joint prior** from expert knowledge.
-# The expert does not state the prior. The expert states what they expect to
-# observe, and `elicito` finds the prior that reproduces these expectations.
+# In this tutorial, we learn a **non-parametric joint prior** for a linear regression from expert knowledge.
+# The expert does not state the prior.
+# The expert states what they expect to observe.
+# `elicito` finds the prior that reproduces these expectations.
 #
-# A parametric prior gives each model parameter a prior family. A
-# non-parametric joint prior has no prior family. A normalizing flow learns
-# the joint distribution of all model parameters.
+# A parametric prior gives each model parameter a prior family.
+# A non-parametric joint prior has no prior family.
+# A normalizing flow learns the joint distribution of all model parameters.
 #
-# **You learn how to:**
+# We go through six steps:
 #
-# 1. write a generative model,
-# 2. declare the model parameters without a prior family,
-# 3. define the target quantities that the expert is asked about,
-# 4. set up the normalizing flow,
-# 5. learn the weights of the flow with gradient descent,
-# 6. check the result with the diagnostic plots.
-
-# %% [markdown]
-
+# 1. Write the generative model.
+# 2. Declare the model parameters without a prior family.
+# 3. Define the target quantities that we ask the expert about.
+# 4. Set up the normalizing flow.
+# 5. Learn the weights of the flow with gradient descent.
+# 6. Check the result with the diagnostic plots.
 
 # %% tags=["hide"]
 import os
@@ -49,6 +47,7 @@ tf.constant(0.0)
 # ## Imports
 
 # %%
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -116,6 +115,7 @@ X_design(N=30, quantiles=[25, 50, 75])
 # The generative model is a class with a `__call__` method. It receives the
 # prior samples and the design matrix. It returns a dictionary with every
 # quantity that a target can use.
+# Bind every argument other than `prior_samples` with `functools.partial`.
 #
 # The prior samples have the shape `(B, num_samples, number of parameters)`.
 # The last column is $\sigma$. The other columns are the regression
@@ -162,7 +162,7 @@ class ToyModel:
 
 
 # %%
-model = el.model(obj=ToyModel, design_matrix=X_design(N=30, quantiles=[25, 50, 75]))
+model = partial(ToyModel(), design_matrix=X_design(N=30, quantiles=[25, 50, 75]))
 
 # %% [markdown]
 # ## Model parameters
@@ -276,8 +276,9 @@ network = el.networks.NF(
 #
 # We learn the weights of the flow with the **Adam** gradient descent.
 #
-# - `method="deep_prior"` tells the trainer to learn a normalizing flow.
-# - `network` passes the flow to `elicito`.
+# - `network` makes the prior a deep prior: `elicito` learns a normalizing flow.
+# - The default Adam learning rate is 0.1. The flow needs a smaller one, so
+#   give a `tf.keras` optimizer.
 # - `initializer=None`: the flow starts from its own random weights.
 #
 # > **Note:** CMA-ES does not support a deep prior. The flow has too many
@@ -285,16 +286,13 @@ network = el.networks.NF(
 
 # %%
 eliobj = el.Elicit(
-    model=model,
-    parameters=parameters,
-    targets=targets,
-    expert=expert,
-    optimizer=el.optimizer(
-        optimizer=tf.keras.optimizers.Adam, learning_rate=0.0001, clipnorm=1.0
-    ),
-    trainer=el.trainer(method="deep_prior", seed=2025, epochs=500, progress=1),
-    initializer=None,
+    model,
+    targets,
+    parameters,
     network=network,
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001, clipnorm=1.0),
+    seeds=(2025,),
+    epochs=500,
 )
 
 # %% [markdown]
@@ -304,21 +302,13 @@ eliobj = el.Elicit(
 eliobj
 
 # %%
-fit = eliobj.fit()
+fit = eliobj.fit(expert)
 
 # %% [markdown]
 # `fit()` returns a `Fit` object. Print it to see a summary of the result.
 
 # %%
 fit
-
-# %% [markdown]
-# The results keep the learned weights, the loss and the expert data.
-# `fit.sample()` computes the prior samples and the model simulations from
-# them. The plots in `fit.plot` call it once and reuse the samples.
-
-# %%
-fit.results
 
 # %% [markdown]
 # ## Results
@@ -364,3 +354,12 @@ fit.plot.prior_marginals(cols=3, figsize=(8, 2.4));
 
 # %%
 fit.plot.prior_joint();
+
+# %% [markdown]
+# ## Next steps
+#
+# We learned a joint prior with a normalizing flow.
+# We checked its marginals and its correlations with the plots.
+#
+# - [Getting started with parametric priors][getting-started-with-parametric-priors] gives each parameter a prior family.
+# - The [how-to guides][how-to-guides] solve one task each, for example saving the `eliobj`.
