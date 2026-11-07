@@ -511,10 +511,8 @@ class Elicit:
             is fitted.
 
         overwrite
-            If the eliobj was already fitted and the user wants to refit it,
-            the user is asked whether they want to overwrite the previous
-            fitting results. Setting ``overwrite=True`` allows the user to
-            force overfitting without being prompted.
+            replace the results of an earlier fit. Without it, a fitted eliobj
+            raises an error.
 
         Returns
         -------
@@ -787,32 +785,33 @@ class Elicit:
         overwrite: bool = False,
     ) -> None:
         """
-        Save data on disk
+        Save the eliobj on disk, with its results if it was fitted
+
+        A fitted panel of experts is saved too.
+        [`load`][elicito.elicit.load] reads the file again.
 
         Parameters
         ----------
         name
-            file name used to store the eliobj. Saving is done
-            according to the following rule: ``./{method}/{name}_{seed}.pkl``
-            with 'method' (``parametric_prior`` or ``deep_prior``) and 'seed'
-            the first of the ``seeds`` of [`Elicit`][elicito.elicit.Elicit].
+            file name of the eliobj. The file is
+            ``./results/{method}/{name}_{seed}.pkl``, with 'method'
+            ``parametric_prior`` or ``deep_prior``, and 'seed' the first of
+            the ``seeds`` of [`Elicit`][elicito.elicit.Elicit].
 
         file
-            user-specific path for saving the eliobj. If file is specified
-            **name** must be ``None``.
+            path of the file, with or without ``.pkl``. If you give
+            ``file``, ``name`` must be ``None``.
 
         overwrite
-            If already a fitted object exists in the same path, the user is
-            asked whether the eliobj should be refitted and the results
-            overwritten.
-            With the ``overwrite`` argument, you can disable this
-            behavior. In this case the results are automatically overwritten
-            without prompting the user.
+            replace a file that exists at the same path. Without it, an
+            existing file raises an error.
 
         Raises
         ------
         AssertionError
-            ``name`` and ``file`` can't be specified simultaneously.
+            ``name`` and ``file`` are both given, or both ``None``.
+        FileExistsError
+            The file exists and ``overwrite`` is ``False``.
 
         Examples
         --------

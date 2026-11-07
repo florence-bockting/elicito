@@ -26,8 +26,10 @@ def save_as_pkl(obj: Any, save_dir: str) -> None:
     >>> save_as_pkl(obj, "results/file.pkl")  # doctest: +SKIP
 
     """
-    # if directory does not exist, create it
-    os.makedirs(os.path.dirname(save_dir), exist_ok=True)
+    # if directory does not exist, create it; a bare file name has none
+    directory = os.path.dirname(save_dir)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
     # save obj to location as pickle
     serialized_obj = cloudpickle.dumps(obj)
     with open(save_dir, "wb") as file:
@@ -50,7 +52,7 @@ def save(
 
     name
         Name of the saved .pkl file.
-        File is saved as .results/{method}/{name}_{seed}.pkl
+        File is saved as ./results/{method}/{name}_{seed}.pkl
 
     file
         Path to file, including file name,
@@ -76,7 +78,7 @@ def save(
         # postprocess file to avoid file.pkl.pkl
         if file.endswith(".pkl"):
             file = file.removesuffix(".pkl")
-        path = "./" + file
+        path = file
     else:
         msg = (
             "Name and file cannot be both None or both specified. "

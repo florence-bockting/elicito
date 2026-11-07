@@ -344,3 +344,16 @@ def test_gumble_softmax_trick():
 
     # dtype should be float32
     assert ypred.dtype == tf.float32
+
+
+@pytest.mark.parametrize("relative", [True, False])
+def test_save_takes_a_relative_or_an_absolute_file(monkeypatch, tmp_path, relative):
+    pytest.importorskip("scipy")
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "sub" / "eliobj"
+    file = "eliobj" if relative else str(target)
+
+    save(DummyEliobj_fitted(), file=file)
+
+    expected = tmp_path / "eliobj.pkl" if relative else target.with_suffix(".pkl")
+    assert expected.is_file()
