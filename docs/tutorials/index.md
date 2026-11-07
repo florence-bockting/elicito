@@ -8,3 +8,4 @@ This documentation is still in progress. Currently available tutorials are
 
 + Getting started with learning independent, parametric priors from expert knowledge [Go to notebook](getting-started-param.py)
 + Getting started with learning joint, non-parametric prior from expert knowledge [Go to notebook](getting-started-deep.py)
++ A prior for a panel of experts, with partial pooling [Go to notebook](multiple-experts.py)
