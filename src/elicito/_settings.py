@@ -8,7 +8,6 @@ from typing import Any
 
 import tensorflow as tf
 
-from elicito import specs
 from elicito.optimizers.cmaes import CMAES
 from elicito.types import Trainer
 
@@ -73,13 +72,19 @@ def trainer(  # noqa: PLR0913
     kappa: float,
     verbose: bool,
 ) -> Trainer:
-    """Build the trainer dictionary"""
-    return specs.trainer(
-        method=method(network),  # type: ignore [arg-type]
+    """Check the training settings and build the trainer dictionary"""
+    if epochs <= 0:
+        msg = f"The number of epochs has to be greater 0. Got {epochs=}."
+        raise ValueError(msg)
+    if kappa < 0:
+        msg = f"The weight kappa cannot be negative. Got {kappa=}."
+        raise ValueError(msg)
+    return dict(
+        method=method(network),
         seed=seeds[0],
-        epochs=epochs,
-        B=B,
-        num_samples=num_samples,
-        progress=int(verbose),  # type: ignore [arg-type]
-        kappa=kappa,
+        B=int(B),
+        num_samples=int(num_samples),
+        epochs=int(epochs),
+        progress=int(verbose),
+        kappa=float(kappa),
     )

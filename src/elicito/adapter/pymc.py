@@ -277,10 +277,12 @@ def set_hyperparameters(model: Any, eliobj: Any, replication: int = 0) -> None:
         PyMC model that `parameters` read
 
     eliobj
+        the [`Fit`][elicito.fit.Fit] that ``Elicit.fit()`` returns, or the
         fitted Elicit object
 
     replication
-        index of the replication
+        index of the replication. A [`Fit`][elicito.fit.Fit] also accepts
+        ``"best"``.
 
     Raises
     ------

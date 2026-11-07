@@ -149,7 +149,7 @@ class Initializer(TypedDict):
 
 class Trainer(TypedDict, total=False):
     """
-    typed dictionary for specification of [`trainer`][elicito.specs.trainer]
+    typed dictionary of the training settings of [`Elicit`][elicito.elicit.Elicit]
     """
 
     method: str
@@ -173,28 +173,6 @@ class NFDict(TypedDict):
     inference_network: Callable[[Any], Any]
     network_specs: dict[str, Any]
     base_distribution: Callable[[Any], Any]
-
-
-class Parallel(TypedDict):
-    """
-    Typed dictionary for specification of parallelization `parallel`
-
-    See [`parallel`][elicito.utils.parallel]
-    """
-
-    runs: int
-    cores: int
-    seeds: list[int] | None
-
-
-class MetaSettings(TypedDict):
-    """
-    Typed dictionary for specification of meta settings in `Elicit`
-
-    See [`Elicit`][elicito.elicit.Elicit]
-    """
-
-    dry_run: bool
 
 
 class PriorMethods(str, Enum):

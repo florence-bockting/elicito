@@ -183,33 +183,3 @@ def test_initializer():
             distribution=el.initializers.uniform(radius=1, mean=0),
             iterations=32,
         )
-
-
-def test_trainer():
-    msg = "Progress has to be either 0 or 1. Got progress=2."
-    with pytest.raises(ValueError, match=msg):
-        el.trainer(method="deep_prior", seed=1, epochs=3, progress=2)
-
-    msg = "The number of epochs has to be greater 0." " Got epochs=0."
-    with pytest.raises(ValueError, match=msg):
-        el.trainer(method="deep_prior", seed=1, epochs=0)
-
-    msg = (
-        "Currently only the methods 'deep_prior' and"
-        "'parametric prior' are implemented but got method='some_prior'."
-    )
-    with pytest.raises(ValueError, match=msg):
-        el.trainer(method="some_prior", seed=1, epochs=3)
-
-    msg = "The weight kappa cannot be negative. Got kappa=-1.0."
-    with pytest.raises(ValueError, match=msg):
-        el.trainer(method="deep_prior", seed=1, epochs=3, kappa=-1.0)
-
-    assert el.trainer(method="deep_prior", seed=1, epochs=3)["kappa"] == 0.0
-
-
-def test_optimizer_default_is_a_class():
-    opt = el.optimizer()
-    assert isinstance(
-        opt["optimizer"](learning_rate=0.1), tf.keras.optimizers.Optimizer
-    )

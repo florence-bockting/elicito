@@ -17,7 +17,6 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
     optimizer,
     network,
     initializer,
-    meta_settings,
 ) -> None:
     """
     Check whether input values to Elicit() are valid

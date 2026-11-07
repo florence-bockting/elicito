@@ -121,13 +121,13 @@ class DeepPrior:
     ) -> None:
         """Raise if the sections are not valid for this method."""
         if network is None:
-            msg = "If method is 'deep prior',  the section 'network' can't be None."
+            msg = "A deep prior needs a network."
             raise ValueError(msg)
 
         if initializer is not None:
             msg = (
-                "For method 'deep_prior' the "
-                "'initializer' is not used and should be set to None."
+                "A network learns a deep prior, which uses no initializer. "
+                "Set initializer=None."
             )
             raise ValueError(msg)
 

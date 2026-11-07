@@ -3,6 +3,7 @@ import pytest
 import tensorflow_probability as tfp
 
 import elicito as el
+from elicito import _settings
 
 tfd = tfp.distributions
 
@@ -35,7 +36,15 @@ targets = [
     ),
 ]
 
-trainer = el.trainer(method="parametric_prior", seed=123, epochs=1)
+trainer = _settings.trainer(
+    network=None,
+    seeds=(123,),
+    epochs=1,
+    B=128,
+    num_samples=200,
+    kappa=0.0,
+    verbose=True,
+)
 
 initializer = el.initializer(
     method="sobol",

@@ -131,17 +131,12 @@ def test_initializer_network(eliobj, network):
     assert eliobj.network is None
 
     # error message if initializer is None
-    msg1 = (
-        "If method is 'parametric_prior', " " the section 'initializer' can't be None."
-    )
+    msg1 = "A gradient optimizer needs an initializer for parametric priors"
     with pytest.raises(ValueError, match=msg1):
         eliobj.update(initializer=None, network=None)
 
     # a network means a deep prior, which uses no initializer
-    msg4 = (
-        "For method 'deep_prior' the "
-        "'initializer' is not used and should be set to None."
-    )
+    msg4 = "A network learns a deep prior, which uses no initializer"
     with pytest.raises(ValueError, match=msg4):
         eliobj.update(network=network)
 

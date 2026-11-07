@@ -16,7 +16,7 @@ import xarray as xr
 import elicito as el
 from elicito._storage import save, save_as_pkl
 from elicito.parameters.bijections import DoubleBound, LowerBound, UpperBound
-from elicito.utils import gumbel_softmax_trick, parallel
+from elicito.utils import gumbel_softmax_trick
 
 tfd = tfp.distributions
 
@@ -309,21 +309,6 @@ def test_save_and_load_name(eliobj, fit, test_file):
 
     # clean-up directory
     shutil.rmtree("results/parametric_prior")
-
-
-@pytest.mark.parametrize(
-    "runs, cores",
-    [
-        (1, None),
-        (2, 4),
-        (10, 10),
-    ],
-)
-def test_parallel(runs, cores):
-    result = parallel(runs=runs, cores=cores)
-    expected_cores = runs if cores is None else cores
-
-    assert result == {"runs": runs, "cores": expected_cores, "seeds": None}
 
 
 def test_gumble_softmax_trick_assert():

@@ -114,7 +114,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     Parameters
     ----------
     seed
-        User-specified seed as defined in [`trainer`][elicito.specs.trainer].
+        Seed of the training, one of the ``seeds`` of [`Elicit`][elicito.elicit.Elicit].
 
     hyppar
         List of hyperparameter names (strings) declaring the order for the
@@ -304,10 +304,10 @@ def init_runs(  # noqa: PLR0913
         User-input from [`parameter`][elicito.specs.parameter].
 
     trainer
-        User-input from [`trainer`][elicito.specs.trainer].
+        Training settings of [`Elicit`][elicito.elicit.Elicit].
 
     optimizer
-        User-input from [`optimizer`][elicito.specs.optimizer]. Used to run
+        Optimizer settings of [`Elicit`][elicito.elicit.Elicit]. Used to run
         the warm-up epochs of a candidate.
 
     model

@@ -24,7 +24,6 @@ from elicito import (
     models,
     optimizers,
     parameters,
-    specs,
     utils,
 )
 from elicito._progress import SeedTable, run_in_worker
@@ -95,7 +94,7 @@ def _dry_run(  # noqa: PLR0913
         [`quantiles`][elicito.specs.quantiles].
 
     trainer
-        User-input from [`trainer`][elicito.specs.trainer].
+        Training settings of [`Elicit`][elicito.elicit.Elicit].
 
     initializer
         User-input from [`initializer`][elicito.initializers.spec.initializer].
@@ -290,7 +289,6 @@ class Elicit:
             network, seeds, epochs, B, num_samples, kappa, verbose
         )
         optimizer = _settings.optimizer(optimizer, cmaes, network)
-        meta_settings = specs.meta_settings(dry_run=dry_run)
         initializer = _default_initializer(optimizer, initializer)
 
         _checks.check_elicit(
@@ -301,7 +299,6 @@ class Elicit:
             optimizer,
             network,
             initializer,
-            meta_settings,
         )
 
         self.model = model
@@ -313,13 +310,12 @@ class Elicit:
         self.optimizer = optimizer
         self.network = network
         self.initializer = initializer
-        self.meta_settings = meta_settings
 
         self.temp_history: list[dict[str, Any]] = []
         self.temp_results: list[dict[str, Any]] = []
 
         # helper for subsequent checks
-        self.dry_run = self.meta_settings["dry_run"]
+        self.dry_run = dry_run
         # overwrite global seed
         utils.SEED = self.trainer["seed"]
 
@@ -725,8 +721,8 @@ class Elicit:
         name
             file name used to store the eliobj. Saving is done
             according to the following rule: ``./{method}/{name}_{seed}.pkl``
-            with 'method' and 'seed' being arguments of
-            [`trainer`][elicito.specs.trainer].
+            with 'method' (``parametric_prior`` or ``deep_prior``) and 'seed'
+            the first of the ``seeds`` of [`Elicit`][elicito.elicit.Elicit].
 
         file
             user-specific path for saving the eliobj. If file is specified

@@ -19,7 +19,6 @@ from elicito.parameters.priors import Priors
 from elicito.types import (
     ExpertDict,
     NFDict,
-    Parallel,
     Parameter,
     Target,
     Trainer,
@@ -179,42 +178,6 @@ def add_derived(samples: Any, **derived: Callable[[Any], Any]) -> None:
         prior_samples[name] = function(prior_samples)
 
     samples["prior"].dataset = prior_samples
-
-
-def parallel(
-    runs: int = 4, cores: Optional[int] = None, seeds: Optional[list[int]] = None
-) -> Parallel:
-    """
-    Specify parallelization
-
-    Specification for parallelizing training by running multiple training
-    instances with different seeds simultaneously.
-
-    Parameters
-    ----------
-    runs
-        Number of replication.
-
-    cores
-        Number of cores that should be used.
-
-    seeds
-        A list of seeds. If ``None`` seeds are drawn from a Uniform(0,999999)
-        distribution. The seed information corresponding to each chain is
-        stored in ``eliobj.results``.
-
-    Returns
-    -------
-    parallel_dict :
-        dictionary containing the parallelization settings.
-
-    """
-    parallel_dict: Parallel = dict(runs=runs, cores=cores, seeds=seeds)  # type: ignore
-
-    if cores is None:
-        parallel_dict["cores"] = runs
-
-    return parallel_dict
 
 
 def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6) -> Any:

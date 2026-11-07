@@ -27,13 +27,10 @@ from elicito.specs import (
     expert,
     hyper,
     identity,
-    meta_settings,
     model,
-    optimizer,
     parameter,
     quantiles,
     queries,
-    trainer,
 )
 
 tf.get_logger().setLevel("ERROR")
@@ -50,11 +47,9 @@ __all__ = [
     "initializer",
     "initializers",
     "losses",
-    "meta_settings",
     "model",
     "models",
     "networks",
-    "optimizer",
     "optimizers",
     "parameter",
     "parameters",
@@ -63,7 +58,6 @@ __all__ = [
     "queries",
     "specs",
     "targets",
-    "trainer",
     "types",
     "utils",
 ]

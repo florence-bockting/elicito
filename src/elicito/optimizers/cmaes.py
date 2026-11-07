@@ -38,7 +38,7 @@ SIGMA_FRACTION = 2.0
 # has no box to read a scale from, so the value is a setting of the optimizer.
 DEFAULT_SIGMA0 = 0.5
 
-# Value of `el.optimizer(optimizer=...)` that selects the CMA-ES fitter
+# Value of `Elicit(optimizer=...)` that selects the CMA-ES fitter
 CMAES = "cmaes"
 
 
