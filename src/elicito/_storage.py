@@ -91,23 +91,51 @@ def save(
         )
         raise FileExistsError(msg)
 
-    storage = dict()
-    # user inputs
-    storage["model"] = eliobj.model
-    storage["parameters"] = eliobj.parameters
-    storage["targets"] = eliobj.targets
-    storage["expert"] = eliobj.expert
-    storage["settings"] = eliobj.settings
-    # results
-    if hasattr(eliobj, "results"):
-        storage["results"] = eliobj.results
-    else:
-        storage["temp_results"] = []
-        storage["temp_history"] = []
+    storage = record(eliobj)
+    if hasattr(eliobj, "panel"):
+        panel = eliobj.panel
+        storage["panel"] = dict(
+            experts=panel.experts,
+            pool=panel.pool,
+            tau=panel.tau,
+            fits=None
+            if panel.fits is None
+            else {name: record(fit.eliobj) for name, fit in panel.fits.items()},
+            joint=None if panel.joint is None else record(panel.joint.eliobj),
+        )
 
     save_as_pkl(storage, path + ".pkl")
 
     print(f"saved in: {path}.pkl")
+
+
+def record(eliobj: Any) -> dict[str, Any]:
+    """
+    Return the inputs of one ``eliobj``, and its results if it was fitted
+
+    Parameters
+    ----------
+    eliobj
+        Instance of the [`Elicit`][elicito.elicit.Elicit] class.
+
+    Returns
+    -------
+    record :
+        the arguments that build the ``eliobj`` again, its answers, the
+        penalty of a pooled panel, and the results.
+
+    """
+    stored = dict(
+        model=eliobj.model,
+        parameters=eliobj.parameters,
+        targets=eliobj.targets,
+        expert=eliobj.expert,
+        settings=eliobj.settings,
+        penalty=eliobj.trainer.get("penalty"),
+    )
+    if hasattr(eliobj, "results"):
+        stored["results"] = eliobj.results
+    return stored
 
 
 def read_storage(file: str) -> dict[str, Any]:

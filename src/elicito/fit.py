@@ -353,7 +353,10 @@ class Panel:
         fits: dict[str, Fit] | None = None,
         joint: Fit | None = None,
         tau: dict[str, float] | None = None,
+        eliobj: "Elicit | None" = None,
     ) -> None:
+        # the Elicit object that fitted the panel
+        self.eliobj = eliobj
         self.experts = experts
         self.pool = pool
         # one fit for each expert without pooling, else one joint fit
