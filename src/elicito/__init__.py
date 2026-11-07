@@ -7,8 +7,6 @@ import importlib.metadata
 import tensorflow as tf
 
 from elicito import (
-    consistency,
-    diagnostics,
     initializers,
     losses,
     models,
@@ -41,8 +39,6 @@ __version__ = importlib.metadata.version("elicito")
 
 __all__ = [
     "Elicit",
-    "consistency",
-    "diagnostics",
     "expert",
     "hyper",
     "initializer",
