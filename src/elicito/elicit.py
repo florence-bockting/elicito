@@ -149,9 +149,9 @@ class Elicit:
 
     def __init__(  # noqa: PLR0913
         self,
-        model: Callable[..., Any],
+        model: Any,
         targets: list[Target],
-        parameters: list[Parameter],
+        parameters: list[Parameter] | None = None,
         *,
         network: NFDict | None = None,
         initializer: Initializer | None = None,
@@ -171,14 +171,17 @@ class Elicit:
         Parameters
         ----------
         model
-            generative model: a callable that takes the prior samples.
+            a PyMC model, or a callable that takes the prior samples. Bind
+            other model arguments with `functools.partial`.
 
         targets
             list of target quantities, specified with a target constructor
             such as [`quantiles`][elicito.specs.quantiles].
 
         parameters
-            list of model parameters specified with [`parameter`][elicito.specs.parameter].
+            list of model parameters from [`parameter`][elicito.specs.parameter].
+            Optional for a PyMC model: elicito reads its priors. A given list
+            replaces them.
 
         network
             normalizing flow from [`networks`][elicito.parameters.networks].
@@ -245,6 +248,8 @@ class Elicit:
         Raises
         ------
         ValueError
+            a callable model and no ``parameters``.
+
             ``optimizer`` is not ``"auto"``, ``"cmaes"``, ``"adam"`` or a
             tf.keras optimizer.
 
@@ -270,7 +275,8 @@ class Elicit:
             implemented as base distribution. See
             [GitHub issue #35](https://github.com/florence-bockting/prior_elicitation/issues/35).
 
-        """  # noqa: E501
+        """
+        generator, params = _settings.model(model, parameters)
         seeds = _settings.seeds(seeds)
         self.settings: dict[str, Any] = dict(
             network=network,
@@ -292,8 +298,8 @@ class Elicit:
         initializer = _default_initializer(optimizer, initializer)
 
         _checks.check_elicit(
-            model,
-            parameters,
+            generator,
+            params,
             targets,
             trainer,
             optimizer,
@@ -301,8 +307,8 @@ class Elicit:
             initializer,
         )
 
-        self.model = model
-        self.parameters = parameters
+        self.model = generator
+        self.parameters = params
         self.targets = targets
         # fit() sets the answers
         self.expert: ExpertDict | None = None

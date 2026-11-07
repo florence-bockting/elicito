@@ -2,18 +2,40 @@
 Turn the flat settings of Elicit into the internal settings
 """
 
+import sys
 import warnings
+from collections.abc import Callable
 from numbers import Integral
 from typing import Any
 
 import tensorflow as tf
 
 from elicito.optimizers.cmaes import CMAES
-from elicito.types import Trainer
+from elicito.types import Parameter, Trainer
 
 AUTO = "auto"
 ADAM = "adam"
 ADAM_LEARNING_RATE = 0.1
+
+
+def model(
+    model: Any, parameters: list[Parameter] | None
+) -> tuple[Callable[..., Any], list[Parameter]]:
+    """
+    Translate a PyMC model, and read its priors if parameters is None
+    """
+    # a user with a PyMC model has imported pymc
+    pm = sys.modules.get("pymc")
+    if pm is not None and isinstance(model, pm.Model):
+        from elicito.adapter import pymc as adapter_pymc
+
+        if parameters is None:
+            parameters = adapter_pymc.parameters(model)
+        return adapter_pymc.model(model)(), parameters
+    if parameters is None:
+        msg = "A callable model needs parameters=[el.parameter(...), ...]."
+        raise ValueError(msg)
+    return model, parameters
 
 
 def method(network: Any) -> str:

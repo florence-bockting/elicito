@@ -69,3 +69,8 @@ def test_cmaes_settings_without_cmaes_warn():
 def test_unknown_optimizer_raises():
     with pytest.raises(ValueError, match="optimizer must be"):
         _settings.optimizer("sgd", None, None)
+
+
+def test_a_callable_model_needs_parameters():
+    with pytest.raises(ValueError, match="needs parameters"):
+        _settings.model(lambda prior_samples: prior_samples, None)

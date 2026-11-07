@@ -304,8 +304,7 @@ def _slice(i):
 
 def test_set_hyperparameters_writes_the_learned_values(toy_model):
     eliobj = el.Elicit(
-        model=adapter_pymc.model(toy_model)(),
-        parameters=adapter_pymc.parameters(toy_model),
+        model=toy_model,
         targets=[
             el.quantiles(
                 f"y_X{i}",
@@ -343,3 +342,16 @@ def test_set_hyperparameters_writes_the_learned_values(toy_model):
     # the PyMC prior now draws with the learned values
     draws = pm.draw(toy_model["beta0"], draws=20_000, random_seed=1)
     assert abs(draws.mean() - learned["mu0"]) < 5 * learned["sigma0"] / np.sqrt(20_000)
+
+
+def test_elicit_reads_the_priors_of_a_pymc_model(toy_model):
+    eliobj = el.Elicit(toy_model, [el.identity("y")], dry_run=False)
+    expected = [p["name"] for p in adapter_pymc.parameters(toy_model)]
+    assert [p["name"] for p in eliobj.parameters] == expected
+    check_model(eliobj.model)
+
+
+def test_a_given_parameter_list_replaces_the_priors(toy_model):
+    given = adapter_pymc.parameters(toy_model)[:1]
+    eliobj = el.Elicit(toy_model, [el.identity("y")], given, dry_run=False)
+    assert eliobj.parameters is given
