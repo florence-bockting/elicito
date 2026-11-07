@@ -23,8 +23,10 @@ def fitted_eliobj():
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
         expert=base_eliobj.expert,
-        optimizer=base_eliobj.optimizer,
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=1, progress=0),
+        optimizer=base_eliobj.settings["optimizer"],
+        seeds=(0,),
+        epochs=1,
+        verbose=False,
         initializer=el.initializer(
             method="sobol",
             iterations=1,
@@ -47,8 +49,9 @@ def unfitted_eliobj():
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
         expert=base_eliobj.expert,
-        optimizer=base_eliobj.optimizer,
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=2),
+        optimizer=base_eliobj.settings["optimizer"],
+        seeds=(0,),
+        epochs=2,
         initializer=el.initializer(
             method="sobol",
             iterations=2,
@@ -269,10 +272,11 @@ def test_plots_without_an_initialization_group():
         parameters=base.parameters,
         targets=base.targets,
         expert=base.expert,
-        optimizer=el.optimizer(
-            optimizer=el.optimizers.cmaes.CMAES, sigma0=0.5, popsize=4
-        ),
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=8, progress=0),
+        optimizer="cmaes",
+        cmaes=dict(sigma0=0.5, popsize=4),
+        seeds=(0,),
+        epochs=8,
+        verbose=False,
     )
     eliobj.fit()
     assert "initialization" not in eliobj.results.children
@@ -309,10 +313,11 @@ def test_plots_accept_a_cmaes_fit():
         parameters=base.parameters,
         targets=base.targets,
         expert=base.expert,
-        optimizer=el.optimizer(
-            optimizer=el.optimizers.cmaes.CMAES, sigma0=0.5, popsize=4
-        ),
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=12, progress=0),
+        optimizer="cmaes",
+        cmaes=dict(sigma0=0.5, popsize=4),
+        seeds=(0,),
+        epochs=12,
+        verbose=False,
     )
     eliobj.fit()
 

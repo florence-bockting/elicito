@@ -132,10 +132,9 @@ eliobj = el.Elicit(
     ],
     # expert=el.expert.data(dat = expert_dat),
     expert=el.expert.simulator(ground_truth=ground_truth, num_samples=10_000),
-    optimizer=el.optimizer(
-        optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
-    ),
-    trainer=el.trainer(method="parametric_prior", seed=0, epochs=100),
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.1, clipnorm=1.0),
+    seeds=(0,),
+    epochs=100,
     initializer=el.initializer(
         method="random",
         iterations=2,

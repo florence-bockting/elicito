@@ -97,10 +97,7 @@ def save(
     storage["parameters"] = eliobj.parameters
     storage["targets"] = eliobj.targets
     storage["expert"] = eliobj.expert
-    storage["optimizer"] = eliobj.optimizer
-    storage["trainer"] = eliobj.trainer
-    storage["initializer"] = eliobj.initializer
-    storage["network"] = eliobj.network
+    storage["settings"] = eliobj.settings
     # results
     if hasattr(eliobj, "results"):
         storage["results"] = eliobj.results

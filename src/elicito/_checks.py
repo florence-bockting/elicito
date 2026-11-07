@@ -62,10 +62,9 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
     # of a normalizing flow are thousands of dimensions, which it cannot search.
     if optimizer["optimizer"] == cmaes.CMAES and trainer["method"] == "deep_prior":
         msg = (
-            f"optimizer='{cmaes.CMAES}' can only be used with "
-            "method='parametric_prior'. The 'deep_prior' method has too many "
-            "trainable variables for a derivative-free search. Use a "
-            "tf.keras optimizer instead."
+            f"optimizer='{cmaes.CMAES}' cannot learn a deep prior. A network "
+            "has too many trainable variables for a derivative-free search. "
+            "Use optimizer='auto' or a tf.keras optimizer instead."
         )
         raise ValueError(msg)
 

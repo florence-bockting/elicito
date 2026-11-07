@@ -89,9 +89,7 @@ def test_parametric_prior():
         }
     )
 
-    optimizer = el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.05)
-
-    trainer = el.trainer(method="parametric_prior", seed=2025, epochs=6)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.05)
 
     initializer = el.initializer(
         method="random",
@@ -105,7 +103,8 @@ def test_parametric_prior():
         targets=targets,
         expert=expert,
         optimizer=optimizer,
-        trainer=trainer,
+        seeds=(2025,),
+        epochs=6,
         initializer=initializer,
     )
 
@@ -193,9 +192,7 @@ def test_invertible_network():
         }
     )
 
-    optimizer = el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.05)
-
-    trainer = el.trainer(method="parametric_prior", seed=2025, epochs=6)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.05)
 
     initializer = el.initializer(
         method="random",
@@ -209,7 +206,8 @@ def test_invertible_network():
         targets=targets,
         expert=expert,
         optimizer=optimizer,
-        trainer=trainer,
+        seeds=(2025,),
+        epochs=6,
         initializer=initializer,
     )
 
@@ -217,11 +215,7 @@ def test_invertible_network():
         el.parameter(name="sigma", lower=0),
     ]
 
-    optimizer_deep = el.optimizer(
-        optimizer=tf.keras.optimizers.Adam, learning_rate=0.001
-    )
-
-    trainer_deep = el.trainer(method="deep_prior", seed=2025, epochs=6)
+    optimizer_deep = tf.keras.optimizers.Adam(learning_rate=0.001)
 
     network = el.networks.NF(
         inference_network=InvertibleNetwork,
@@ -248,7 +242,6 @@ def test_invertible_network():
     eliobj_deep.update(
         parameters=parameters_deep,
         optimizer=optimizer_deep,
-        trainer=trainer_deep,
         initializer=None,
         network=network,
     )

@@ -322,8 +322,10 @@ def test_set_hyperparameters_writes_the_learned_values(toy_model):
             },
             num_samples=1_000,
         ),
-        optimizer=el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.1),
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=2, progress=0),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
+        seeds=(0,),
+        epochs=2,
+        verbose=False,
         initializer=el.initializer(
             method="sobol",
             iterations=1,

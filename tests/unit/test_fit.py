@@ -49,15 +49,12 @@ def fit():
                 "y2": [1.0, 2.0, 3.0],
             }
         ),
-        optimizer=el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.1),
-        trainer=el.trainer(
-            method="parametric_prior",
-            seed=1,
-            epochs=2,
-            B=8,
-            num_samples=50,
-            progress=0,
-        ),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
+        seeds=(1,),
+        epochs=2,
+        verbose=False,
+        B=8,
+        num_samples=50,
         initializer=el.initializer(
             "random",
             distribution=el.initializers.uniform(radius=1, mean=0),

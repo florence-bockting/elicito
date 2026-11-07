@@ -5,7 +5,6 @@ The Elicit object, which fits, samples and saves an elicitation method
 import warnings
 from collections import defaultdict
 from collections.abc import Callable
-from types import SimpleNamespace
 from typing import Any
 
 import joblib
@@ -18,6 +17,7 @@ from joblib.externals.loky.backend.context import (  # type: ignore [import-unty
 from elicito import (
     _checks,
     _outputs,
+    _settings,
     _storage,
     initializers,
     models,
@@ -33,7 +33,6 @@ from elicito.parameters.priors import Priors
 from elicito.types import (
     ExpertDict,
     Initializer,
-    MetaSettings,
     NFDict,
     Parallel,
     Parameter,
@@ -54,14 +53,14 @@ def _default_initializer(
     if initializer is not None:
         warnings.warn(
             f"optimizer='{optimizers.cmaes.CMAES}' ignores the initializer. "
-            "Set the step size with el.optimizer(sigma0=...).",
+            "Set the step size with cmaes=dict(sigma0=...).",
             UserWarning,
             stacklevel=3,
         )
     return initializers.initializer(method=SamplingMethod.cmaes)
 
 
-def dry_run(  # noqa: PLR0913
+def _dry_run(  # noqa: PLR0913
     model: dict[str, Any],
     parameters: list[Parameter],
     targets: list[Target],
@@ -141,14 +140,21 @@ class Elicit:
     def __init__(  # noqa: PLR0913
         self,
         model: dict[str, Any],
-        parameters: list[Parameter],
         targets: list[Target],
+        parameters: list[Parameter],
         expert: ExpertDict,
-        trainer: Trainer,
-        optimizer: dict[str, Any],
+        *,
         network: NFDict | None = None,
         initializer: Initializer | None = None,
-        meta_settings: MetaSettings | None = None,
+        optimizer: Any = "auto",
+        cmaes: dict[str, Any] | None = None,
+        seeds: tuple[int, ...] = (0,),
+        epochs: int = 600,
+        B: int = 128,
+        num_samples: int = 200,
+        kappa: float = 0.0,
+        verbose: bool = True,
+        dry_run: bool = True,
     ):
         """
         Specify the elicitation method
@@ -158,40 +164,73 @@ class Elicit:
         model
             specification of generative model using [`model`][elicito.specs.model].
 
-        parameters
-            list of model parameters specified with [`parameter`][elicito.specs.parameter].
-
         targets
             list of target quantities, specified with a target constructor
             such as [`quantiles`][elicito.specs.quantiles].
+
+        parameters
+            list of model parameters specified with [`parameter`][elicito.specs.parameter].
 
         expert
             provide input data from expert or simulate data from oracle with
             either the ``data`` or ``simulator`` method of the
             [`Expert`][elicito.specs.Expert] module.
 
-        trainer
-            specification of training settings and meta-information for
-            workflow using [`trainer`][elicito.specs.trainer].
-
-        optimizer
-            specification of SGD optimizer and its settings using
-            [`optimizer`][elicito.specs.optimizer].
-
         network
-            specification of neural network using a method implemented in
-            [`networks`][elicito.parameters.networks].
-            Only required for ``deep_prior`` method.
+            normalizing flow from [`networks`][elicito.parameters.networks].
+            A network means a deep prior: one joint prior of all parameters.
+            Without a network, elicito learns one parametric prior for each
+            parameter.
 
         initializer
             specification of initialization settings using
             [`initializer`][elicito.initializers.spec.initializer].
-            Only required for ``parametric_prior`` method. With
-            ``optimizer="cmaes"``, the initializer is ignored with a warning.
+            Used for parametric priors only. CMA-ES ignores it with a warning.
 
-        meta_settings
-            dictionary of meta settings for the elicitation workflow. See
-            [`meta_settings`][elicito.types.MetaSettings] for available options.
+        optimizer
+            ``"auto"`` uses CMA-ES for parametric priors and Adam for a deep
+            prior. ``"cmaes"`` replaces the gradient descent by a CMA-ES search
+            ([`cma_training`][elicito.optimizers.cmaes.cma_training]). It needs
+            no gradient, and it can leave a local basin. It is available for
+            parametric priors only. ``"adam"`` uses Adam with a learning rate
+            of 0.1. For other settings, give a
+            [`tf.keras` optimizer](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers),
+            for example ``tf.keras.optimizers.Adam(learning_rate=0.01)``. Each
+            run starts with a new optimizer with these settings.
+
+        cmaes
+            settings of the CMA-ES search. ``sigma0`` is the first step size
+            on the unconstrained scale, one number for every coordinate. Give
+            a dictionary ``{hyperparameter name: step size}`` if the
+            hyperparameters do not live on the same scale. A name that is not
+            given gets the default step size. ``popsize`` is the number of
+            candidates in one generation. Ignored with a warning if the
+            optimizer is not CMA-ES.
+
+        seeds
+            seeds of the training. One replication runs for each seed.
+
+        epochs
+            number of epochs. With CMA-ES, ``epochs`` is the budget in forward
+            simulations, not the number of generations.
+
+        B
+            batch size.
+
+        num_samples
+            number of samples from the prior(s).
+
+        kappa
+            weight of the spread penalty. The penalty keeps a prior away from
+            a point mass. Use it when a hyperparameter is not identified by
+            the elicited statistics. A value of 0 disables the penalty.
+
+        verbose
+            show the training progress.
+
+        dry_run
+            run the generative model once in forward mode before the
+            training. The print method then shows the shapes of all tensors.
 
         Returns
         -------
@@ -210,18 +249,21 @@ class Elicit:
             target names.
 
         ValueError
-            if ``method = "deep_prior"``, ``network`` can't be None and ``initialization``
-            should be None.
+            ``optimizer`` is not ``"auto"``, ``"cmaes"``, ``"adam"`` or a
+            tf.keras optimizer.
 
-            if ``method="deep_prior"``, ``num_params`` as specified in the ``network_specs``
-            argument (section: network) does not match the number of parameters
-            specified in the parameters section.
+            ``optimizer="cmaes"`` is given with a ``network``.
 
-            if ``method="parametric_prior"``, ``network`` should be None and
-            ``initialization`` can't be None.
+            with a ``network``, ``initializer`` is not None.
 
-            if ``method ="parametric_prior" and multiple hyperparameter have
-            the same name but are not shared by setting ``shared = True``."
+            with a ``network``, ``num_params`` of the network does not match
+            the number of parameters.
+
+            without a ``network``, ``initializer`` is None and the optimizer
+            is not CMA-ES.
+
+            multiple hyperparameters have the same name but are not shared by
+            setting ``shared = True``.
 
             if ``hyperparams`` is specified in section ``initializer`` and a
             hyperparameter name (key in hyperparams dict) does not match any
@@ -233,9 +275,24 @@ class Elicit:
             [GitHub issue #35](https://github.com/florence-bockting/prior_elicitation/issues/35).
 
         """  # noqa: E501
-        if meta_settings is None:
-            meta_settings = specs.meta_settings()
-
+        self.settings: dict[str, Any] = dict(
+            network=network,
+            initializer=initializer,
+            optimizer=optimizer,
+            cmaes=cmaes,
+            seeds=seeds,
+            epochs=epochs,
+            B=B,
+            num_samples=num_samples,
+            kappa=kappa,
+            verbose=verbose,
+            dry_run=dry_run,
+        )
+        trainer = _settings.trainer(
+            network, seeds, epochs, B, num_samples, kappa, verbose
+        )
+        optimizer = _settings.optimizer(optimizer, cmaes, network)
+        meta_settings = specs.meta_settings(dry_run=dry_run)
         initializer = _default_initializer(optimizer, initializer)
 
         _checks.check_elicit(
@@ -278,7 +335,7 @@ class Elicit:
                 self.dry_modelsims,
                 self.dry_targets,
                 self.dry_prior_model,
-            ) = dry_run(
+            ) = _dry_run(
                 self.model,
                 self.parameters,
                 self.targets,
@@ -720,10 +777,7 @@ class Elicit:
             parameters=storage["parameters"],
             targets=storage["targets"],
             expert=storage["expert"],
-            optimizer=storage["optimizer"],
-            trainer=storage["trainer"],
-            initializer=storage["initializer"],
-            network=storage["network"],
+            **storage["settings"],
         )
 
         # add results if already fitted
@@ -735,97 +789,54 @@ class Elicit:
 
         return eliobj
 
-    def update(self, **kwargs: dict[Any, Any]) -> None:
+    def update(self, **kwargs: Any) -> None:
         """
-        Update attributes of Elicit object
+        Update the inputs of the Elicit object
 
-        Method for updating the attributes of the Elicit class. Updating
-        an eliobj leads to an automatic reset of results.
+        Updating an eliobj resets its results.
 
         Parameters
         ----------
         **kwargs
-            keyword argument used for updating an attribute of Elicit class.
-            Key must correspond to one attribute of the class and value refers
-            to the updated value.
+            new values for the arguments of [`Elicit`][elicito.elicit.Elicit],
+            for example ``epochs=200`` or ``optimizer="adam"``.
 
         Raises
         ------
         ValueError
-            key of provided keyword argument is not an eliobj attribute. Please
-            check `dir(eliobj)`.
+            a keyword is not an argument of [`Elicit`][elicito.elicit.Elicit].
 
         Examples
         --------
-        >>> eliobj.update(parameter=updated_parameter_dict)  # doctest: +SKIP
+        >>> eliobj.update(epochs=200)  # doctest: +SKIP
 
         """
-        # check that arguments exist as eliobj attributes
-        for key in kwargs:
-            if str(key) not in [
-                "model",
-                "parameters",
-                "targets",
-                "expert",
-                "trainer",
-                "optimizer",
-                "network",
-                "initializer",
-            ]:
-                msg = (
-                    f"{key=} is not an eliobj attribute. "
-                    + "Use dir() to check for attributes.",
-                )
-                raise ValueError(msg)
-
-        # create first test variables
-        test = SimpleNamespace(
+        inputs = dict(
             model=self.model,
-            parameters=self.parameters,
             targets=self.targets,
+            parameters=self.parameters,
             expert=self.expert,
-            trainer=self.trainer,
-            optimizer=self.optimizer,
-            network=self.network,
-            initializer=self.initializer,
-            meta_settings=self.meta_settings,
+            **self.settings,
         )
+        unknown = set(kwargs) - set(inputs)
+        if unknown:
+            msg = f"{sorted(unknown)} are not arguments of Elicit."
+            raise ValueError(msg)
+        inputs.update(kwargs)
+        # CMA-ES ignores an initializer: drop it, unless it is given here
+        new_optimizer = inputs["optimizer"]
+        if "initializer" not in kwargs and isinstance(new_optimizer, str):
+            if new_optimizer == optimizers.cmaes.CMAES or (
+                new_optimizer == _settings.AUTO and inputs["network"] is None
+            ):
+                inputs["initializer"] = None
 
-        for key, value in kwargs.items():
-            setattr(test, key, value)
-
-        if (
-            "initializer" not in kwargs
-            and test.optimizer["optimizer"] == optimizers.cmaes.CMAES
-        ):
-            test.initializer = None
-        test.initializer = _default_initializer(test.optimizer, test.initializer)
-
-        _checks.check_elicit(
-            test.model,
-            test.parameters,
-            test.targets,
-            test.expert,
-            test.trainer,
-            test.optimizer,
-            test.network,
-            test.initializer,
-            test.meta_settings,
-        )
-
-        # only if checks pass update variables of Elicit
-        for i, key in enumerate(kwargs):
-            setattr(self, key, kwargs[key])
-            # reset results
-            if hasattr(self, "results"):
-                delattr(self, "results")
-            self.temp_results = list()
-            self.temp_history = list()
-            if i == 0:
-                # inform user about reset of results
-                print("INFO: Results have been reset.")
-        # a kwarg initializer=None must not replace the CMA-ES default
-        self.initializer = test.initializer
+        # the constructor runs the checks before self changes
+        updated = type(self)(**inputs)
+        self.__dict__.clear()
+        self.__dict__.update(updated.__dict__)
+        if kwargs:
+            print("INFO: Results have been reset.")
 
     def workflow(self, seed: int) -> tuple[Any, ...]:
         """

@@ -48,10 +48,9 @@ def test_output_hyperparameter_names():
             ),
         ],
         expert=el.expert.data(summary_data),
-        optimizer=el.optimizer(
-            optimizer=tf.keras.optimizers.Adam, learning_rate=0.0, clipnorm=1.0
-        ),
-        trainer=el.trainer(method="parametric_prior", seed=123, epochs=1, progress=1),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0, clipnorm=1.0),
+        seeds=(123,),
+        epochs=1,
         initializer=el.initializer(
             hyperparams=dict(mu_mu=1.0, sigma_mu=0.5, l_tau=0.1, d_tau=0.4)
         ),

@@ -44,8 +44,9 @@ def eliobj():
         ],
         targets=[el.quantiles("b0", probs=(0.5,), loss=el.losses.L2)],
         expert=el.expert.data({"b0": [0.5]}),
-        optimizer=el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.1),
-        trainer=el.trainer(method="parametric_prior", seed=42, epochs=1),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
+        seeds=(42,),
+        epochs=1,
         initializer=el.initializer(
             "random",
             distribution=el.initializers.uniform(radius=1, mean=0),
@@ -137,30 +138,28 @@ def test_initializer_network(eliobj, network):
     with pytest.raises(ValueError, match=msg1):
         eliobj.update(initializer=None, network=None)
 
-    msg2 = (
-        "If method is 'parametric prior' "
-        "the 'network' is not used and should be set to None."
+    # a network means a deep prior, which uses no initializer
+    msg4 = (
+        "For method 'deep_prior' the "
+        "'initializer' is not used and should be set to None."
     )
-    with pytest.raises(ValueError, match=msg2):
+    with pytest.raises(ValueError, match=msg4):
         eliobj.update(network=network)
 
     # correct
     eliobj.update(
-        trainer=el.trainer(method="deep_prior", epochs=1, seed=123),
+        seeds=(123,),
+        epochs=1,
         network=network,
         initializer=None,
     )
 
     assert eliobj.network == network
 
-    msg3 = "If method is 'deep prior', " " the section 'network' can't be None."
-    with pytest.raises(ValueError, match=msg3):
+    # without a network, the gradient optimizer needs an initializer
+    with pytest.raises(ValueError, match=msg1):
         eliobj.update(network=None)
 
-    msg4 = (
-        "For method 'deep_prior' the "
-        "'initializer' is not used and should be set to None."
-    )
     with pytest.raises(ValueError, match=msg4):
         eliobj.update(
             initializer=el.initializer(
@@ -181,7 +180,8 @@ def test_network_parameter(eliobj, network):
     )
     with pytest.raises(ValueError, match=msg):
         eliobj.update(
-            trainer=el.trainer(method="deep_prior", epochs=1, seed=123),
+            seeds=(123,),
+            epochs=1,
             initializer=None,
             network=network,
             parameters=[
@@ -205,7 +205,8 @@ def test_network_base(eliobj):
     )
     with pytest.raises(NotImplementedError, match=msg):
         eliobj.update(
-            trainer=el.trainer(method="deep_prior", epochs=1, seed=123),
+            seeds=(123,),
+            epochs=1,
             initializer=None,
             network=el.networks.NF(
                 inference_network=el.networks.InvertibleNetwork,
@@ -362,14 +363,13 @@ def test_str_method(dry_run):
             ),
         ],
         expert=el.expert.data(summary_data),
-        optimizer=el.optimizer(
-            optimizer=tf.keras.optimizers.Adam, learning_rate=0.0, clipnorm=1.0
-        ),
-        trainer=el.trainer(method="parametric_prior", seed=123, epochs=1, progress=1),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0, clipnorm=1.0),
+        seeds=(123,),
+        epochs=1,
         initializer=el.initializer(
             hyperparams=dict(mu_mu=1.0, sigma_mu=0.5, l_tau=0.1, d_tau=0.4)
         ),
-        meta_settings=el.meta_settings(dry_run=dry_run),
+        dry_run=dry_run,
     )
 
     obs_eliobj = eliobj.__str__()
@@ -426,10 +426,9 @@ def test_eliobj_fit():
             ),
         ],
         expert=el.expert.data(summary_data),
-        optimizer=el.optimizer(
-            optimizer=tf.keras.optimizers.Adam, learning_rate=0.0, clipnorm=1.0
-        ),
-        trainer=el.trainer(method="parametric_prior", seed=123, epochs=1, progress=1),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0, clipnorm=1.0),
+        seeds=(123,),
+        epochs=1,
         initializer=el.initializer(
             hyperparams=dict(mu_mu=1.0, sigma_mu=0.5, l_tau=0.1, d_tau=0.4)
         ),
@@ -465,9 +464,7 @@ def test_eliobj_fit():
 
     # check that placeholder for storing results are accurately
     # reset when updating eliobj
-    eliobj2.update(
-        trainer=el.trainer(method="parametric_prior", seed=125, epochs=1, progress=0)
-    )
+    eliobj2.update(seeds=(125,), epochs=1, verbose=False)
 
     assert hasattr(eliobj2, "temp_results")
     assert hasattr(eliobj2, "temp_history")
@@ -532,10 +529,10 @@ def test_warmup_epochs_changes_candidate_loss():
                 ),
             ],
             expert=el.expert.data(summary_data),
-            optimizer=el.optimizer(
-                optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
-            ),
-            trainer=el.trainer(method="parametric_prior", seed=7, epochs=1, progress=0),
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.1, clipnorm=1.0),
+            seeds=(7,),
+            epochs=1,
+            verbose=False,
             initializer=el.initializer(
                 method="sobol",
                 iterations=2,
@@ -662,12 +659,11 @@ def _overflow_eliobj(overflow):
         ],
         targets=[el.quantiles("y_obs", probs=(0.25, 0.5, 0.75), loss=el.losses.L2)],
         expert=el.expert.data({"y_obs": [-0.7, 0.1, 0.8]}),
-        optimizer=el.optimizer(
-            optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
-        ),
-        trainer=el.trainer(
-            method="parametric_prior", seed=0, epochs=1, progress=0, num_samples=50
-        ),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.1, clipnorm=1.0),
+        seeds=(0,),
+        epochs=1,
+        verbose=False,
+        num_samples=50,
         initializer=el.initializer(
             method="sobol",
             iterations=4,
@@ -791,7 +787,6 @@ def test_cmaes_is_a_registered_initialization_method():
 
 
 def test_cma_search_returns_one_value_per_hyperparameter():
-
     expert_elicits, _ = el.utils.get_expert_data(
         base_eliobj.trainer,
         base_eliobj.model,
@@ -848,7 +843,7 @@ def _cmaes_eliobj(
     epochs,
     sigma0=0.5,
     popsize=4,
-    method="parametric_prior",
+    network=None,
 ):
     """an eliobj that is fitted with the CMA-ES search instead of a gradient"""
     return Elicit(
@@ -856,22 +851,25 @@ def _cmaes_eliobj(
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
         expert=base_eliobj.expert,
-        optimizer=el.optimizer(
-            optimizer=el.optimizers.cmaes.CMAES, sigma0=sigma0, popsize=popsize
-        ),
-        trainer=el.trainer(method=method, seed=0, epochs=epochs, progress=0),
+        optimizer="cmaes",
+        cmaes=dict(sigma0=sigma0, popsize=popsize),
+        seeds=(0,),
+        epochs=epochs,
+        verbose=False,
+        network=network,
     )
 
 
 def test_cmaes_fills_a_missing_initializer(eliobj):
-    cma = el.optimizer(optimizer=el.optimizers.cmaes.CMAES)
+    cma = el.optimizers.cmaes.CMAES
     new = Elicit(
         model=base_eliobj.model,
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
         expert=base_eliobj.expert,
         optimizer=cma,
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=2),
+        seeds=(0,),
+        epochs=2,
     )
     assert new.initializer["method"] == "cmaes"
 
@@ -881,16 +879,15 @@ def test_cmaes_fills_a_missing_initializer(eliobj):
 
 def test_cmaes_update_replaces_the_stored_initializer(eliobj):
     """an initializer stored before the switch is not a choice of the user"""
-    cma = el.optimizer(optimizer=el.optimizers.cmaes.CMAES)
+    cma = el.optimizers.cmaes.CMAES
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         eliobj.update(optimizer=cma)
-        eliobj.update(trainer=el.trainer(method="parametric_prior", seed=1, epochs=2))
+        eliobj.update(seeds=(1,), epochs=2)
     assert eliobj.initializer["method"] == "cmaes"
 
 
 def test_cma_training_records_one_point_per_generation():
-
     eliobj = _cmaes_eliobj(epochs=12)
     eliobj.fit()
 
@@ -904,7 +901,6 @@ def test_cma_training_records_one_point_per_generation():
 
 
 def test_cma_training_spends_the_budget(monkeypatch):
-
     calls = []
     original = el.optimizers.search.evaluate
 
@@ -922,7 +918,6 @@ def test_cma_training_spends_the_budget(monkeypatch):
 
 
 def test_cma_training_improves_the_loss():
-
     eliobj = _cmaes_eliobj(epochs=40)
     eliobj.fit()
 
@@ -960,7 +955,6 @@ def test_step_size_rejects_an_unknown_hyperparameter():
 
 
 def test_cma_training_accepts_a_step_size_per_hyperparameter():
-
     eliobj = _cmaes_eliobj(epochs=12, sigma0=dict(mu0=0.1, sigma2=1.0))
     eliobj.fit()
 
@@ -1005,7 +999,6 @@ def test_box_step_size_reads_the_radius_of_the_box():
 
 
 def test_cma_training_runs_no_search_before_it(monkeypatch):
-
     calls = []
     monkeypatch.setattr(
         el.optimizers.cmaes, "cma_search", lambda **kwargs: calls.append(1) or {}
@@ -1020,9 +1013,9 @@ def test_cma_training_runs_no_search_before_it(monkeypatch):
     assert np.all(np.isfinite(loss))
 
 
-def test_cmaes_optimizer_rejects_the_deep_prior_method():
-    with pytest.raises(ValueError, match="parametric_prior"):
-        _cmaes_eliobj(epochs=12, method="deep_prior")
+def test_cmaes_optimizer_rejects_the_deep_prior_method(network):
+    with pytest.raises(ValueError, match="cannot learn a deep prior"):
+        _cmaes_eliobj(epochs=12, network=network)
 
 
 def test_cmaes_optimizer_ignores_an_initializer():

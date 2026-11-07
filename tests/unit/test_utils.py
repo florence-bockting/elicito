@@ -31,8 +31,10 @@ def fitted_eliobj():
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
         expert=base_eliobj.expert,
-        optimizer=base_eliobj.optimizer,
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=1, progress=0),
+        optimizer=base_eliobj.settings["optimizer"],
+        seeds=(0,),
+        epochs=1,
+        verbose=False,
         initializer=el.initializer(
             method="sobol",
             iterations=1,
@@ -189,16 +191,17 @@ class DummyEliobj_empty:
         ]
         self.targets = [el.quantiles("b0", probs=(0.5,), loss=el.losses.L2)]
         self.expert = el.expert.data({"b0": 0.5})
-        self.optimizer = el.optimizer(
-            optimizer=tf.keras.optimizers.Adam, learning_rate=0.1
+        self.trainer = dict(method="parametric_prior", seed=42)
+        self.settings = dict(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
+            seeds=(42,),
+            epochs=1,
+            initializer=el.initializer(
+                "sobol",
+                distribution=el.initializers.uniform(radius=1, mean=0),
+                iterations=1,
+            ),
         )
-        self.trainer = el.trainer(method="parametric_prior", seed=42, epochs=1)
-        self.initializer = el.initializer(
-            "sobol",
-            distribution=el.initializers.uniform(radius=1, mean=0),
-            iterations=1,
-        )
-        self.network = None
         self.temp_results = []
         self.temp_history = []
 
@@ -215,16 +218,17 @@ class DummyEliobj_fitted:
         ]
         self.targets = [el.quantiles("b0", probs=(0.5,), loss=el.losses.L2)]
         self.expert = el.expert.data({"b0": 0.5})
-        self.optimizer = el.optimizer(
-            optimizer=tf.keras.optimizers.Adam, learning_rate=0.1
+        self.trainer = dict(method="parametric_prior", seed=42)
+        self.settings = dict(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
+            seeds=(42,),
+            epochs=1,
+            initializer=el.initializer(
+                "sobol",
+                distribution=el.initializers.uniform(radius=1, mean=0),
+                iterations=1,
+            ),
         )
-        self.trainer = el.trainer(method="parametric_prior", seed=42, epochs=1)
-        self.initializer = el.initializer(
-            "sobol",
-            distribution=el.initializers.uniform(radius=1, mean=0),
-            iterations=1,
-        )
-        self.network = None
         self.results = [1, 2, 3, 4]
 
 
