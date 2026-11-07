@@ -112,3 +112,90 @@ def test_a_panel_takes_an_oracle():
 
     hyper = panel.joint.hyperparameters()
     assert hyper["mu0__e0"] < hyper["mu0__e1"]
+
+
+@pytest.fixture(scope="module")
+def partial_panel():
+    return _eliobj(pool=el.partial(over=["mu0"], tau=1.0)).fit(EXPERTS)
+
+
+@pytest.fixture(scope="module")
+def complete_panel():
+    return _eliobj(pool="complete").fit(EXPERTS)
+
+
+@pytest.fixture(scope="module")
+def unpooled_panel():
+    return _eliobj().fit(EXPERTS)
+
+
+def test_an_expert_gets_the_panel_value_plus_its_offset(partial_panel):
+    panel = partial_panel.hyperparameters()
+    offsets = partial_panel.offsets()
+    expert = partial_panel.hyperparameters("expert 2")
+
+    assert set(panel) == {"mu0", "sigma0"}
+    assert expert["mu0"] == pytest.approx(panel["mu0"] + float(offsets["mu0"][1]))
+    assert expert["sigma0"] == panel["sigma0"]
+
+
+def test_offsets_have_one_value_for_each_expert(partial_panel):
+    offsets = partial_panel.offsets()
+
+    assert list(offsets.data_vars) == ["mu0"]
+    assert list(offsets["expert"].values) == ["expert 1", "expert 2"]
+
+
+def test_an_unknown_expert_raises(partial_panel):
+    with pytest.raises(KeyError, match="Unknown expert"):
+        partial_panel.hyperparameters("expert 9")
+
+
+def test_complete_pooling_gives_every_expert_the_panel_prior(complete_panel):
+    assert complete_panel.hyperparameters("expert 1") == (
+        complete_panel.hyperparameters()
+    )
+    with pytest.raises(ValueError, match="Only pool=el.partial"):
+        complete_panel.offsets()
+
+
+def test_no_pooling_has_no_panel_values(unpooled_panel):
+    assert set(unpooled_panel.hyperparameters("expert 1")) == {"mu0", "sigma0"}
+    with pytest.raises(ValueError, match="no panel values"):
+        unpooled_panel.hyperparameters()
+    with pytest.raises(ValueError, match="no population prior"):
+        unpooled_panel.population_prior()
+
+
+def test_the_population_prior_holds_the_disagreement(partial_panel):
+    sigma0 = partial_panel.hyperparameters()["sigma0"]
+    draws = partial_panel.population_prior(num_samples=20_000)["beta0"]
+
+    assert draws.dims == ("draw",)
+    expected = (sigma0**2 + 1.0**2) ** 0.5
+    assert float(draws.std()) == pytest.approx(expected, rel=0.05)
+
+
+def test_the_population_prior_of_complete_pooling_is_the_shared_prior(
+    complete_panel,
+):
+    sigma0 = complete_panel.hyperparameters()["sigma0"]
+    draws = complete_panel.population_prior(num_samples=20_000)["beta0"]
+
+    assert float(draws.std()) == pytest.approx(sigma0, rel=0.05)
+
+
+def test_the_population_prior_repeats_with_its_seed(partial_panel):
+    first = partial_panel.population_prior(num_samples=10, seed=3)
+    second = partial_panel.population_prior(num_samples=10, seed=3)
+
+    assert first.equals(second)
+
+
+def test_the_panel_prints_a_row_for_the_panel_and_each_expert(partial_panel):
+    text = repr(partial_panel)
+
+    assert "pool='partial'" in text
+    assert "tau: mu0=1" in text
+    for row in ("panel", "expert 1", "expert 2"):
+        assert row in text

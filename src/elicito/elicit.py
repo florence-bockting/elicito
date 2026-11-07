@@ -956,7 +956,7 @@ class Elicit:
                 name: type(self)(**{**self._inputs(), "pool": None}).fit(experts[name])
                 for name in names
             }
-            return Panel(names, None, fits=fits)
+            return Panel(names, None, self.parameters, fits=fits)
 
         n = len(names)
         partial = pool != _settings.COMPLETE
@@ -976,7 +976,8 @@ class Elicit:
             else self.parameters,
         }
         if not partial:
-            return Panel(names, pool, joint=self._fit_joint(inputs, answers, None))
+            joint = self._fit_joint(inputs, answers, None)
+            return Panel(names, pool, self.parameters, joint=joint)
 
         over = pool["over"]
         tau = pool["tau"]
@@ -999,7 +1000,7 @@ class Elicit:
         elif not isinstance(tau, dict):
             tau = dict.fromkeys(over, float(tau))
         joint = self._fit_joint(inputs, answers, _ridge(over, tau, n))
-        return Panel(names, pool, joint=joint, tau=tau)
+        return Panel(names, pool, self.parameters, joint=joint, tau=tau)
 
     def _answers(self) -> ExpertDict:
         """Return the answers of the last fit"""
