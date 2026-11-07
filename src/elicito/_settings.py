@@ -16,6 +16,7 @@ from elicito.types import Parameter, Target, Trainer
 AUTO = "auto"
 ADAM = "adam"
 ADAM_LEARNING_RATE = 0.1
+COMPLETE = "complete"
 
 
 def model(
@@ -120,6 +121,39 @@ def optimizer(
         f"optimizer. Got {optimizer=}."
     )
     raise ValueError(msg)
+
+
+def pool(pool: Any, network: Any, parameters: list[Parameter] | None) -> Any:
+    """Check the pooling of a panel of experts"""
+    if pool is None:
+        return None
+    if network is not None:
+        msg = "pool= needs a parametric prior. Remove network= or pool=."
+        raise ValueError(msg)
+    if isinstance(pool, str):
+        if pool == COMPLETE:
+            return pool
+        msg = f"pool must be None, '{COMPLETE}' or el.partial(...). Got {pool=}."
+        raise ValueError(msg)
+    names = {
+        hyp["name"] for par in parameters or [] for hyp in par["hyperparams"].values()
+    }
+    unknown = [name for name in pool["over"] if name not in names]
+    if not pool["over"] or unknown:
+        msg = (
+            "el.partial(over=...) must name hyperparameters of the prior. "
+            f"Unknown: {unknown}. Known: {sorted(names)}."
+        )
+        raise ValueError(msg)
+    tau = pool["tau"]
+    if isinstance(tau, dict) and set(tau) != set(pool["over"]):
+        msg = f"tau must have one value for each name in over. Got {tau=}."
+        raise ValueError(msg)
+    values = tau.values() if isinstance(tau, dict) else [tau]
+    if tau is not None and not all(v > 0 for v in values):
+        msg = f"tau must be positive. Got {tau=}."
+        raise ValueError(msg)
+    return pool
 
 
 def trainer(  # noqa: PLR0913

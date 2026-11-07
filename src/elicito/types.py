@@ -125,6 +125,15 @@ class ExpertDict(TypedDict, total=False):
     data: dict[str, list[Any]]
 
 
+class Partial(TypedDict):
+    """
+    typed dictionary of the partial pooling of [`partial`][elicito.specs.partial]
+    """
+
+    over: tuple[str, ...]
+    tau: float | dict[str, float] | None
+
+
 class Uniform(TypedDict):
     """
     typed dictionary for specification of initialization distribution

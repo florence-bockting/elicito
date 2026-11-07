@@ -28,6 +28,7 @@ from elicito.specs import (
     hyper,
     identity,
     parameter,
+    partial,
     quantiles,
     queries,
 )
@@ -51,6 +52,7 @@ __all__ = [
     "optimizers",
     "parameter",
     "parameters",
+    "partial",
     "plots",
     "quantiles",
     "queries",

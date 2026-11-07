@@ -19,6 +19,7 @@ from elicito.types import (
     ExpertDict,
     Hyper,
     Parameter,
+    Partial,
     QueriesDict,
     Target,
     VariableType,
@@ -588,6 +589,41 @@ def custom(
         weight=weight,
         select=select,
     )
+
+
+def partial(
+    over: list[str] | tuple[str, ...],
+    tau: float | dict[str, float] | None = None,
+) -> Partial:
+    """
+    Pool a panel of experts partially.
+
+    Each expert gets an offset from the panel value of the named
+    hyperparameters. The other hyperparameters are shared by all experts.
+
+    Parameters
+    ----------
+    over
+        Names of the hyperparameters that differ between the experts.
+
+    tau
+        Spread of the offsets: the disagreement in the panel. A small value
+        pulls the experts toward the panel value. A float applies to all
+        names in ``over``. A dict gives one value for each name. ``None``
+        estimates the spread from the answers.
+
+    Returns
+    -------
+    pool :
+        Specification of the pooling. Give it to ``Elicit(pool=...)``.
+
+    Examples
+    --------
+    >>> el.partial(over=["mu0", "mu1"])  # doctest: +SKIP
+
+    >>> el.partial(over=["mu0", "mu1"], tau={"mu0": 1.5, "mu1": 0.5})  # doctest: +SKIP
+    """
+    return Partial(over=tuple(over), tau=tau)
 
 
 class Expert:

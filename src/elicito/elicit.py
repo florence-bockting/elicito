@@ -164,6 +164,7 @@ class Elicit:
         kappa: float = 0.0,
         verbose: bool = True,
         dry_run: bool = True,
+        pool: Any = None,
     ):
         """
         Specify the elicitation method
@@ -239,6 +240,12 @@ class Elicit:
             run the generative model once in forward mode before the
             training. The print method then shows the shapes of all tensors.
 
+        pool
+            pooling of a panel of experts. ``None`` fits each expert alone.
+            ``"complete"`` fits one prior for all experts.
+            [`partial`][elicito.specs.partial] gives each expert an offset
+            from the panel prior. Only a parametric prior can be pooled.
+
         Returns
         -------
         eliobj :
@@ -254,6 +261,8 @@ class Elicit:
             tf.keras optimizer.
 
             ``optimizer="cmaes"`` is given with a ``network``.
+
+            ``pool`` is given with a ``network``, or ``pool`` is not valid.
 
             with a ``network``, ``initializer`` is not None.
 
@@ -279,6 +288,7 @@ class Elicit:
         generator, params = _settings.model(model, parameters)
         targets = _settings.targets(targets, generator)
         seeds = _settings.seeds(seeds)
+        pool = _settings.pool(pool, network, params)
         self.settings: dict[str, Any] = dict(
             network=network,
             initializer=initializer,
@@ -291,6 +301,7 @@ class Elicit:
             kappa=kappa,
             verbose=verbose,
             dry_run=dry_run,
+            pool=pool,
         )
         trainer = _settings.trainer(
             network, seeds, epochs, B, num_samples, kappa, verbose
