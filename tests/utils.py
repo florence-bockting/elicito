@@ -130,8 +130,6 @@ eliobj = el.Elicit(
         ),
         # el.quantiles("log_R2", probs=(.05, .25, .50, .75, .95)),
     ],
-    # expert=el.expert.data(dat = expert_dat),
-    expert=el.expert.simulator(ground_truth=ground_truth, num_samples=10_000),
     optimizer=tf.keras.optimizers.Adam(learning_rate=0.1, clipnorm=1.0),
     seeds=(0,),
     epochs=100,
@@ -143,4 +141,4 @@ eliobj = el.Elicit(
     # network = el.networks.NF(...) # TODO vs. el.normalizing_flow(...)
 )
 
-eliobj.fit()
+eliobj.fit(el.expert.simulator(ground_truth=ground_truth, num_samples=10_000))

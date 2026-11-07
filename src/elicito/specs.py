@@ -665,39 +665,6 @@ class Expert:
     specify the expert data
     """
 
-    def data(self, dat: dict[str, list[tf.Tensor]]) -> ExpertDict:
-        """
-        Provide elicited-expert data for learning prior distributions.
-
-        Parameters
-        ----------
-        dat
-            Answers of the expert, keyed by target name.
-
-        Returns
-        -------
-        expert_data :
-            Expert-elicited information used for learning prior distributions.
-
-        Examples
-        --------
-        >>> expert_dat = {  # doctest: +SKIP
-        >>>     "y_X0": [-12.55, -0.57, 3.29, 7.14, 19.15],  # doctest: +SKIP
-        >>>     "y_X1": [-11.18, 1.45, 5.06, 8.83, 20.42],  # doctest: +SKIP
-        >>>     "y_X2": [-9.28, 3.09, 6.83, 10.55, 23.29]  # doctest: +SKIP
-        >>> }  # doctest: +SKIP
-        """
-        # Note: check for correct expert data format is done in Elicit class
-        dat_prep: dict[Any, Any] = {
-            f"{key}": tf.expand_dims(
-                tf.cast(tf.convert_to_tensor(dat[key]), dtype=tf.float32), 0
-            )
-            for key in dat
-        }
-
-        data_dict: ExpertDict = dict(data=dat_prep)
-        return data_dict
-
     def simulator(
         self, ground_truth: dict[str, Any], num_samples: int = 10_000
     ) -> ExpertDict:

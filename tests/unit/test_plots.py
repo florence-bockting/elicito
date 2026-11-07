@@ -22,7 +22,6 @@ def fitted_eliobj():
         model=base_eliobj.model,
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
-        expert=base_eliobj.expert,
         optimizer=base_eliobj.settings["optimizer"],
         seeds=(0,),
         epochs=1,
@@ -33,7 +32,7 @@ def fitted_eliobj():
             distribution=el.initializers.uniform(radius=1.0, mean=0.0),
         ),
     )
-    eliobj_copy.fit()
+    eliobj_copy.fit(base_eliobj.expert)
     return eliobj_copy
 
 
@@ -48,7 +47,6 @@ def unfitted_eliobj():
         model=base_eliobj.model,
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
-        expert=base_eliobj.expert,
         optimizer=base_eliobj.settings["optimizer"],
         seeds=(0,),
         epochs=2,
@@ -271,14 +269,13 @@ def test_plots_without_an_initialization_group():
         model=base.model,
         parameters=base.parameters,
         targets=base.targets,
-        expert=base.expert,
         optimizer="cmaes",
         cmaes=dict(sigma0=0.5, popsize=4),
         seeds=(0,),
         epochs=8,
         verbose=False,
     )
-    eliobj.fit()
+    eliobj.fit(base.expert)
     assert "initialization" not in eliobj.results.children
 
     # the names come from the model, so the convergence plot still works
@@ -312,14 +309,13 @@ def test_plots_accept_a_cmaes_fit():
         model=base.model,
         parameters=base.parameters,
         targets=base.targets,
-        expert=base.expert,
         optimizer="cmaes",
         cmaes=dict(sigma0=0.5, popsize=4),
         seeds=(0,),
         epochs=12,
         verbose=False,
     )
-    eliobj.fit()
+    eliobj.fit(base.expert)
 
     # 12 evaluations of 4 candidates are 3 generations, not 12 epochs
     el.plots.loss(eliobj)

@@ -43,7 +43,6 @@ def eliobj():
             for i in range(2)
         ],
         targets=[el.quantiles("b0", probs=(0.5,), loss=el.losses.L2)],
-        expert=el.expert.data({"b0": [0.5]}),
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
         seeds=(42,),
         epochs=1,
@@ -108,11 +107,11 @@ def test_hyperparameters_before_fit_raises(eliobj):
 def test_expert_input(eliobj):
     # the answers are keyed by target name
     names = [tar["name"] for tar in eliobj.targets]
-    assert list(eliobj.expert["data"].keys()) == names
+    assert list(el.elicit._expert({"b0": [0.5]})["data"].keys()) == names
 
     # error; answer without a target
     with pytest.raises(ValueError, match="do not match the targets"):
-        eliobj.update(expert=el.expert.data({"unknown": 0.5}))
+        eliobj.fit({"unknown": 0.5})
 
     # error; wrong number of parameters
     msg2 = (
@@ -122,7 +121,7 @@ def test_expert_input(eliobj):
         "2."
     )
     with pytest.raises(AssertionError, match=msg2):
-        eliobj.update(expert=el.expert.simulator(ground_truth={"b0": tfd.Normal(0, 1)}))
+        eliobj.fit(el.expert.simulator(ground_truth={"b0": tfd.Normal(0, 1)}))
 
 
 def test_initializer_network(eliobj, network):
@@ -311,10 +310,10 @@ def test_hyperparameters(eliobj):
 def test_checks_fit():
     # refitting without overwrite is refused
     with pytest.raises(ValueError, match="already fitted"):
-        base_eliobj.fit(overwrite=False)
+        base_eliobj.fit(base_eliobj.expert, overwrite=False)
 
     # overwrite=True refits and replaces the results
-    base_eliobj.fit(overwrite=True)
+    base_eliobj.fit(base_eliobj.expert, overwrite=True)
 
     epochs = base_eliobj.results["history_stats"]["epoch"].shape[0]
     assert base_eliobj.results["history_stats"]["loss"]["total_loss"].values.shape == (
@@ -362,7 +361,6 @@ def test_str_method(dry_run):
                 loss=el.losses.MMD2(kernel="energy"),
             ),
         ],
-        expert=el.expert.data(summary_data),
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.0, clipnorm=1.0),
         seeds=(123,),
         epochs=1,
@@ -379,7 +377,7 @@ def test_str_method(dry_run):
     else:
         assert "y_obs -> quantiles" in obs_eliobj
 
-    eliobj.fit()
+    eliobj.fit(summary_data)
 
     obs_eliobj2 = eliobj.__str__()
 
@@ -425,7 +423,6 @@ def test_eliobj_fit():
                 loss=el.losses.MMD2(kernel="energy"),
             ),
         ],
-        expert=el.expert.data(summary_data),
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.0, clipnorm=1.0),
         seeds=(123,),
         epochs=1,
@@ -438,7 +435,7 @@ def test_eliobj_fit():
     eliobj1 = deepcopy(eliobj)
     expected_seeds = [2021, 2022, 2023, 2024]
     eliobj1.update(seeds=tuple(expected_seeds))
-    eliobj1.fit()
+    eliobj1.fit(summary_data)
 
     assert hasattr(eliobj1, "results")
 
@@ -452,7 +449,7 @@ def test_eliobj_fit():
 
     # check a fit with the seed of the eliobj
     eliobj2 = deepcopy(eliobj)
-    eliobj2.fit(overwrite=True)
+    eliobj2.fit(summary_data, overwrite=True)
 
     assert hasattr(eliobj2, "results")
 
@@ -529,7 +526,6 @@ def test_warmup_epochs_changes_candidate_loss():
                     loss=el.losses.MMD2(kernel="energy"),
                 ),
             ],
-            expert=el.expert.data(summary_data),
             optimizer=tf.keras.optimizers.Adam(learning_rate=0.1, clipnorm=1.0),
             seeds=(7,),
             epochs=1,
@@ -543,9 +539,9 @@ def test_warmup_epochs_changes_candidate_loss():
         )
 
     cold = build(0)
-    cold.fit()
+    cold.fit(summary_data)
     warm = build(2)
-    warm.fit()
+    warm.fit(summary_data)
 
     cold_loss = cold.results["initialization"]["loss"].values
     warm_loss = warm.results["initialization"]["loss"].values
@@ -624,6 +620,9 @@ def test_all_finite_and_nonfinite_fraction():
     npt.assert_allclose(el.utils.nonfinite_fraction(bad), 0.25)
 
 
+OVERFLOW_ANSWERS = {"y_obs": [-0.7, 0.1, 0.8]}
+
+
 def _overflow_eliobj(overflow):
     """an eliobj whose draws overflow, while its quantiles stay finite"""
 
@@ -659,7 +658,6 @@ def _overflow_eliobj(overflow):
             ),
         ],
         targets=[el.quantiles("y_obs", probs=(0.25, 0.5, 0.75), loss=el.losses.L2)],
-        expert=el.expert.data({"y_obs": [-0.7, 0.1, 0.8]}),
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.1, clipnorm=1.0),
         seeds=(0,),
         epochs=1,
@@ -676,16 +674,16 @@ def _overflow_eliobj(overflow):
 def test_init_runs_rejects_a_candidate_whose_draws_overflow(monkeypatch):
     """a quantile query hides an overflow, so the draws decide, not the loss"""
     # without the overflow the same model initializes and trains
-    _overflow_eliobj(overflow=False).fit()
+    _overflow_eliobj(overflow=False).fit(OVERFLOW_ANSWERS)
 
     # the loss alone accepts the candidate: with the check disabled, the model
     # with the overflow initializes as well
     monkeypatch.setattr(el.models, "all_finite", lambda quantities: True)
-    _overflow_eliobj(overflow=True).fit()
+    _overflow_eliobj(overflow=True).fit(OVERFLOW_ANSWERS)
     monkeypatch.undo()
 
     with pytest.raises(ValueError, match="non-finite loss"):
-        _overflow_eliobj(overflow=True).fit()
+        _overflow_eliobj(overflow=True).fit(OVERFLOW_ANSWERS)
 
 
 def test_warm_start_spends_the_budget(monkeypatch):
@@ -851,7 +849,6 @@ def _cmaes_eliobj(
         model=base_eliobj.model,
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
-        expert=base_eliobj.expert,
         optimizer="cmaes",
         cmaes=dict(sigma0=sigma0, popsize=popsize),
         seeds=(0,),
@@ -867,7 +864,6 @@ def test_cmaes_fills_a_missing_initializer(eliobj):
         model=base_eliobj.model,
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
-        expert=base_eliobj.expert,
         optimizer=cma,
         seeds=(0,),
         epochs=2,
@@ -890,7 +886,7 @@ def test_cmaes_update_replaces_the_stored_initializer(eliobj):
 
 def test_cma_training_records_one_point_per_generation():
     eliobj = _cmaes_eliobj(epochs=12)
-    eliobj.fit()
+    eliobj.fit(base_eliobj.expert)
 
     loss = eliobj.results["history_stats/loss"]["total_loss"]
     hyper = eliobj.results["history_stats/hyperparameter"]
@@ -912,7 +908,7 @@ def test_cma_training_spends_the_budget(monkeypatch):
     monkeypatch.setattr(el.optimizers.search, "evaluate", counted)
 
     eliobj = _cmaes_eliobj(epochs=12)
-    eliobj.fit()
+    eliobj.fit(base_eliobj.expert)
 
     # the budget, plus the final evaluation of the best point
     assert len(calls) == 12 + 1
@@ -920,7 +916,7 @@ def test_cma_training_spends_the_budget(monkeypatch):
 
 def test_cma_training_improves_the_loss():
     eliobj = _cmaes_eliobj(epochs=40)
-    eliobj.fit()
+    eliobj.fit(base_eliobj.expert)
 
     loss = eliobj.results["history_stats/loss"]["total_loss"].values
     assert loss[0, -1] < loss[0, 0]
@@ -957,7 +953,7 @@ def test_step_size_rejects_an_unknown_hyperparameter():
 
 def test_cma_training_accepts_a_step_size_per_hyperparameter():
     eliobj = _cmaes_eliobj(epochs=12, sigma0=dict(mu0=0.1, sigma2=1.0))
-    eliobj.fit()
+    eliobj.fit(base_eliobj.expert)
 
     loss = eliobj.results["history_stats/loss"]["total_loss"].values
     assert np.all(np.isfinite(loss))
@@ -1007,7 +1003,7 @@ def test_cma_training_runs_no_search_before_it(monkeypatch):
 
     eliobj = _cmaes_eliobj(epochs=12, sigma0=None)
     eliobj.optimizer.pop("sigma0")
-    eliobj.fit()
+    eliobj.fit(base_eliobj.expert)
 
     assert calls == []
     loss = eliobj.results["history_stats/loss"]["total_loss"].values

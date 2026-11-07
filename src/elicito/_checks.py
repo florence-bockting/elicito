@@ -13,7 +13,6 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
     model,
     parameters,
     targets,
-    expert,
     trainer,
     optimizer,
     network,
@@ -24,6 +23,24 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
     Check whether input values to Elicit() are valid
     """
     check_target_names(targets)
+
+    # CMA-ES keeps a full covariance matrix of the search space. The weights
+    # of a normalizing flow are thousands of dimensions, which it cannot search.
+    if optimizer["optimizer"] == cmaes.CMAES and trainer["method"] == "deep_prior":
+        msg = (
+            f"optimizer='{cmaes.CMAES}' cannot learn a deep prior. A network "
+            "has too many trainable variables for a derivative-free search. "
+            "Use optimizer='auto' or a tf.keras optimizer instead."
+        )
+        raise ValueError(msg)
+
+    methods.get_method(trainer["method"]).check(parameters, network, initializer)
+
+
+def check_expert(expert: Any, targets: list[Target], parameters: Any) -> None:
+    """
+    Check the answers of an expert, or the ground truth of an oracle
+    """
     # check expert data
     try:
         expert["ground_truth"]
@@ -57,18 +74,6 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
                 f"{len(expected_params)}."
             )
             raise AssertionError(msg)
-
-    # CMA-ES keeps a full covariance matrix of the search space. The weights
-    # of a normalizing flow are thousands of dimensions, which it cannot search.
-    if optimizer["optimizer"] == cmaes.CMAES and trainer["method"] == "deep_prior":
-        msg = (
-            f"optimizer='{cmaes.CMAES}' cannot learn a deep prior. A network "
-            "has too many trainable variables for a derivative-free search. "
-            "Use optimizer='auto' or a tf.keras optimizer instead."
-        )
-        raise ValueError(msg)
-
-    methods.get_method(trainer["method"]).check(parameters, network, initializer)
 
 
 def check_answers(answers: dict[str, Any], targets: list[Target]) -> None:

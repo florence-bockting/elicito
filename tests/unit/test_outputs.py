@@ -47,7 +47,6 @@ def test_output_hyperparameter_names():
                 loss=el.losses.MMD2(kernel="energy"),
             ),
         ],
-        expert=el.expert.data(summary_data),
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.0, clipnorm=1.0),
         seeds=(123,),
         epochs=1,
@@ -56,7 +55,7 @@ def test_output_hyperparameter_names():
         ),
     )
 
-    eliobj.fit()
+    eliobj.fit(summary_data)
 
     res_dict = {}
     for var in ["mu_mu", "sigma_mu", "l_tau", "d_tau"]:

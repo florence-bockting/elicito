@@ -314,14 +314,6 @@ def test_set_hyperparameters_writes_the_learned_values(toy_model):
             )
             for i in range(3)
         ],
-        expert=el.expert.simulator(
-            ground_truth={
-                "beta0": tfd.Normal(5.0, 1.0),
-                "beta1": tfd.Normal(2.0, 1.0),
-                "sigma": tfd.HalfNormal(7.0),
-            },
-            num_samples=1_000,
-        ),
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
         seeds=(0,),
         epochs=2,
@@ -332,7 +324,16 @@ def test_set_hyperparameters_writes_the_learned_values(toy_model):
             distribution=el.initializers.uniform(radius=1.0, mean=0.0),
         ),
     )
-    eliobj.fit()
+    eliobj.fit(
+        el.expert.simulator(
+            ground_truth={
+                "beta0": tfd.Normal(5.0, 1.0),
+                "beta1": tfd.Normal(2.0, 1.0),
+                "sigma": tfd.HalfNormal(7.0),
+            },
+            num_samples=1_000,
+        )
+    )
     adapter_pymc.set_hyperparameters(toy_model, eliobj)
 
     learned = eliobj.hyperparameters()

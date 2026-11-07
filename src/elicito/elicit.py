@@ -44,6 +44,17 @@ from elicito.types import (
 tfd = tfp.distributions
 
 
+def _expert(experts: dict[str, Any]) -> ExpertDict:
+    """Wrap the answers of an expert; pass an oracle through"""
+    if set(experts) == {"ground_truth", "num_samples"}:
+        return experts  # type: ignore [return-value]
+    data: dict[str, Any] = {
+        name: tf.expand_dims(tf.cast(tf.convert_to_tensor(value), tf.float32), 0)
+        for name, value in experts.items()
+    }
+    return dict(data=data)
+
+
 def _default_initializer(
     optimizer: dict[str, Any], initializer: Initializer | None
 ) -> Initializer | None:
@@ -142,7 +153,6 @@ class Elicit:
         model: dict[str, Any],
         targets: list[Target],
         parameters: list[Parameter],
-        expert: ExpertDict,
         *,
         network: NFDict | None = None,
         initializer: Initializer | None = None,
@@ -170,11 +180,6 @@ class Elicit:
 
         parameters
             list of model parameters specified with [`parameter`][elicito.specs.parameter].
-
-        expert
-            provide input data from expert or simulate data from oracle with
-            either the ``data`` or ``simulator`` method of the
-            [`Expert`][elicito.specs.Expert] module.
 
         network
             normalizing flow from [`networks`][elicito.parameters.networks].
@@ -240,14 +245,6 @@ class Elicit:
 
         Raises
         ------
-        AssertionError
-            ``ground_truth`` for simulating expert data has the wrong
-            dimension.
-
-        ValueError
-            ``expert`` answers do not match the targets. The keys must be the
-            target names.
-
         ValueError
             ``optimizer`` is not ``"auto"``, ``"cmaes"``, ``"adam"`` or a
             tf.keras optimizer.
@@ -300,7 +297,6 @@ class Elicit:
             model,
             parameters,
             targets,
-            expert,
             trainer,
             optimizer,
             network,
@@ -311,7 +307,8 @@ class Elicit:
         self.model = model
         self.parameters = parameters
         self.targets = targets
-        self.expert = expert
+        # fit() sets the answers
+        self.expert: ExpertDict | None = None
         self.trainer = trainer
         self.optimizer = optimizer
         self.network = network
@@ -442,6 +439,7 @@ class Elicit:
 
     def fit(
         self,
+        experts: dict[str, Any],
         overwrite: bool = False,
     ) -> Fit:
         """
@@ -449,6 +447,12 @@ class Elicit:
 
         Parameters
         ----------
+        experts
+            answers of the expert, keyed by target name, for example
+            ``{"y_pred": [0.1, 0.5, 0.9]}``. To simulate the answers from a
+            known prior instead, give the result of
+            [`simulator`][elicito.specs.Expert.simulator].
+
         overwrite
             If the eliobj was already fitted and the user wants to refit it,
             the user is asked whether they want to overwrite the previous
@@ -465,15 +469,27 @@ class Elicit:
         ValueError
             The eliobj is already fitted and ``overwrite`` is ``False``.
 
+        ValueError
+            ``experts`` do not match the targets. The keys must be the target
+            names.
+
+        AssertionError
+            ``ground_truth`` for simulating expert data has the wrong
+            dimension.
+
         Examples
         --------
-        >>> eliobj.fit()  # doctest: +SKIP
+        >>> eliobj.fit({"y_pred": [0.1, 0.5, 0.9]})  # doctest: +SKIP
 
-        >>> eliobj.fit(overwrite=True)  # doctest: +SKIP
+        >>> eliobj.fit(answers, overwrite=True)  # doctest: +SKIP
 
         """
         # set seed
         tf.random.set_seed(self.trainer["seed"])
+
+        # check the answers before the old results are deleted
+        expert = _expert(experts)
+        _checks.check_expert(expert, self.targets, self.parameters)
 
         # check whether elicit object is already fitted
         if hasattr(self, "results"):
@@ -484,6 +500,7 @@ class Elicit:
                 )
                 raise ValueError(msg)
             delattr(self, "results")
+        self.expert = expert
 
         self.temp_results = []
         self.temp_history = []
@@ -631,7 +648,7 @@ class Elicit:
             trainer=trainer,  # type: ignore [arg-type]
             parameters=self.parameters,
             network=self.network,
-            expert=self.expert,
+            expert=self._answers(),
             seed=seed,
         )
         variables = method.trainable_variables(prior_model)
@@ -762,9 +779,9 @@ class Elicit:
             model=storage["model"],
             parameters=storage["parameters"],
             targets=storage["targets"],
-            expert=storage["expert"],
             **storage["settings"],
         )
+        eliobj.expert = storage["expert"]
 
         # add results if already fitted
         if "results" in storage:
@@ -801,7 +818,6 @@ class Elicit:
             model=self.model,
             targets=self.targets,
             parameters=self.parameters,
-            expert=self.expert,
             **self.settings,
         )
         unknown = set(kwargs) - set(inputs)
@@ -824,6 +840,13 @@ class Elicit:
         if kwargs:
             print("INFO: Results have been reset.")
 
+    def _answers(self) -> ExpertDict:
+        """Return the answers of the last fit"""
+        if self.expert is None:
+            msg = "The eliobj has no answers. Call fit(experts) first."
+            raise ValueError(msg)
+        return self.expert
+
     def workflow(self, seed: int) -> tuple[Any, ...]:
         """
         Build the main workflow of the prior elicitation method.
@@ -842,6 +865,7 @@ class Elicit:
             results and history object of the optimization process.
 
         """
+        expert = self._answers()
         # overwrite global seed
         # TODO test correct seed usage for parallel processing
         utils.SEED = seed
@@ -852,7 +876,7 @@ class Elicit:
             self.trainer,
             self.model,
             self.targets,
-            self.expert,
+            expert,
             self.parameters,
             self.network,
             self.trainer["seed"],
@@ -872,7 +896,7 @@ class Elicit:
             self.model,
             self.targets,
             self.network,
-            self.expert,
+            expert,
             seed,
             self.trainer["progress"],
         )
@@ -909,7 +933,7 @@ class Elicit:
         # add some additional results
         results["expert_elicited_statistics"] = expert_elicits
         try:
-            self.expert["ground_truth"]
+            expert["ground_truth"]
         except KeyError:
             pass
         else:

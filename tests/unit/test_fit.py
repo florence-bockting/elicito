@@ -42,13 +42,6 @@ def fit():
             )
             for i in range(3)
         ],
-        expert=el.expert.data(
-            {
-                "y0": [-1.0, 0.0, 1.0],
-                "y1": [0.0, 1.0, 2.0],
-                "y2": [1.0, 2.0, 3.0],
-            }
-        ),
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
         seeds=(1, 2),
         epochs=2,
@@ -61,7 +54,13 @@ def fit():
             iterations=2,
         ),
     )
-    return eliobj.fit()
+    return eliobj.fit(
+        {
+            "y0": [-1.0, 0.0, 1.0],
+            "y1": [0.0, 1.0, 2.0],
+            "y2": [1.0, 2.0, 3.0],
+        }
+    )
 
 
 def test_fit_returns_a_fit(fit):

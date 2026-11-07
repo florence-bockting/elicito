@@ -80,14 +80,12 @@ def test_parametric_prior():
         )
     ]
 
-    expert = el.expert.data(
-        dat={
-            "y_gr0": [0.64, 1.22, 1.89],
-            "y_gr1": [0.72, 1.39, 2.07],
-            "y_gr2": [0.76, 1.48, 2.22],
-            "r2": [0.07, 0.23, 0.61],
-        }
-    )
+    expert = {
+        "y_gr0": [0.64, 1.22, 1.89],
+        "y_gr1": [0.72, 1.39, 2.07],
+        "y_gr2": [0.76, 1.48, 2.22],
+        "r2": [0.07, 0.23, 0.61],
+    }
 
     optimizer = tf.keras.optimizers.Adam(learning_rate=0.05)
 
@@ -101,14 +99,13 @@ def test_parametric_prior():
         model=model,
         parameters=parameters,
         targets=targets,
-        expert=expert,
         optimizer=optimizer,
         seeds=(2025,),
         epochs=6,
         initializer=initializer,
     )
 
-    eliobj.fit()
+    eliobj.fit(expert)
 
 
 def test_invertible_network():
@@ -183,14 +180,12 @@ def test_invertible_network():
         )
     ]
 
-    expert = el.expert.data(
-        dat={
-            "y_gr0": [0.64, 1.22, 1.89],
-            "y_gr1": [0.72, 1.39, 2.07],
-            "y_gr2": [0.76, 1.48, 2.22],
-            "r2": [0.07, 0.23, 0.61],
-        }
-    )
+    expert = {
+        "y_gr0": [0.64, 1.22, 1.89],
+        "y_gr1": [0.72, 1.39, 2.07],
+        "y_gr2": [0.76, 1.48, 2.22],
+        "r2": [0.07, 0.23, 0.61],
+    }
 
     optimizer = tf.keras.optimizers.Adam(learning_rate=0.05)
 
@@ -204,7 +199,6 @@ def test_invertible_network():
         model=model,
         parameters=parameters,
         targets=targets,
-        expert=expert,
         optimizer=optimizer,
         seeds=(2025,),
         epochs=6,
@@ -247,6 +241,6 @@ def test_invertible_network():
     )
 
     # fit updated eliobj
-    eliobj_deep.fit()  # parallel=parallel=el.utils.parallel(runs=5))
+    eliobj_deep.fit(expert)
 
     assert len(eliobj_deep.results) != 0

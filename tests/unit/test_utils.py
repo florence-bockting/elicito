@@ -30,7 +30,6 @@ def fitted_eliobj():
         model=base_eliobj.model,
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
-        expert=base_eliobj.expert,
         optimizer=base_eliobj.settings["optimizer"],
         seeds=(0,),
         epochs=1,
@@ -41,7 +40,7 @@ def fitted_eliobj():
             distribution=el.initializers.uniform(radius=1.0, mean=0.0),
         ),
     )
-    eliobj_copy.fit()
+    eliobj_copy.fit(base_eliobj.expert)
     return eliobj_copy
 
 
@@ -190,7 +189,7 @@ class DummyEliobj_empty:
             )
         ]
         self.targets = [el.quantiles("b0", probs=(0.5,), loss=el.losses.L2)]
-        self.expert = el.expert.data({"b0": 0.5})
+        self.expert = dict(data={"b0": 0.5})
         self.trainer = dict(method="parametric_prior", seed=42)
         self.settings = dict(
             optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
@@ -217,7 +216,7 @@ class DummyEliobj_fitted:
             )
         ]
         self.targets = [el.quantiles("b0", probs=(0.5,), loss=el.losses.L2)]
-        self.expert = el.expert.data({"b0": 0.5})
+        self.expert = dict(data={"b0": 0.5})
         self.trainer = dict(method="parametric_prior", seed=42)
         self.settings = dict(
             optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
