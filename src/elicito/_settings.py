@@ -3,6 +3,7 @@ Turn the flat settings of Elicit into the internal settings
 """
 
 import warnings
+from numbers import Integral
 from typing import Any
 
 import tensorflow as tf
@@ -19,6 +20,21 @@ ADAM_LEARNING_RATE = 0.1
 def method(network: Any) -> str:
     """Infer the method: a network means a deep prior"""
     return "parametric_prior" if network is None else "deep_prior"
+
+
+def seeds(seeds: Any) -> tuple[int, ...]:
+    """Check the seeds: a non-empty sequence of integers"""
+    if (
+        isinstance(seeds, Integral)
+        or len(seeds) == 0
+        or not all(isinstance(s, Integral) for s in seeds)
+    ):
+        msg = (
+            "seeds must be a non-empty tuple of integers, for example "
+            f"seeds=(0, 1). Got {seeds=}."
+        )
+        raise ValueError(msg)
+    return tuple(int(s) for s in seeds)
 
 
 def optimizer(

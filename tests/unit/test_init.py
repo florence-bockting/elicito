@@ -437,7 +437,8 @@ def test_eliobj_fit():
     # check parallel fit with specific seeds set by the user
     eliobj1 = deepcopy(eliobj)
     expected_seeds = [2021, 2022, 2023, 2024]
-    eliobj1.fit(parallel=el.utils.parallel(runs=4, seeds=expected_seeds))
+    eliobj1.update(seeds=tuple(expected_seeds))
+    eliobj1.fit()
 
     assert hasattr(eliobj1, "results")
 
@@ -449,9 +450,9 @@ def test_eliobj_fit():
         assert hasattr(eliobj1, "temp_results")
         assert hasattr(eliobj1, "temp_history")
 
-    # check parallel fit with seeds randomly generated
+    # check a fit with the seed of the eliobj
     eliobj2 = deepcopy(eliobj)
-    eliobj2.fit(parallel=el.utils.parallel(runs=4), overwrite=True)
+    eliobj2.fit(overwrite=True)
 
     assert hasattr(eliobj2, "results")
 
@@ -1029,3 +1030,9 @@ def test_cmaes_optimizer_ignores_an_initializer():
             )
         )
     assert eliobj.initializer["method"] == "cmaes"
+
+
+@pytest.mark.parametrize("seeds", [0, (), (0.5,)])
+def test_seeds_must_be_a_tuple_of_integers(eliobj, seeds):
+    with pytest.raises(ValueError, match="seeds must be"):
+        eliobj.update(seeds=seeds)

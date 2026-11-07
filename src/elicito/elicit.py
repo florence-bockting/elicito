@@ -2,6 +2,7 @@
 The Elicit object, which fits, samples and saves an elicitation method
 """
 
+import os
 import warnings
 from collections import defaultdict
 from collections.abc import Callable
@@ -34,7 +35,6 @@ from elicito.types import (
     ExpertDict,
     Initializer,
     NFDict,
-    Parallel,
     Parameter,
     SamplingMethod,
     Target,
@@ -275,6 +275,7 @@ class Elicit:
             [GitHub issue #35](https://github.com/florence-bockting/prior_elicitation/issues/35).
 
         """  # noqa: E501
+        seeds = _settings.seeds(seeds)
         self.settings: dict[str, Any] = dict(
             network=network,
             initializer=initializer,
@@ -442,7 +443,6 @@ class Elicit:
     def fit(
         self,
         overwrite: bool = False,
-        parallel: Parallel | None = None,
     ) -> Fit:
         """
         Fit the eliobj and learn prior distributions.
@@ -454,10 +454,6 @@ class Elicit:
             the user is asked whether they want to overwrite the previous
             fitting results. Setting ``overwrite=True`` allows the user to
             force overfitting without being prompted.
-
-        parallel
-            specify parallelization settings if multiple trainings should run
-            in parallel. See [`parallel`][elicito.utils.parallel].
 
         Returns
         -------
@@ -474,8 +470,6 @@ class Elicit:
         >>> eliobj.fit()  # doctest: +SKIP
 
         >>> eliobj.fit(overwrite=True)  # doctest: +SKIP
-
-        >>> eliobj.fit(parallel=el.utils.parallel(runs=4))  # doctest: +SKIP
 
         """
         # set seed
@@ -494,25 +488,17 @@ class Elicit:
         self.temp_results = []
         self.temp_history = []
 
-        # run single time if no parallelization is required
-        if parallel is None:
-            results, history = self.workflow(self.trainer["seed"])
+        seeds = self.settings["seeds"]
+        # one seed runs in this process
+        if len(seeds) == 1:
+            results, history = self.workflow(seeds[0])
             # include seed information into results
-            results["seed"] = self.trainer["seed"]
+            results["seed"] = seeds[0]
             # save results in list attribute
             self.temp_history.append(history)
             self.temp_results.append(results)
         # run multiple replications
         else:
-            # create a list of seeds if not provided
-            if parallel["seeds"] is None:
-                # generate seeds
-                seeds = [
-                    int(s) for s in tfd.Uniform(0, 999999).sample(parallel["runs"])
-                ]
-            else:
-                seeds = parallel["seeds"]
-
             # run training simultaneously for multiple seeds. Live tables from
             # several processes overwrite each other, so the workers send
             # their tables to the parent. It shows one row for each seed.
@@ -522,7 +508,7 @@ class Elicit:
                 queue = manager.Queue()
                 table = SeedTable(seeds, queue, disable=self.trainer["progress"] == 0)
                 try:
-                    res = joblib.Parallel(n_jobs=parallel["cores"])(
+                    res = joblib.Parallel(n_jobs=min(len(seeds), os.cpu_count() or 1))(
                         joblib.delayed(run_in_worker)(self.workflow, seed, row, queue)
                         for row, seed in enumerate(seeds)
                     )

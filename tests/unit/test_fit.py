@@ -50,7 +50,7 @@ def fit():
             }
         ),
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
-        seeds=(1,),
+        seeds=(1, 2),
         epochs=2,
         verbose=False,
         B=8,
@@ -61,7 +61,7 @@ def fit():
             iterations=2,
         ),
     )
-    return eliobj.fit(parallel=el.utils.parallel(runs=2, cores=1))
+    return eliobj.fit()
 
 
 def test_fit_returns_a_fit(fit):
