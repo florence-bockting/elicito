@@ -22,7 +22,9 @@ SNAPSHOTS = Path(__file__).parent / "snapshots"
 UPDATE = os.environ.get("ELICITO_UPDATE_SNAPSHOTS") == "1"
 
 
-def summary_tree(reps: list[int], n_reps: int) -> xr.DataTree:
+def summary_tree(
+    reps: list[int], n_reps: int, method: str = "parametric_prior"
+) -> xr.DataTree:
     """Build a summary tree by hand, with the layout of `Fit.summary()`"""
     hyper = np.array([[0.315, 0.952], [0.0234, 0.681]])[:n_reps]
     hyper_da = xr.DataArray(
@@ -75,18 +77,16 @@ def summary_tree(reps: list[int], n_reps: int) -> xr.DataTree:
     target_loss = xr.Dataset(
         dict(loss=per_rep([[0.216, 0.031, 0.555], [0.9, 0.2, 1.4]], "target", terms).T)
     ).assign_coords(technique=("target", ["quantiles", "correlation", "identity"]))
-    tree = xr.DataTree.from_dict(
-        dict(
-            priors=priors,
-            expert_fit=expert_fit,
-            target_loss=target_loss,
-            loss=loss,
-            hyperparameters=hyperparameters,
-        )
+    groups = dict(
+        priors=priors, expert_fit=expert_fit, target_loss=target_loss, loss=loss
     )
+    # a deep prior has no hyperparameters
+    if method == "parametric_prior":
+        groups["hyperparameters"] = hyperparameters
+    tree = xr.DataTree.from_dict(groups)
     label = "all" if len(reps) > 1 else "best"
     tree.attrs = dict(
-        method="parametric_prior",
+        method=method,
         epochs=600,
         replication=label,
         reps=reps,
@@ -96,16 +96,17 @@ def summary_tree(reps: list[int], n_reps: int) -> xr.DataTree:
 
 
 @pytest.mark.parametrize(
-    "name, reps, n_reps",
+    "name, reps, n_reps, method",
     [
-        ("one_replication", [0], 1),
-        ("best_of_two", [0], 2),
-        ("all_of_two", [0, 1], 2),
+        ("one_replication", [0], 1, "parametric_prior"),
+        ("best_of_two", [0], 2, "parametric_prior"),
+        ("all_of_two", [0, 1], 2, "parametric_prior"),
+        ("deep_prior_best_of_two", [0], 2, "deep_prior"),
     ],
 )
-def test_summary_output_matches_snapshot(name, reps, n_reps):
+def test_summary_output_matches_snapshot(name, reps, n_reps, method):
     """The text output must equal the reviewed snapshot"""
-    output = _format(summary_tree(reps, n_reps)) + "\n"
+    output = _format(summary_tree(reps, n_reps, method)) + "\n"
     snapshot = SNAPSHOTS / f"summary_{name}.txt"
     if UPDATE or not snapshot.exists():
         SNAPSHOTS.mkdir(exist_ok=True)
