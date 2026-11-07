@@ -293,22 +293,14 @@ def test_model_returns_counts_as_float():
     assert set(np.unique(out["k"])) <= set(range(11))
 
 
-def _slice(i):
-    """target function that selects design point i of ypred"""
-
-    def target(ypred):
-        return ypred[:, :, i]
-
-    return target
-
-
 def test_set_hyperparameters_writes_the_learned_values(toy_model):
     eliobj = el.Elicit(
         model=toy_model,
         targets=[
             el.quantiles(
                 f"y_X{i}",
-                output=_slice(i),
+                output="ypred",
+                select=i,
                 probs=(0.25, 0.5, 0.75),
                 loss=el.losses.MMD2(kernel="energy"),
             )
@@ -355,3 +347,29 @@ def test_a_given_parameter_list_replaces_the_priors(toy_model):
     given = adapter_pymc.parameters(toy_model)[:1]
     eliobj = el.Elicit(toy_model, [el.identity("y")], given, dry_run=False)
     assert eliobj.parameters is given
+
+
+@pytest.fixture
+def coords_model():
+    """a PyMC model whose output has a dim with coords"""
+    x = np.array([0.5, 1.0, 1.5])
+    with pm.Model(coords={"x": x}) as m:
+        beta0 = pm.Normal("beta0", pm.Data("mu0", 0.0), pm.Data("sigma0", 1.0))
+        pm.Deterministic("epred", beta0 * x, dims="x")
+    return m
+
+
+def test_translated_model_carries_the_dims(coords_model):
+    generator = adapter_pymc.model(coords_model)()
+    ((dim, labels),) = generator.dims["epred"]
+    assert dim == "x"
+    assert list(labels) == [0.5, 1.0, 1.5]
+
+
+def test_select_with_coords_picks_one_column(coords_model):
+    target = el.identity("e1", output="epred", select={"x": 1.0})
+    eliobj = el.Elicit(coords_model, [target], dry_run=False)
+    assert eliobj.targets[0]["select"] == (slice(None), slice(None), 1)
+    sims = {"epred": tf.reshape(tf.range(6.0), (1, 2, 3))}
+    out = el.targets.computation_target_quantities(sims, None, eliobj.targets)
+    np.testing.assert_array_equal(out["e1"], [[1.0, 4.0]])

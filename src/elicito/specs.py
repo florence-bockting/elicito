@@ -411,9 +411,10 @@ class Queries:
 queries = Queries()
 
 
-def quantiles(
+def quantiles(  # noqa: PLR0913
     name: str,
     output: str | Callable[..., Any] | None = None,
+    select: int | dict[str, Any] | None = None,
     probs: tuple[float, ...] = (0.05, 0.5, 0.95),
     weight: float = 1.0,
     loss: Callable[..., Any] | None = None,
@@ -429,6 +430,11 @@ def quantiles(
     output
         Model output to summarize. A string names a model output. A callable
         receives the model outputs by argument name. The default is ``name``.
+
+    select
+        Part of the output to keep. An integer indexes the last axis. A
+        dict maps the dims of a PyMC output to coord labels, such as
+        ``{"participant": 3, "delay": 12}``. The default keeps all.
 
     probs
         Probabilities of the quantiles, each between 0 and 1.
@@ -455,12 +461,14 @@ def quantiles(
         output=name if output is None else output,
         loss=losses.MMD2(kernel="energy") if loss is None else loss,
         weight=weight,
+        select=select,
     )
 
 
 def identity(
     name: str,
     output: str | Callable[..., Any] | None = None,
+    select: int | dict[str, Any] | None = None,
     weight: float = 1.0,
     loss: Callable[..., Any] | None = None,
 ) -> Target:
@@ -475,6 +483,11 @@ def identity(
     output
         Model output to compare. A string names a model output. A callable
         receives the model outputs by argument name. The default is ``name``.
+
+    select
+        Part of the output to keep. An integer indexes the last axis. A
+        dict maps the dims of a PyMC output to coord labels, such as
+        ``{"participant": 3, "delay": 12}``. The default keeps all.
 
     weight
         Weight of the target in the total loss.
@@ -494,6 +507,7 @@ def identity(
         output=name if output is None else output,
         loss=losses.MMD2(kernel="energy") if loss is None else loss,
         weight=weight,
+        select=select,
     )
 
 
@@ -536,6 +550,7 @@ def custom(
     func: Callable[..., Any],
     loss: Callable[..., Any],
     weight: float = 1.0,
+    select: int | dict[str, Any] | None = None,
 ) -> Target:
     """
     Ask the expert for a statistic that you define.
@@ -555,6 +570,11 @@ def custom(
     weight
         Weight of the target in the total loss.
 
+    select
+        Part of the output to keep. An integer indexes the last axis. A
+        dict maps the dims of a PyMC output to coord labels, such as
+        ``{"participant": 3, "delay": 12}``. The default keeps all.
+
     Returns
     -------
     target :
@@ -566,6 +586,7 @@ def custom(
         output=name,
         loss=loss,
         weight=weight,
+        select=select,
     )
 
 

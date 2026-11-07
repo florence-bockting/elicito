@@ -194,6 +194,9 @@ def computation_target_quantities(
         # target quantity equal to output of GenerativeModel
         else:
             target_quantity = model_simulations[tar["output"]]
+        # select= keeps one part, as an index from Elicit
+        if tar.get("select") is not None:
+            target_quantity = target_quantity[tar["select"]]
 
         # save target quantities
         targets_res[tar["name"]] = target_quantity

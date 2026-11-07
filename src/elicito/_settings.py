@@ -11,7 +11,7 @@ from typing import Any
 import tensorflow as tf
 
 from elicito.optimizers.cmaes import CMAES
-from elicito.types import Parameter, Trainer
+from elicito.types import Parameter, Target, Trainer
 
 AUTO = "auto"
 ADAM = "adam"
@@ -36,6 +36,43 @@ def model(
         msg = "A callable model needs parameters=[el.parameter(...), ...]."
         raise ValueError(msg)
     return model, parameters
+
+
+def select(target: Target, model: Any) -> Any:
+    """Turn select= into an index of the target quantity"""
+    sel, name, output = target.get("select"), target["name"], target["output"]
+    # a tuple comes from an earlier __init__, such as in update() or load()
+    if sel is None or isinstance(sel, tuple):
+        return sel
+    if isinstance(sel, Integral):
+        return (Ellipsis, int(sel))
+    dims = getattr(model, "dims", {})
+    if not isinstance(output, str) or output not in dims:
+        msg = f"Target '{name}': a dict select= needs a PyMC output with dims."
+        raise ValueError(msg)
+    unknown = sorted(set(sel) - {dim for dim, _ in dims[output]})
+    if unknown:
+        msg = f"Target '{name}': the output '{output}' has no dims {unknown}."
+        raise ValueError(msg)
+    index: list[Any] = [slice(None), slice(None)]
+    for dim, coords in dims[output]:
+        if dim not in sel:
+            index.append(slice(None))
+            continue
+        labels = [] if coords is None else list(coords)
+        if sel[dim] not in labels:
+            msg = (
+                f"Target '{name}': {sel[dim]!r} is not a label of '{dim}': "
+                f"{labels}."
+            )
+            raise ValueError(msg)
+        index.append(labels.index(sel[dim]))
+    return tuple(index)
+
+
+def targets(targets: list[Target], model: Any) -> list[Target]:
+    """Copy the targets with select= as an index"""
+    return [Target(**{**t, "select": select(t, model)}) for t in targets]
 
 
 def method(network: Any) -> str:

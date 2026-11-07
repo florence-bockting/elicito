@@ -277,6 +277,7 @@ class Elicit:
 
         """
         generator, params = _settings.model(model, parameters)
+        targets = _settings.targets(targets, generator)
         seeds = _settings.seeds(seeds)
         self.settings: dict[str, Any] = dict(
             network=network,

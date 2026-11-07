@@ -79,13 +79,14 @@ class QueriesDict(TypedDict, total=False):
 class Target(dict[str, Any]):
     """Class for specification of a target, inheriting from `dict`."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         name: str,
         query: QueriesDict,
         output: str | Callable[..., Any],
         loss: Callable[..., Any],
         weight: float,
+        select: Any = None,
     ):
         super().__init__(
             name=name,
@@ -93,11 +94,13 @@ class Target(dict[str, Any]):
             output=output,
             loss=loss,
             weight=weight,
+            select=select,
         )
         self.name: str = name
         self.query: QueriesDict = query
         self.output: str | Callable[..., Any] = output
         self.loss: Callable[..., Any] = loss
+        self.select: Any = select
         self.weight: float = weight
 
     def __str__(self) -> str:

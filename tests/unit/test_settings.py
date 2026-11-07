@@ -5,6 +5,7 @@ Tests of the flat settings of Elicit
 import pytest
 import tensorflow as tf
 
+import elicito as el
 from elicito import _settings
 from elicito.optimizers.cmaes import CMAES
 
@@ -74,3 +75,55 @@ def test_unknown_optimizer_raises():
 def test_a_callable_model_needs_parameters():
     with pytest.raises(ValueError, match="needs parameters"):
         _settings.model(lambda prior_samples: prior_samples, None)
+
+
+class _DimsModel:
+    """a model with the dims of one output, as the PyMC adapter gives"""
+
+    def __init__(self):
+        self.dims = {"y": [("obs", (10, 20, 30)), ("rep", None)]}
+
+    def __call__(self, prior_samples):
+        return prior_samples
+
+
+ALL = slice(None)
+
+
+@pytest.mark.parametrize(
+    ("select", "expected"),
+    [
+        (None, None),
+        (2, (Ellipsis, 2)),
+        ({"obs": 20}, (ALL, ALL, 1, ALL)),
+        ((ALL, ALL, 0), (ALL, ALL, 0)),
+    ],
+)
+def test_select_becomes_an_index(select, expected):
+    target = el.identity("y", select=select)
+    assert _settings.select(target, _DimsModel()) == expected
+
+
+def test_targets_copies_the_targets():
+    target = el.identity("y", select={"obs": 30})
+    (copy,) = _settings.targets([target], _DimsModel())
+    assert copy["select"] == (ALL, ALL, 2, ALL)
+    assert target["select"] == {"obs": 30}
+
+
+@pytest.mark.parametrize(
+    ("target", "match"),
+    [
+        (el.identity("y", select={"obs": 40}), "40 is not a label of 'obs'"),
+        (el.identity("y", select={"rep": 0}), "0 is not a label of 'rep'"),
+        (el.identity("y", select={"time": 1}), r"has no dims \['time'\]"),
+        (el.identity("z", select={"obs": 10}), "needs a PyMC output with dims"),
+        (
+            el.identity("f", output=lambda y: y, select={"obs": 10}),
+            "needs a PyMC output with dims",
+        ),
+    ],
+)
+def test_select_raises_for_a_wrong_dict(target, match):
+    with pytest.raises(ValueError, match=match):
+        _settings.select(target, _DimsModel())
