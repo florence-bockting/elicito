@@ -83,21 +83,21 @@ class Target(dict[str, Any]):
         self,
         name: str,
         query: QueriesDict,
-        target_method: Callable[[Any], Any] | None,
-        loss: Callable[[Any], float],
+        output: str | Callable[..., Any],
+        loss: Callable[..., Any],
         weight: float,
     ):
         super().__init__(
             name=name,
             query=query,
-            target_method=target_method,
+            output=output,
             loss=loss,
             weight=weight,
         )
         self.name: str = name
         self.query: QueriesDict = query
-        self.target_method: Callable[[Any], Any] | None = target_method
-        self.loss: Callable[[Any], float] = loss
+        self.output: str | Callable[..., Any] = output
+        self.loss: Callable[..., Any] = loss
         self.weight: float = weight
 
     def __str__(self) -> str:

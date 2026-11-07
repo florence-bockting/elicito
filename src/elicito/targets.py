@@ -193,13 +193,11 @@ def computation_target_quantities(
         if tar["query"]["name"] == "pearson_correlation":
             target_quantity = prior_samples
         # use custom target method
-        elif tar["target_method"] is not None:
-            target_quantity = use_custom_functions(
-                model_simulations, tar["target_method"]
-            )
+        elif callable(tar["output"]):
+            target_quantity = use_custom_functions(model_simulations, tar["output"])
         # target quantity equal to output of GenerativeModel
         else:
-            target_quantity = model_simulations[tar["name"]]
+            target_quantity = model_simulations[tar["output"]]
 
         # save target quantities
         targets_res[tar["name"]] = target_quantity

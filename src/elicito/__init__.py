@@ -22,12 +22,16 @@ from elicito.elicit import Elicit
 from elicito.initializers import initializer
 from elicito.parameters import networks
 from elicito.specs import (
+    correlation,
+    custom,
     expert,
     hyper,
+    identity,
     meta_settings,
     model,
     optimizer,
     parameter,
+    quantiles,
     queries,
     target,
     trainer,
@@ -39,8 +43,11 @@ __version__ = importlib.metadata.version("elicito")
 
 __all__ = [
     "Elicit",
+    "correlation",
+    "custom",
     "expert",
     "hyper",
+    "identity",
     "initializer",
     "initializers",
     "losses",
@@ -53,6 +60,7 @@ __all__ = [
     "parameter",
     "parameters",
     "plots",
+    "quantiles",
     "queries",
     "specs",
     "target",

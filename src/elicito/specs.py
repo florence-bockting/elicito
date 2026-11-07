@@ -8,12 +8,13 @@ from typing import Any, Callable, Optional
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
+from elicito import losses
 from elicito.parameters.bijections import (
     DoubleBound,
     LowerBound,
     UpperBound,
-    identity,
 )
+from elicito.parameters.bijections import identity as identity_bijection
 from elicito.types import (
     ExpertDict,
     Hyper,
@@ -202,7 +203,7 @@ def hyper(  # noqa: PLR0913
         constraint_name = "invlogit"
     # unbounded
     else:
-        transform = identity  # type: ignore
+        transform = identity_bijection  # type: ignore
         constraint_name = "identity"
 
     # value type
@@ -306,7 +307,7 @@ def parameter(
         constraint_name = "invlogit"
     # unbounded
     else:
-        transform = identity  # type: ignore
+        transform = identity_bijection  # type: ignore
         constraint_name = "identity"
 
     return Parameter(
@@ -563,8 +564,166 @@ def target(
     return Target(
         name=name,
         query=query,
-        target_method=target_method,
+        output=name if target_method is None else target_method,
         loss=loss_instance,
+        weight=weight,
+    )
+
+
+def quantiles(
+    name: str,
+    output: str | Callable[..., Any] | None = None,
+    probs: tuple[float, ...] = (0.05, 0.5, 0.95),
+    weight: float = 1.0,
+    loss: Callable[..., Any] | None = None,
+) -> Target:
+    """
+    Ask the expert for quantiles of a model output.
+
+    Parameters
+    ----------
+    name
+        Name of the target. The expert answer uses this name as key.
+
+    output
+        Model output to summarize. A string names a model output. A callable
+        receives the model outputs by argument name. The default is ``name``.
+
+    probs
+        Probabilities of the quantiles, each between 0 and 1.
+
+    weight
+        Weight of the target in the total loss.
+
+    loss
+        Loss between the expert answer and the model statistic. The default
+        is ``MMD2(kernel="energy")``.
+
+    Returns
+    -------
+    target :
+        Specification of the target.
+
+    Examples
+    --------
+    >>> el.quantiles("y_X0", probs=(0.25, 0.5, 0.75))  # doctest: +SKIP
+    """
+    return Target(
+        name=name,
+        query=queries.quantiles(probs),
+        output=name if output is None else output,
+        loss=losses.MMD2(kernel="energy") if loss is None else loss,
+        weight=weight,
+    )
+
+
+def identity(
+    name: str,
+    output: str | Callable[..., Any] | None = None,
+    weight: float = 1.0,
+    loss: Callable[..., Any] | None = None,
+) -> Target:
+    """
+    Ask the expert for draws of a model output.
+
+    Parameters
+    ----------
+    name
+        Name of the target. The expert answer uses this name as key.
+
+    output
+        Model output to compare. A string names a model output. A callable
+        receives the model outputs by argument name. The default is ``name``.
+
+    weight
+        Weight of the target in the total loss.
+
+    loss
+        Loss between the expert answer and the model output. The default
+        is ``MMD2(kernel="energy")``.
+
+    Returns
+    -------
+    target :
+        Specification of the target.
+    """
+    return Target(
+        name=name,
+        query=queries.identity(),
+        output=name if output is None else output,
+        loss=losses.MMD2(kernel="energy") if loss is None else loss,
+        weight=weight,
+    )
+
+
+def correlation(
+    name: str,
+    weight: float = 1.0,
+    loss: Callable[..., Any] | None = None,
+) -> Target:
+    """
+    Ask the expert for the correlations between the model parameters.
+
+    Parameters
+    ----------
+    name
+        Name of the target. The expert answer uses this name as key.
+
+    weight
+        Weight of the target in the total loss.
+
+    loss
+        Loss between the expert answer and the model correlations. The
+        default is ``L2``.
+
+    Returns
+    -------
+    target :
+        Specification of the target.
+    """
+    return Target(
+        name=name,
+        query=queries.correlation(),
+        output=name,
+        loss=losses.L2 if loss is None else loss,
+        weight=weight,
+    )
+
+
+def custom(
+    name: str,
+    func: Callable[..., Any],
+    loss: Callable[..., Any],
+    weight: float = 1.0,
+) -> Target:
+    """
+    Ask the expert for a statistic that you define.
+
+    Parameters
+    ----------
+    name
+        Name of the target. The expert answer uses this name as key.
+
+    func
+        Function that computes the statistic. It receives the model outputs
+        by argument name.
+
+    loss
+        Loss between the expert answer and the statistic.
+
+    weight
+        Weight of the target in the total loss.
+
+    Returns
+    -------
+    target :
+        Specification of the target.
+    """
+    return Target(
+        name=name,
+        query=queries.custom(func),
+        output=name,
+        loss=loss,
         weight=weight,
     )
 
