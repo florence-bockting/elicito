@@ -37,7 +37,6 @@ from typing import Any
 import tensorflow_probability as tfp
 
 import elicito as el
-from elicito.fit import Fit
 
 tfd = tfp.distributions
 
@@ -99,11 +98,11 @@ eliobj.save(file="results/m1")
 # %% [markdown]
 # ## Load and fit the eliobj
 #
-# `el.Elicit.load` returns the saved `eliobj`.
+# `el.load` returns the saved `eliobj`.
 # An unfitted `eliobj` needs the answers of the expert to fit.
 
 # %%
-eliobj_m1 = el.Elicit.load("results/m1.pkl")
+eliobj_m1 = el.load("results/m1.pkl")
 fit = eliobj_m1.fit(expert)
 fit
 
@@ -111,21 +110,23 @@ fit
 # ## Save and load a fitted eliobj
 #
 # A fitted `eliobj` keeps its results and the answers of the expert.
-# To inspect the loaded results, give the `eliobj` to `Fit`.
+# `el.load` then returns the fit, with the same methods as the result of `fit()`.
 
 # %%
 eliobj_m1.save(name="m2")
 
-eliobj_m2 = el.Elicit.load("results/parametric_prior/m2_0.pkl")
-Fit(eliobj_m2)
+fit_m2 = el.load("results/parametric_prior/m2_0.pkl")
+fit_m2
 
 # %% [markdown]
 # ## Fit a fitted eliobj again
 #
+# `fit.eliobj` is the loaded `eliobj`.
 # `fit()` raises a `ValueError` for a fitted `eliobj`.
 # To replace the results, set `overwrite=True`.
 
 # %%
+eliobj_m2 = fit_m2.eliobj
 fit = eliobj_m2.fit(expert, overwrite=True)
 
 # %% [markdown]
@@ -136,3 +137,22 @@ fit = eliobj_m2.fit(expert, overwrite=True)
 
 # %%
 eliobj_m2.save(name="m1", overwrite=True)
+
+# %% [markdown]
+# ## Save and load a panel of experts
+#
+# A fitted panel is saved with its `eliobj`.
+# `el.load` then returns the panel.
+
+# %%
+experts = {
+    "expert 1": {"ypred": [6.5, 8.0, 9.5]},
+    "expert 2": {"ypred": [7.5, 9.0, 10.5]},
+}
+eliobj_panel = el.Elicit(
+    Model(), targets, parameters, pool="complete", epochs=100, verbose=False
+)
+eliobj_panel.fit(experts)
+eliobj_panel.save(file="results/panel")
+
+el.load("results/panel.pkl")
