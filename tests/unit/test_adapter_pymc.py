@@ -5,6 +5,7 @@ import tensorflow_probability as tfp
 
 import elicito as el
 from elicito.adapter import pymc as adapter_pymc
+from elicito.adapter._pytensor import translate, vectorize
 
 pm = pytest.importorskip("pymc")
 tfd = tfp.distributions
@@ -45,9 +46,27 @@ def test_parameters_match_the_tutorial(toy_model):
 
 def test_unsupported_family_raises():
     with pm.Model() as m:
-        pm.Gamma("g", alpha=pm.Data("a", 2.0), beta=pm.Data("b", 1.0))
-    with pytest.raises(NotImplementedError, match="GammaRV"):
+        pm.Laplace("l", mu=pm.Data("mu", 0.0), b=pm.Data("b", 1.0))
+    with pytest.raises(NotImplementedError, match="LaplaceRV"):
         adapter_pymc.parameters(m)
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        pytest.param(lambda a, b: pm.Gamma("x", alpha=a, beta=b), id="Gamma"),
+        pytest.param(lambda a, b: pm.Beta("x", alpha=a, beta=b), id="Beta"),
+        pytest.param(lambda a, b: pm.Uniform("x", lower=a, upper=b), id="Uniform"),
+    ],
+)
+def test_family_matches_pymc(build):
+    """the tfd family with the pm.Data values has the mean of the PyMC prior"""
+    with pm.Model() as m:
+        build(pm.Data("a", 2.0), pm.Data("b", 5.0))
+    [p] = adapter_pymc.parameters(m)
+    kwargs = {k: m[h["name"]].get_value() for k, h in p["hyperparams"].items()}
+    pm_mean = pm.draw(m["x"], draws=20_000, random_seed=1).mean()
+    np.testing.assert_allclose(p["family"](**kwargs).mean(), pm_mean, rtol=0.02)
 
 
 def test_constant_hyperparameter_raises():
@@ -66,6 +85,69 @@ def test_shared_hyperparameter():
     assert params[0]["hyperparams"]["scale"]["shared"]
     assert params[1]["hyperparams"]["scale"]["shared"]
     assert not params[0]["hyperparams"]["loc"]["shared"]
+
+
+@pytest.fixture
+def hierarchical_model():
+    """a prior mu, a latent theta of shape 4, and an observed y"""
+    with pm.Model() as m:
+        mu = pm.Normal("mu", pm.Data("mu0", 0.0), pm.Data("sigma0", 1.0))
+        theta = pm.Normal("theta", mu, 1.0, shape=4)
+        pm.Normal("y", theta, 0.5, observed=np.zeros(4))
+    return m
+
+
+def test_latent_rv_is_not_a_parameter(hierarchical_model):
+    params = adapter_pymc.parameters(hierarchical_model)
+    assert [p["name"] for p in params] == ["mu"]
+
+
+def test_latent_rv_with_a_pm_data_input_raises():
+    with pm.Model() as m:
+        mu = pm.Normal("mu", pm.Data("mu0", 0.0), pm.Data("sigma0", 1.0))
+        pm.Normal("theta", mu, pm.Data("tau", 1.0))
+    with pytest.raises(TypeError, match="pm.Data"):
+        adapter_pymc.parameters(m)
+
+
+def test_vector_prior_becomes_scalar_parameters():
+    with pm.Model() as m:
+        pm.Normal("b", pm.Data("mu", 0.0), pm.Data("s", 1.0), shape=3)
+    params = adapter_pymc.parameters(m)
+    assert [p["name"] for p in params] == ["b[0]", "b[1]", "b[2]"]
+    assert all(h["shared"] for p in params for h in p["hyperparams"].values())
+
+
+def test_vector_prior_with_a_fixed_input():
+    with pm.Model() as m:
+        pm.HalfNormal("s", pm.Data("sigma", 1.0), shape=2)
+    params = adapter_pymc.parameters(m)
+    assert [p["family"] for p in params] == [tfd.HalfNormal, tfd.HalfNormal]
+
+
+def test_vector_hyperparameter_raises():
+    with pm.Model() as m:
+        pm.Normal("b", pm.Data("mu", np.zeros(3)), pm.Data("s", 1.0))
+    with pytest.raises(TypeError, match="scalar"):
+        adapter_pymc.parameters(m)
+
+
+def test_model_puts_the_columns_back_into_a_vector_prior():
+    with pm.Model() as m:
+        a = pm.Normal("a", pm.Data("mu_a", 0.0), pm.Data("s_a", 1.0))
+        b = pm.Normal("b", pm.Data("mu_b", 0.0), pm.Data("s_b", 1.0), shape=2)
+        pm.Deterministic("e", a + b * np.array([1.0, 10.0]))
+    samples = tf.constant([[[1.0, 2.0, 3.0]]])
+    out = adapter_pymc.model(m)()(samples, seed=SEED)
+    np.testing.assert_allclose(out["e"][0, 0], [3.0, 31.0])
+
+
+def test_model_samples_a_latent_rv(hierarchical_model):
+    samples = tf.fill((1, 100_000, 1), 3.0)
+    out = adapter_pymc.model(hierarchical_model)()(samples, seed=SEED)
+    assert out["y"].shape == (1, 100_000, 4)
+    assert abs(float(tf.reduce_mean(out["y"])) - 3.0) < 0.05
+    assert abs(float(tf.math.reduce_std(out["y"])) - np.sqrt(1.25)) < 0.05
 
 
 def test_model_is_accepted_by_el_model(toy_model):
@@ -94,9 +176,120 @@ def test_model_ypred_moments(toy_model):
 def test_model_unsupported_op_raises():
     with pm.Model() as m:
         b = pm.Normal("b", pm.Data("mu", 0.0), pm.Data("s", 1.0))
-        pm.Deterministic("e", pm.math.exp(b))
-    with pytest.raises(NotImplementedError, match="Exp"):
+        pm.Deterministic("e", pm.math.cos(b))
+    with pytest.raises(NotImplementedError, match="Cos"):
         adapter_pymc.model(m)
+
+
+def test_vectorize_batches_an_rv_whose_first_input_is_constant():
+    """pytensor's vectorize_graph keeps the old size of Binomial(n, p) here"""
+    pt = pytest.importorskip("pytensor.tensor")
+    p = pt.vector("p", shape=(3,))
+    x = pt.random.binomial(n=10, p=p, size=(3,))
+    [out] = vectorize([x], {p: pt.matrix("p_batched", shape=(None, 3))})
+    assert out.type.ndim == 2
+
+
+def test_model_draws_a_latent_rv_once_per_sample():
+    """z has no pm.Data input and no batched input"""
+    with pm.Model() as m:
+        mu = pm.Normal("mu", pm.Data("m0", 0.0), pm.Data("s0", 1.0))
+        z = pm.Normal("z", 0.0, 1.0, shape=2)
+        pm.Deterministic("e", mu + z)
+    out = adapter_pymc.model(m)()(tf.zeros((1, 10_000, 1)), seed=SEED)
+    assert out["e"].shape == (1, 10_000, 2)
+    assert abs(float(tf.math.reduce_std(out["e"])) - 1.0) < 0.05
+
+
+N = 20_000
+
+
+@pytest.mark.parametrize(
+    "dist",
+    [
+        pytest.param(lambda: pm.Normal.dist(1.0, 2.0, size=N), id="Normal"),
+        pytest.param(lambda: pm.HalfNormal.dist(2.0, size=N), id="HalfNormal"),
+        pytest.param(
+            lambda: pm.TruncatedNormal.dist(0.0, 1.0, lower=0.0, upper=1.0, size=N),
+            id="TruncatedNormal",
+        ),
+        pytest.param(lambda: pm.Uniform.dist(1.0, 3.0, size=N), id="Uniform"),
+        pytest.param(lambda: pm.Beta.dist(2.0, 5.0, size=N), id="Beta"),
+        pytest.param(lambda: pm.Gamma.dist(2.0, 3.0, size=N), id="Gamma"),
+        pytest.param(lambda: pm.Exponential.dist(2.0, size=N), id="Exponential"),
+        pytest.param(lambda: pm.Bernoulli.dist(0.3, size=N), id="Bernoulli"),
+        pytest.param(lambda: pm.Binomial.dist(10, 0.3, size=N), id="Binomial"),
+        pytest.param(
+            lambda: pm.Categorical.dist([0.2, 0.5, 0.3], size=N), id="Categorical"
+        ),
+    ],
+)
+def test_rv_matches_pymc(dist):
+    """the translated RV has the mean and standard deviation of pm.draw"""
+    x = dist()
+    [value] = translate([x], [])([], SEED)
+    tf_draws = np.asarray(value, dtype=float)
+    pm_draws = pm.draw(x, random_seed=1).astype(float)
+    se = np.sqrt((tf_draws.var() + pm_draws.var()) / N)
+    assert abs(tf_draws.mean() - pm_draws.mean()) < 5 * se
+    np.testing.assert_allclose(tf_draws.std(), pm_draws.std(), rtol=0.05)
+
+
+@pytest.mark.parametrize(
+    "dist",
+    [
+        pytest.param(
+            lambda: pm.Wishart.dist(nu=5, V=np.eye(3) * [1.0, 2.0, 3.0]), id="Wishart"
+        ),
+        pytest.param(
+            lambda: pm.LKJCholeskyCov.dist(
+                n=3, eta=4, sd_dist=pm.Exponential.dist(1.0), compute_corr=False
+            ),
+            id="LKJCholeskyCov",
+        ),
+    ],
+)
+def test_model_resizes_a_symbolic_rv(dist):
+    """each element has the mean and standard deviation of pm.draw"""
+    with pm.Model() as m:
+        pm.Normal("mu", pm.Data("m0", 0.0), pm.Data("s0", 1.0))
+        x = m.register_rv(dist(), "x")
+        pm.Deterministic("e", x)
+    out = adapter_pymc.model(m)()(tf.zeros((1, N, 1)), seed=SEED)
+    tf_draws = np.asarray(out["e"][0], dtype=float).reshape(N, -1)
+    pm_draws = pm.draw(dist(), draws=N, random_seed=1).reshape(N, -1)
+    se = np.sqrt((tf_draws.var(0) + pm_draws.var(0)) / N)
+    assert np.all(np.abs(tf_draws.mean(0) - pm_draws.mean(0)) < 5 * se + 1e-6)
+    np.testing.assert_allclose(tf_draws.std(0), pm_draws.std(0), rtol=0.1, atol=1e-6)
+
+
+def test_symbolic_rv_that_depends_on_a_free_rv_raises():
+    with pm.Model() as m:
+        nu = pm.Uniform("nu", pm.Data("low", 4.0), pm.Data("high", 6.0))
+        w = pm.Wishart("w", nu=nu, V=np.eye(2))
+        pm.Deterministic("e", w)
+    with pytest.raises(NotImplementedError, match="'w'"):
+        adapter_pymc.model(m)
+
+
+def test_model_takes_the_size_of_a_pm_data_observation():
+    """the size of kobs is a shape op of k, and vectorize rebuilds it"""
+    with pm.Model() as m:
+        q = pm.Beta("q", pm.Data("a", 2.0), pm.Data("b", 2.0))
+        k = pm.Data("k", np.ones((5, 2), dtype=int))
+        pm.Multinomial("kobs", p=pm.math.stack([q, 1 - q]), n=2, observed=k)
+    out = adapter_pymc.model(m)()(tf.fill((1, 7, 1), 0.5), seed=SEED)
+    assert out["kobs"].shape == (1, 7, 5, 2)
+    np.testing.assert_allclose(tf.reduce_sum(out["kobs"], -1), 2.0)
+
+
+def test_model_returns_counts_as_float():
+    with pm.Model() as m:
+        p = pm.Beta("p", pm.Data("a", 2.0), pm.Data("b", 2.0))
+        pm.Binomial("k", n=10, p=p, observed=np.zeros(3, dtype=int))
+    out = adapter_pymc.model(m)()(tf.fill((1, 50, 1), 0.5), seed=SEED)
+    assert out["k"].dtype == tf.float32
+    assert set(np.unique(out["k"])) <= set(range(11))
 
 
 def _slice(i):

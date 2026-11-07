@@ -857,12 +857,16 @@ class Elicit:
             self.trainer["seed"],
         )
 
+        # the prior draws its samples with the seed in the trainer, so each
+        # replication needs a trainer with its own seed
+        trainer: Trainer = {**self.trainer, "seed": seed}
+
         # initialization of hyperparameter
         (init_prior_model, loss_list, init_matrix) = initializers.methods.init_prior(
             expert_elicits,
             self.initializer,
             self.parameters,
-            self.trainer,
+            trainer,
             self.optimizer,
             self.model,
             self.targets,
@@ -892,7 +896,7 @@ class Elicit:
         history, results = fit_method(
             expert_elicits,
             init_prior_model,
-            self.trainer,
+            trainer,
             self.optimizer,
             self.model,
             self.targets,
