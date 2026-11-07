@@ -2,6 +2,8 @@
 Unit tests for output hyperparameter names.
 """
 
+from functools import partial
+
 import tensorflow as tf
 import tensorflow_probability as tfp
 
@@ -11,9 +13,7 @@ tfd = tfp.distributions
 
 
 def test_output_hyperparameter_names():
-    summary_data = {
-        "quantiles_y_obs": [0, -0.012148, 0.049513, 0.100585, 0.153291, 0.634314]
-    }
+    summary_data = {"y_obs": [-0.012148, 0.049513, 0.100585, 0.153291, 0.634314]}
 
     class GenerativeModel:
         def __call__(self, prior_samples, N, se_y):
@@ -29,7 +29,7 @@ def test_output_hyperparameter_names():
             return dict(y_obs=y_pred)
 
     eliobj = el.Elicit(
-        model=el.model(obj=GenerativeModel, N=50, se_y=tfd.Normal(0, 1).sample(50)),
+        model=partial(GenerativeModel(), N=50, se_y=tfd.Normal(0, 1).sample(50)),
         parameters=[
             el.parameter(
                 name="mu",
@@ -43,23 +43,21 @@ def test_output_hyperparameter_names():
             ),
         ],
         targets=[
-            el.target(
-                name="y_obs",
-                query=el.queries.quantiles([0.05, 0.25, 0.5, 0.75, 0.95]),
+            el.quantiles(
+                "y_obs",
+                probs=[0.05, 0.25, 0.5, 0.75, 0.95],
                 loss=el.losses.MMD2(kernel="energy"),
             ),
         ],
-        expert=el.expert.data(summary_data),
-        optimizer=el.optimizer(
-            optimizer=tf.keras.optimizers.Adam, learning_rate=0.0, clipnorm=1.0
-        ),
-        trainer=el.trainer(method="parametric_prior", seed=123, epochs=1, progress=1),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0, clipnorm=1.0),
+        seeds=(123,),
+        epochs=1,
         initializer=el.initializer(
             hyperparams=dict(mu_mu=1.0, sigma_mu=0.5, l_tau=0.1, d_tau=0.4)
         ),
     )
 
-    eliobj.fit()
+    eliobj.fit(summary_data)
 
     res_dict = {}
     for var in ["mu_mu", "sigma_mu", "l_tau", "d_tau"]:

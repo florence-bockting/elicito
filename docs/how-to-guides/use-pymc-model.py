@@ -21,11 +21,10 @@
 # elicited priors.
 #
 # The example is the linear regression of the tutorial
-# ["Getting started: parametric prior"](../tutorials/getting-started-param.py).
+# [Getting started with parametric priors][getting-started-with-parametric-priors].
 #
 # > **Note:** the adapter needs Python 3.12 or later and the optional
 # > dependency `pymc`. Install it with `pip install "elicito[pymc]"`.
-# > This guide also uses CMA-ES, which needs `pip install "elicito[cma]"`.
 
 # %% tags=["hide"]
 import os
@@ -106,34 +105,24 @@ with pm.Model() as pymc_model:
 # %% [markdown]
 # ## From PyMC to elicito
 #
-# `parameters` reads the priors. `model` translates the PyMC model into a
-# generative model. The generative model returns every observed variable and
-# every `pm.Deterministic`, by name: here `ypred` and `epred`.
+# Give the PyMC model to `el.Elicit`. `elicito` reads the priors and
+# translates the model. The translated model returns every observed variable
+# and every `pm.Deterministic`, by name: here `ypred` and `epred`.
+#
+# `adapter_pymc.parameters` shows the priors that `elicito` reads.
 
 # %%
-parameters = adapter_pymc.parameters(pymc_model)
-model = el.model(obj=adapter_pymc.model(pymc_model))
-
-[(p["name"], p["family"].__name__) for p in parameters]
+[(p["name"], p["family"].__name__) for p in adapter_pymc.parameters(pymc_model)]
 
 # %% [markdown]
 # ## Target quantities
 #
 # The targets are those of the tutorial. `ypred` holds the outcome at the
-# three design points, so a target function selects one of them. A target
-# function receives the model output by the name of its argument.
+# three design points. `select=i` picks design point `i`. A target function
+# receives the model outputs by the names of its arguments.
 
 
 # %%
-def outcome_at(i: int) -> Any:
-    """Return a target function that selects design point i of ypred"""
-
-    def target(ypred: Any) -> Any:
-        return ypred[:, :, i]
-
-    return target
-
-
 def custom_r2(ypred: Any, epred: Any) -> Any:
     """Compute the coefficient of determination"""
     var_epred = tf.math.reduce_variance(epred, -1)
@@ -141,25 +130,15 @@ def custom_r2(ypred: Any, epred: Any) -> Any:
     return tf.divide(var_epred, var_epred + var_diff)
 
 
+PROBS = (0.05, 0.25, 0.50, 0.75, 0.95)
+
 targets = [
-    el.target(
-        name=f"y_X{i}",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
-        loss=el.losses.MMD2(kernel="energy"),
-        target_method=outcome_at(i),
-        weight=1.0,
-    )
-    for i in range(3)
+    *(
+        el.quantiles(f"y_X{i}", output="ypred", select=i, probs=PROBS)
+        for i in range(3)
+    ),
+    el.quantiles("R2", output=custom_r2, loss=el.losses.L2, weight=0.5),
 ]
-targets.append(
-    el.target(
-        name="R2",
-        query=el.queries.quantiles((0.05, 0.50, 0.95)),
-        loss=el.losses.L2,
-        target_method=custom_r2,
-        weight=0.5,
-    )
-)
 
 # %% [markdown]
 # ## Expert and training
@@ -175,17 +154,8 @@ ground_truth = {
     "sigma": tfd.HalfNormal(scale=7.0),
 }
 
-eliobj = el.Elicit(
-    model=model,
-    parameters=parameters,
-    targets=targets,
-    expert=el.expert.simulator(ground_truth=ground_truth, num_samples=10_000),
-    optimizer=el.optimizer(optimizer="cmaes"),
-    trainer=el.trainer(
-        method="parametric_prior", seed=2025, epochs=400, progress=1, kappa=0.0
-    ),
-)
-eliobj.fit(parallel=el.utils.parallel(runs=5, seeds=[1, 2, 3, 4, 5]))
+eliobj = el.Elicit(pymc_model, targets, seeds=(1, 2, 3, 4, 5), epochs=400)
+fit = eliobj.fit(el.expert.simulator(ground_truth=ground_truth, num_samples=10_000))
 
 # %% [markdown]
 # `hyperparameters(replication=r)` returns the learned values of one
@@ -194,7 +164,7 @@ eliobj.fit(parallel=el.utils.parallel(runs=5, seeds=[1, 2, 3, 4, 5]))
 
 # %%
 for r in range(5):
-    values = eliobj.hyperparameters(replication=r)
+    values = fit.hyperparameters(replication=r)
     print(r, {name: round(value, 2) for name, value in values.items()})
 
 # %% [markdown]

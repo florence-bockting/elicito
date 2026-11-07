@@ -2,6 +2,7 @@
 Objective and search box shared by the derivative-free searches
 """
 
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -90,7 +91,7 @@ def score(  # noqa: PLR0913
     expert_elicited_statistics: dict[str, tf.Tensor],
     parameters: list[Parameter],
     trainer: Trainer,
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     expert: ExpertDict,
     seed: int,
@@ -160,7 +161,7 @@ def score(  # noqa: PLR0913
 def evaluate(  # noqa: PLR0913
     prior_model: Any,
     expert_elicited_statistics: dict[str, tf.Tensor],
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     seed: int,
     run: Any = None,
@@ -259,7 +260,7 @@ def evaluate(  # noqa: PLR0913
 
 def compile_evaluate(
     prior_model: Any,
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     expert_elicited_statistics: dict[str, tf.Tensor],
     seed: int,
@@ -337,7 +338,7 @@ def compile_score(  # noqa: PLR0913
     expert_elicited_statistics: dict[str, tf.Tensor],
     parameters: list[Parameter],
     trainer: Trainer,
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     expert: ExpertDict,
     seed: int,

@@ -7,8 +7,6 @@ import importlib.metadata
 import tensorflow as tf
 
 from elicito import (
-    consistency,
-    diagnostics,
     initializers,
     losses,
     models,
@@ -20,19 +18,19 @@ from elicito import (
     types,
     utils,
 )
-from elicito.elicit import Elicit
+from elicito.elicit import Elicit, load
 from elicito.initializers import initializer
 from elicito.parameters import networks
 from elicito.specs import (
+    correlation,
+    custom,
     expert,
     hyper,
-    meta_settings,
-    model,
-    optimizer,
+    identity,
     parameter,
+    partial,
+    quantiles,
     queries,
-    target,
-    trainer,
 )
 
 tf.get_logger().setLevel("ERROR")
@@ -41,27 +39,26 @@ __version__ = importlib.metadata.version("elicito")
 
 __all__ = [
     "Elicit",
-    "consistency",
-    "diagnostics",
+    "correlation",
+    "custom",
     "expert",
     "hyper",
+    "identity",
     "initializer",
     "initializers",
+    "load",
     "losses",
-    "meta_settings",
-    "model",
     "models",
     "networks",
-    "optimizer",
     "optimizers",
     "parameter",
     "parameters",
+    "partial",
     "plots",
+    "quantiles",
     "queries",
     "specs",
-    "target",
     "targets",
-    "trainer",
     "types",
     "utils",
 ]

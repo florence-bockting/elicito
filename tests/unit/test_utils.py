@@ -15,8 +15,9 @@ import xarray as xr
 
 import elicito as el
 from elicito._storage import save, save_as_pkl
+from elicito.fit import Fit
 from elicito.parameters.bijections import DoubleBound, LowerBound, UpperBound
-from elicito.utils import gumbel_softmax_trick, parallel
+from elicito.utils import gumbel_softmax_trick
 
 tfd = tfp.distributions
 
@@ -30,16 +31,17 @@ def fitted_eliobj():
         model=base_eliobj.model,
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
-        expert=base_eliobj.expert,
-        optimizer=base_eliobj.optimizer,
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=1, progress=0),
+        optimizer=base_eliobj.settings["optimizer"],
+        seeds=(0,),
+        epochs=1,
+        verbose=False,
         initializer=el.initializer(
             method="sobol",
             iterations=1,
             distribution=el.initializers.uniform(radius=1.0, mean=0.0),
         ),
     )
-    eliobj_copy.fit()
+    eliobj_copy.fit(base_eliobj.expert)
     return eliobj_copy
 
 
@@ -179,7 +181,7 @@ def test_inverse_forward_upperbound(upperbound, x):
 
 class DummyEliobj_empty:
     def __init__(self):
-        self.model = el.model(TestModel)
+        self.model = TestModel()
         self.parameters = [
             el.parameter(
                 name="b0",
@@ -187,27 +189,26 @@ class DummyEliobj_empty:
                 hyperparams=dict(loc=el.hyper(name="mu0"), scale=el.hyper("sigma0")),
             )
         ]
-        self.targets = [
-            el.target(name="b0", loss=el.losses.L2, query=el.queries.quantiles((0.5,)))
-        ]
-        self.expert = el.expert.data({"quantiles_b0": 0.5})
-        self.optimizer = el.optimizer(
-            optimizer=tf.keras.optimizers.Adam, learning_rate=0.1
+        self.targets = [el.quantiles("b0", probs=(0.5,), loss=el.losses.L2)]
+        self.expert = dict(data={"b0": 0.5})
+        self.trainer = dict(method="parametric_prior", seed=42)
+        self.settings = dict(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
+            seeds=(42,),
+            epochs=1,
+            initializer=el.initializer(
+                "sobol",
+                distribution=el.initializers.uniform(radius=1, mean=0),
+                iterations=1,
+            ),
         )
-        self.trainer = el.trainer(method="parametric_prior", seed=42, epochs=1)
-        self.initializer = el.initializer(
-            "sobol",
-            distribution=el.initializers.uniform(radius=1, mean=0),
-            iterations=1,
-        )
-        self.network = None
         self.temp_results = []
         self.temp_history = []
 
 
 class DummyEliobj_fitted:
     def __init__(self):
-        self.model = el.model(TestModel)
+        self.model = TestModel()
         self.parameters = [
             el.parameter(
                 name="b0",
@@ -215,20 +216,19 @@ class DummyEliobj_fitted:
                 hyperparams=dict(loc=el.hyper(name="mu0"), scale=el.hyper("sigma0")),
             )
         ]
-        self.targets = [
-            el.target(name="b0", loss=el.losses.L2, query=el.queries.quantiles((0.5,)))
-        ]
-        self.expert = el.expert.data({"quantiles_b0": 0.5})
-        self.optimizer = el.optimizer(
-            optimizer=tf.keras.optimizers.Adam, learning_rate=0.1
+        self.targets = [el.quantiles("b0", probs=(0.5,), loss=el.losses.L2)]
+        self.expert = dict(data={"b0": 0.5})
+        self.trainer = dict(method="parametric_prior", seed=42)
+        self.settings = dict(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
+            seeds=(42,),
+            epochs=1,
+            initializer=el.initializer(
+                "sobol",
+                distribution=el.initializers.uniform(radius=1, mean=0),
+                iterations=1,
+            ),
         )
-        self.trainer = el.trainer(method="parametric_prior", seed=42, epochs=1)
-        self.initializer = el.initializer(
-            "sobol",
-            distribution=el.initializers.uniform(radius=1, mean=0),
-            iterations=1,
-        )
-        self.network = None
         self.results = [1, 2, 3, 4]
 
 
@@ -264,9 +264,11 @@ def test_save_and_load_path(monkeypatch, eliobj, fit, test_path, overwrite):
     assert os.path.isfile(expected_file)
 
     # Check that loading object works
-    loaded_eliobj = el.Elicit.load(expected_file)
+    loaded = el.load(expected_file)
+    loaded_eliobj = loaded.eliobj if fit else loaded
+    assert isinstance(loaded, Fit) == fit
 
-    assert loaded_eliobj.model["obj"] == TestModel
+    assert isinstance(loaded_eliobj.model, TestModel)
     assert loaded_eliobj.parameters[0]["name"] == "b0"
     assert loaded_eliobj.targets[0]["name"] == "b0"
     assert loaded_eliobj.trainer["method"] == "parametric_prior"
@@ -274,8 +276,7 @@ def test_save_and_load_path(monkeypatch, eliobj, fit, test_path, overwrite):
     if fit:
         assert loaded_eliobj.results == eliobj.results
     else:
-        assert loaded_eliobj.temp_history == eliobj.temp_history
-        assert loaded_eliobj.temp_results == eliobj.temp_results
+        assert not hasattr(loaded_eliobj, "results")
 
     # clean-up directory
     shutil.rmtree("tests/test-data")
@@ -294,10 +295,12 @@ def test_save_and_load_name(eliobj, fit, test_file):
 
     assert os.path.exists(expected_path)
 
-    loaded_eliobj = el.Elicit.load(expected_path)
+    loaded = el.load(expected_path)
+    loaded_eliobj = loaded.eliobj if fit else loaded
+    assert isinstance(loaded, Fit) == fit
 
     # Check that loaded object is correct
-    assert loaded_eliobj.model["obj"] == TestModel
+    assert isinstance(loaded_eliobj.model, TestModel)
     assert loaded_eliobj.parameters[0]["name"] == "b0"
     assert loaded_eliobj.targets[0]["name"] == "b0"
     assert loaded_eliobj.trainer["method"] == "parametric_prior"
@@ -305,26 +308,10 @@ def test_save_and_load_name(eliobj, fit, test_file):
     if fit:
         assert loaded_eliobj.results == eliobj.results
     else:
-        assert loaded_eliobj.temp_history == eliobj.temp_history
-        assert loaded_eliobj.temp_results == eliobj.temp_results
+        assert not hasattr(loaded_eliobj, "results")
 
     # clean-up directory
     shutil.rmtree("results/parametric_prior")
-
-
-@pytest.mark.parametrize(
-    "runs, cores",
-    [
-        (1, None),
-        (2, 4),
-        (10, 10),
-    ],
-)
-def test_parallel(runs, cores):
-    result = parallel(runs=runs, cores=cores)
-    expected_cores = runs if cores is None else cores
-
-    assert result == {"runs": runs, "cores": expected_cores, "seeds": None}
 
 
 def test_gumble_softmax_trick_assert():
@@ -357,3 +344,16 @@ def test_gumble_softmax_trick():
 
     # dtype should be float32
     assert ypred.dtype == tf.float32
+
+
+@pytest.mark.parametrize("relative", [True, False])
+def test_save_takes_a_relative_or_an_absolute_file(monkeypatch, tmp_path, relative):
+    pytest.importorskip("scipy")
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "sub" / "eliobj"
+    file = "eliobj" if relative else str(target)
+
+    save(DummyEliobj_fitted(), file=file)
+
+    expected = tmp_path / "eliobj.pkl" if relative else target.with_suffix(".pkl")
+    assert expected.is_file()

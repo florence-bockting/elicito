@@ -282,74 +282,6 @@ def loss(
     return fig, axes
 
 
-def consistency(
-    diagnostic: Any, xlim: tuple[float, float] | None = None, **kwargs: Any
-) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
-    """
-    Plot the leave-one-out diagnostics of each statistic.
-
-    Parameters
-    ----------
-    diagnostic : xr.Dataset
-        result of :func:`elicito.diagnostics.leave_one_out`. The title says
-        whether the information is inconsistent. The bar is the held-out miss
-        in units of the tolerance, and the whisker its 95 % interval. The
-        dashed line marks the tolerance. The bars of the statistics that
-        conflict most with the others are red.
-    xlim : tuple of float, optional
-        limits of the x-axis. Use the same limits to compare several plots.
-    **kwargs : any, optional
-        additional keyword arguments that can be passed to specify
-        `plt.subplots() <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html>`_
-
-    Returns
-    -------
-    :
-        fig, axes
-
-    Examples
-    --------
-    >>> el.plots.consistency(diagnostic, figsize=(6, 2))  # doctest: +SKIP
-
-    """
-    kwargs.setdefault("figsize", (4, 2))
-    kwargs.setdefault("constrained_layout", True)
-
-    fig, axes = _setup_grid(1, 1, **kwargs)
-    ax = axes[0]
-    statistics = [str(name) for name in diagnostic.statistic.values]
-    miss = diagnostic["mean_miss"].values
-    lower = diagnostic["lower"].values
-    upper = diagnostic["upper"].values
-    colors = ["firebrick" if lead else "grey" for lead in diagnostic["leading"].values]
-    ax.barh(
-        statistics,
-        miss,
-        xerr=[miss - lower, upper - miss],
-        color=colors,
-        height=0.5,
-        error_kw=dict(ecolor="black", elinewidth=1, capsize=2),
-    )
-    ax.axvline(1, color="black", lw=1, linestyle="dashed")
-    if xlim is not None:
-        ax.set_xlim(xlim)
-    verdict = (
-        "inconsistent"
-        if diagnostic.attrs["inconsistent"]
-        else "no evidence of a conflict"
-    )
-    ax.set_title(verdict, fontsize="small")
-    ax.set_xlabel("held-out miss (units of the tolerance)", fontsize="x-small")
-    ax.set_axisbelow(True)
-    ax.grid(axis="x", color="lightgrey", linestyle="dotted", linewidth=1)
-    ax.spines[["right", "top"]].set_visible(False)
-    ax.tick_params(axis="both", labelsize="x-small")
-    # the first statistic on top
-    ax.invert_yaxis()
-
-    return fig, axes
-
-
 def hyperparameter(
     eliobj: Any, cols: int = 4, titles: list[str] | None = None, **kwargs: Any
 ) -> tuple["matplotlib.figure.Figure", np.ndarray[Any, Any]]:
@@ -802,7 +734,8 @@ def elicits(
 
     # extract quantities of interest needed for plotting
     name_elicits = list(samples["elicited_summary"].data_vars)
-    method_name = [name_elicits[i].split("_")[0] for i in range(n_elicits)]
+    queries = {tar["name"]: tar["query"]["name"] for tar in eliobj.targets}
+    method_name = [queries[name] for name in name_elicits]
 
     # check that all information can be assessed
     try:
@@ -827,7 +760,7 @@ def elicits(
             )
             method = _quantiles
 
-        elif meth == "cor":
+        elif meth == "pearson_correlation":
             labels = [("expert", "train")] + [(None, None) for _ in range(n_reps - 1)]
             method = _correlation
             num_cor = samples["elicited_summary"].to_dataset()[elicit].shape[-1]
@@ -853,14 +786,14 @@ def elicits(
             )
 
         # Configure labels, legend, title
-        if elicit.endswith("_cor"):
+        if meth == "pearson_correlation":
             ax.legend(fontsize="x-small", markerscale=0.5, frameon=False)
         ax.set_title(elicit, fontsize="small")
         ax.grid(color="lightgrey", linestyle="dotted", linewidth=1)
         ax.spines[["right", "top"]].set_visible(False)
         ax.tick_params(axis="y", labelsize="x-small")
         ax.tick_params(axis="x", labelsize="x-small")
-        if not elicit.endswith("_cor"):
+        if meth != "pearson_correlation":
             ax.set_xlabel("expert", fontsize="small")
             ax.set_ylabel("model-sim.", fontsize="small")
 

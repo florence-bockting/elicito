@@ -640,6 +640,7 @@ name = "elicito"
 version = "0.7.1a1"
 source = { editable = "." }
 dependencies = [
+    { name = "cma" },
     { name = "joblib" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -651,13 +652,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-cma = [
-    { name = "cma" },
-]
 full = [
     { name = "arviz-stats", version = "0.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "arviz-stats", version = "1.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "cma" },
     { name = "matplotlib" },
     { name = "pymc", marker = "python_full_version >= '3.12'" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -1002,8 +999,7 @@ tests-min = [
 [package.metadata]
 requires-dist = [
     { name = "arviz-stats", marker = "extra == 'plots'", specifier = ">=0.6.0" },
-    { name = "cma", marker = "extra == 'cma'", specifier = ">=3.4.0" },
-    { name = "elicito", extras = ["cma"], marker = "extra == 'full'" },
+    { name = "cma", specifier = ">=3.4.0" },
     { name = "elicito", extras = ["plots"], marker = "extra == 'full'" },
     { name = "elicito", extras = ["pymc"], marker = "extra == 'full'" },
     { name = "elicito", extras = ["scipy"], marker = "extra == 'full'" },
@@ -1018,7 +1014,7 @@ requires-dist = [
     { name = "tf-keras", specifier = ">=2.16.0" },
     { name = "xarray", specifier = ">=2025.9.0" },
 ]
-provides-extras = ["plots", "scipy", "cma", "pymc", "full"]
+provides-extras = ["plots", "scipy", "pymc", "full"]
 
 [package.metadata.requires-dev]
 all-dev = [

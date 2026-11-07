@@ -3,6 +3,7 @@ Derivative-free warm start for the hyperparameters of a parametric prior
 """
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -39,7 +40,7 @@ class WarmStart(_SearchStart):
         expert_elicited_statistics: dict[str, tf.Tensor],
         parameters: list[Parameter],
         trainer: Trainer,
-        model: dict[str, Any],
+        model: Callable[..., Any],
         targets: list[Target],
         expert: ExpertDict,
         distribution: dict[str, Any],
@@ -64,7 +65,7 @@ def warm_start(  # noqa: PLR0913
     expert_elicited_statistics: dict[str, tf.Tensor],
     parameters: list[Parameter],
     trainer: Trainer,
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     expert: ExpertDict,
     distribution: dict[str, Any],

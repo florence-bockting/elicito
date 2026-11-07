@@ -110,10 +110,13 @@ def _package(module: str) -> str:
 # **Entry points for the user**
 #
 # - `specs`: the constructors of the user specification, such as
-#   `el.model`, `el.parameter`, `el.hyper`, `el.target`, `el.expert`,
-#   `el.optimizer` and `el.trainer`.
+#   `el.parameter`, `el.hyper`, `el.quantiles`, `el.correlation`,
+#   `el.identity`, `el.custom`, `el.partial` and `el.expert`.
 # - `elicit`: the `Elicit` class. It checks the input, and it has the
 #   methods `fit`, `sample`, `save` and `load`.
+# - `fit`: the results that `fit` returns: `Fit` for one expert, and
+#   `Panel` for a panel of experts.
+# - `adapter/`: the translation of a PyMC model into a generative model.
 #
 # **Building blocks.** There is one block for each concept in the workflow figure.
 #
@@ -138,7 +141,10 @@ def _package(module: str) -> str:
 #
 # **Support modules**
 #
-# - `utils`: the expert data, the parallel settings, and small helpers.
+# - `utils`: the expert data and small helpers.
+# - `_settings`: the translation of the flat settings of `Elicit` into the
+#   internal dictionaries.
+# - `_panel`: the expansion of the setup of one expert into a panel.
 # - `_storage`: saving an eliobj to a file, and reading it back.
 # - `_checks`: the checks of the user input to `Elicit`.
 # - `_outputs`: the `xr.DataTree` in `eliobj.results`.
@@ -234,35 +240,35 @@ box(
     (col[2], TOP, W, H),
     "generative model",
     "models.\nsimulate_from_generator",
-    "el.model",
+    "a callable or\na PyMC model",
 )
 box(
     ax,
     (col[3], TOP, W, H),
     "simulated\nsummaries",
     "targets.\ncomputation_elicited_statistics",
-    "el.target, el.queries",
+    "el.quantiles, el.custom",
 )
 box(
     ax,
     (col[1], BOTTOM, W, H),
     "update hyperparameter",
     "optimizers.sgd.sgd_training or\noptimizers.cmaes.cma_training",
-    "el.optimizer, el.trainer",
+    "optimizer=, epochs=",
 )
 box(
     ax,
     (col[2], BOTTOM, W, H),
     "discrepancy loss",
     "losses.total_loss",
-    "el.target: loss, weight",
+    "loss=, weight=",
 )
 box(
     ax,
     (col[3], BOTTOM, W, H),
     "expert-elicited\nsummaries",
     "utils.get_expert_data",
-    "el.expert.simulator\nel.expert.data",
+    "fit(experts)",
 )
 lam = (col[1] + W / 2, 7.9)
 ax.add_patch(Circle(lam, 0.5, facecolor=RED, edgecolor="black"))
@@ -283,7 +289,7 @@ ax.text(lam[0] - 0.15, 7.05, "↻ each epoch", ha="right", va="center", fontsize
 # lower strip: the public methods
 steps = [
     ("Elicit(...)", "_checks.check_elicit", "all specs"),
-    ("fit()", "one seed, or joblib\nover several seeds", "el.utils.parallel"),
+    ("fit()", "one seed, or joblib\nover several seeds", "seeds="),
     ("workflow(seed)", "the upper panel", "one run for each seed"),
     ("eliobj.results", "_outputs.create_datatree", "weights, loss,\nexpert data"),
     (

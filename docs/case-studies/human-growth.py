@@ -26,6 +26,7 @@ import os
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -177,7 +178,7 @@ class GrowthModel:
     # `elicito` calls this inside a compiled forward pass. AutoGraph would
     # then rewrite the body, and it finds the body by file and line. A cell
     # of a notebook has no source file in a worker process of
-    # `fit(parallel=...)`, so AutoGraph rewrites the wrong function there.
+    # the parallel `seeds`, so AutoGraph rewrites the wrong function there.
     # This model has no Python branch to rewrite, so we switch it off.
     @tf.autograph.experimental.do_not_convert
     def __call__(
@@ -351,21 +352,13 @@ parameters = [
 # %%
 QUANTILES = (0.10, 0.25, 0.50, 0.75, 0.90)
 
-targets = [
-    el.target(
-        name=f"y_t{i}",
-        query=el.queries.quantiles(QUANTILES),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    )
-    for i in range(4)
-]
+targets = [el.quantiles(f"y_t{i}", probs=QUANTILES) for i in range(4)]
 
 # %% [markdown]
 # ## The generative model and the oracle
 
 # %%
-model = el.model(obj=GrowthModel, ages=AGES)
+model = partial(GrowthModel(), ages=AGES)
 
 expert = el.expert.simulator(
     ground_truth=oracle(user=1),
@@ -394,7 +387,7 @@ expert = el.expert.simulator(
 # $b_{h_{t^*}}$ is at $y = -7.7$, a standard deviation of 0.14 cm for
 # $h_{t^*}$.
 #
-# Only the Adam run below reads this box. With `optimizer="cmaes"`, `elicito`
+# Only the Adam run below reads this box. With the default optimizer, CMA-ES, `elicito`
 # ignores the initializer, with a warning. The CMA-ES training then starts at
 # 0, the midpoint of every interval, which is also the centre of this box.
 # The training is itself a search. A search before it would only throw away
@@ -406,8 +399,6 @@ expert = el.expert.simulator(
 # local Nelder-Mead search from the centre, and `random`, `lhs` and `sobol`
 # rank independent draws. All three take the first usable basin, which is not
 # the best one.
-#
-# `cmaes` needs the optional dependency `cma`: `pip install "elicito[cma]"`.
 
 # %%
 BOX = el.initializers.uniform(mean=0.0, radius=6.0)
@@ -415,7 +406,7 @@ BOX = el.initializers.uniform(mean=0.0, radius=6.0)
 # %% [markdown]
 # ## Training
 #
-# We fit with CMA-ES, not with a gradient. `el.optimizer(optimizer="cmaes")`
+# We fit with CMA-ES, the default, not with a gradient. CMA-ES
 # replaces the gradient descent by one search over the whole budget, on the
 # full 400 prior draws.
 #
@@ -439,32 +430,25 @@ BOX = el.initializers.uniform(mean=0.0, radius=6.0)
 # page is therefore slow to render.
 #
 # This fit is one chain. The section on the five experts below runs five
-# replications of one fit with `fit(parallel=...)`.
+# replications of one fit with five `seeds`.
 
 # %%
 eliobj = el.Elicit(
-    model=model,
-    parameters=parameters,
-    targets=targets,
-    expert=expert,
-    optimizer=el.optimizer(
-        optimizer="cmaes",
-        sigma0=1.0,
-    ),
-    trainer=el.trainer(
-        method="parametric_prior",
-        seed=2025,
-        epochs=3000,
-        progress=0,
-        num_samples=400,
-    ),
+    model,
+    targets,
+    parameters,
+    cmaes={"sigma0": 1.0},
+    seeds=(2025,),
+    epochs=3000,
+    num_samples=400,
+    verbose=False,
 )
 
 # %%
 import time
 
 start = time.time()
-eliobj.fit()
+fit = eliobj.fit(expert)
 
 # %% [markdown]
 # The results hold the learned hyperparameters and the loss. The prior
@@ -472,7 +456,7 @@ eliobj.fit()
 # summaries follow from them, and `sample` computes them.
 
 # %%
-samples = eliobj.sample()
+samples = fit.sample()
 cma_seconds = time.time() - start
 
 # %% [markdown]
@@ -482,10 +466,10 @@ cma_seconds = time.time() - start
 # whether the simulated quantiles reach the expert values at each age.
 
 # %%
-el.plots.loss(eliobj, figsize=(7, 3));
+fit.plot.loss(figsize=(7, 3));
 
 # %%
-el.plots.elicits(eliobj, cols=4, figsize=(9, 3), samples=samples);
+fit.plot.elicits(cols=4, figsize=(9, 3));
 
 # %% [markdown]
 # The parameters of interest are $h_{t_s}$, $h_1$, $s_0$, $s_1$ and $t_s$.
@@ -507,9 +491,7 @@ def add_h1_s1(draws):
 
 
 add_h1_s1(samples)
-el.plots.prior_marginals(
-    eliobj, params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4), samples=samples
-);
+fit.plot.prior_marginals(params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4));
 
 # %% tags=["remove_input"]
 import matplotlib.pyplot as plt
@@ -561,7 +543,7 @@ for ax, name, age, color in zip(axes, TARGETS, AGES.numpy(), COLORS):
         color=color, alpha=0.5, edgecolor="none",
     )
     expert_quantiles = (
-        eliobj.results.oracle.sel(replication=0)[f"quantiles_{name}"].values[0]
+        fit.results.oracle.sel(replication=0)[name].values[0]
     )
     for q, x in zip(QUANTILES, expert_quantiles):
         ax.axvline(
@@ -606,35 +588,24 @@ axes[0].legend(
 
 # %%
 eliobj_adam = el.Elicit(
-    model=eliobj.model,
-    parameters=eliobj.parameters,
-    targets=eliobj.targets,
-    expert=eliobj.expert,
-    optimizer=el.optimizer(
-        optimizer=tf.keras.optimizers.Adam,
+    model,
+    targets,
+    parameters,
+    initializer=el.initializer(method="cmaes", distribution=BOX, iterations=300),
+    optimizer=tf.keras.optimizers.Adam(
         learning_rate=tf.keras.optimizers.schedules.ExponentialDecay(
-            initial_learning_rate=0.01,
-            decay_steps=800,
-            decay_rate=0.02,
+            initial_learning_rate=0.01, decay_steps=800, decay_rate=0.02
         ),
         clipnorm=1.0,
     ),
-    trainer=el.trainer(
-        method="parametric_prior",
-        seed=2025,
-        epochs=800,
-        progress=0,
-        num_samples=400,
-    ),
-    initializer=el.initializer(
-        method="cmaes",
-        distribution=BOX,
-        iterations=300,
-    ),
+    seeds=(2025,),
+    epochs=800,
+    num_samples=400,
+    verbose=False,
 )
 
 start = time.time()
-eliobj_adam.fit()
+fit_adam = eliobj_adam.fit(expert)
 adam_seconds = time.time() - start
 
 
@@ -651,25 +622,19 @@ def report(obj, label, seconds):
     )
 
 
-report(eliobj, "cmaes", cma_seconds)
-report(eliobj_adam, "adam", adam_seconds)
+report(fit, "cmaes", cma_seconds)
+report(fit_adam, "adam", adam_seconds)
 
 # %%
-el.plots.loss(eliobj_adam, figsize=(7, 3));
+fit_adam.plot.loss(figsize=(7, 3));
 
 # %%
-samples_adam = eliobj_adam.sample()
-el.plots.elicits(eliobj_adam, cols=4, figsize=(9, 3), samples=samples_adam);
+samples_adam = fit_adam.sample()
+fit_adam.plot.elicits(cols=4, figsize=(9, 3));
 
 # %%
 add_h1_s1(samples_adam)
-el.plots.prior_marginals(
-    eliobj_adam,
-    params=PARAMS_OF_INTEREST,
-    cols=5,
-    figsize=(11, 2.4),
-    samples=samples_adam,
-);
+fit_adam.plot.prior_marginals(params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4));
 
 # %% [markdown]
 # ## Five experts
@@ -698,8 +663,8 @@ el.plots.prior_marginals(
 # difference between two experts is the expert. A difference between two runs
 # of the same expert is the search.
 #
-# `fit(parallel=...)` runs the five replications, and `elicito` stores them
-# in the `replication` dimension of `eliobj.results`.
+# `seeds` runs the five replications, and `elicito` stores them
+# in the `replication` dimension of `fit.results`.
 
 # %%
 USERS = (1, 2, 3, 4, 5)
@@ -711,27 +676,16 @@ SEEDS = [2025, 2026, 2027, 2028, 2029]
 def fit_user(user):
     """Fit the growth model to the prior of one user, five times."""
     obj = el.Elicit(
-        model=model,
-        parameters=parameters,
-        targets=targets,
-        expert=el.expert.simulator(
-            ground_truth=oracle(user),
-            num_samples=10_000,
-        ),
-        optimizer=el.optimizer(
-            optimizer="cmaes",
-            sigma0=1.0,
-        ),
-        trainer=el.trainer(
-            method="parametric_prior",
-            seed=2025,
-            epochs=3000,
-            progress=0,
-            num_samples=400,
-        ),
+        model,
+        targets,
+        parameters,
+        cmaes={"sigma0": 1.0},
+        seeds=tuple(SEEDS),
+        epochs=3000,
+        num_samples=400,
+        verbose=False,
     )
-    obj.fit(parallel=el.utils.parallel(runs=REPLICATIONS, cores=5, seeds=SEEDS))
-    return obj
+    return obj.fit(el.expert.simulator(ground_truth=oracle(user), num_samples=10_000))
 
 
 fits = {u: fit_user(u) for u in USERS}
@@ -749,7 +703,7 @@ fits = {u: fit_user(u) for u in USERS}
 
 # %%
 for u in USERS:
-    fig, _ = el.plots.loss(fits[u], figsize=(7, 3))
+    fig, _ = fits[u].plot.loss(figsize=(7, 3))
     fig.suptitle(f"user {u}")
 
 
@@ -804,10 +758,8 @@ for row, u in zip(axes, USERS):
     summary = samples_user[u]["elicited_summary"]
     for ax, name, age in zip(row, TARGETS, AGES.numpy()):
         for i in successful(samples_user[u]):
-            expert_q = res.oracle.sel(replication=i)[f"quantiles_{name}"].values[0]
-            model_q = summary.sel(replication=i)[f"quantiles_{name}"].values.mean(
-                axis=0
-            )
+            expert_q = res.oracle.sel(replication=i)[name].values[0]
+            model_q = summary.sel(replication=i)[name].values.mean(axis=0)
             ax.plot(expert_q, model_q, "o", ms=5, alpha=0.5, color=USER_COLORS[u])
         ax.axline((0, 0), slope=1, color="darkgrey", linestyle="dashed", lw=1)
         ax.set_title(f"user {u}, age {age:g}", fontsize="small")
@@ -821,86 +773,3 @@ for ax in axes[-1]:
 fig.suptitle(
     "expert-elicited and model-simulated quantiles (cm)", fontsize="medium"
 )
-
-# %% [markdown]
-# ## Is the expert information consistent?
-#
-# The expert gives quantiles at four ages. One prior and one growth model
-# must produce all four. The quantiles of one age can therefore contradict
-# the quantiles of another age. No prior then fits every age, and the fit is
-# a compromise.
-#
-# `el.consistency` checks a fitted eliobj in two stages.
-#
-# 1. `detect` asks, per target: does the learned prior fit this target
-#    worse than sampling error explains? A pseudo-expert simulates the
-#    quantiles from the learned prior itself, so its information is
-#    consistent by construction. One hundred pseudo-experts, each with a new
-#    seed, give the loss that sampling error alone produces. `p_value` is
-#    the share of pseudo-experts with a loss at least as large as the loss of
-#    the real expert.
-# 2. `slack` asks: which targets must move to fit? It refits with a free
-#    shift per target. A penalty keeps every shift at exactly zero unless the
-#    shift lowers the loss by more than it costs. A target that contradicts
-#    the others gets a shift, in centimetres. One refit runs per value of the
-#    penalty.
-#
-# A local optimum also fits badly, and `detect` cannot tell it from a
-# conflict. Both functions therefore start from the best of the five runs
-# above, `el.consistency.best_replication`.
-#
-# The information of user 1 is simulated from a prior of the model, so it is
-# consistent.
-
-# %%
-PENALTY = (0.1, 0.3, 1.0)
-
-el.consistency.detect(fits[1], num_draws=100)
-
-# %%
-el.consistency.slack(fits[1], penalty=PENALTY)["size"]
-
-# %% [markdown]
-# Now we break the information on purpose. The 10-year-old gets the
-# quantiles of an adult, plus 10 cm. The Preece-Baines curve increases with
-# age, so no prior can make a 10-year-old taller than an adult. Ages 10 and
-# 17.5 must conflict.
-
-# %%
-oracle_stats = fits[1].results["oracle"].to_dataset()
-conflict_data = {
-    f"quantiles_y_t{i}": oracle_stats[f"quantiles_y_t{i}"].values[0].ravel().tolist()
-    for i in range(4)
-}
-conflict_data["quantiles_y_t2"] = [q + 10.0 for q in conflict_data["quantiles_y_t3"]]
-
-eliobj_conflict = el.Elicit(
-    model=model,
-    parameters=parameters,
-    targets=targets,
-    expert=el.expert.data(conflict_data),
-    optimizer=el.optimizer(optimizer="cmaes", sigma0=1.0),
-    trainer=el.trainer(
-        method="parametric_prior",
-        seed=2025,
-        epochs=3000,
-        progress=0,
-        num_samples=400,
-    ),
-)
-eliobj_conflict.fit(
-    parallel=el.utils.parallel(runs=REPLICATIONS, cores=5, seeds=SEEDS)
-)
-
-# %%
-el.consistency.detect(eliobj_conflict, num_draws=100)
-
-# %%
-conflict_slack = el.consistency.slack(eliobj_conflict, penalty=PENALTY)
-conflict_slack["size"]
-
-# %% [markdown]
-# The shift of age 10, in centimetres, per quantile:
-
-# %%
-conflict_slack["quantiles_y_t2"]

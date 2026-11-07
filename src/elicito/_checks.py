@@ -2,38 +2,80 @@
 Check user input of Elicit object
 """
 
-from elicito import utils
+import inspect
+from collections.abc import Callable
+from typing import Any
+
 from elicito.optimizers import cmaes
 from elicito.parameters import methods
+from elicito.types import Target
 
 
 def check_elicit(  # type: ignore  # noqa: PLR0913
     model,
     parameters,
     targets,
-    expert,
     trainer,
     optimizer,
     network,
     initializer,
-    meta_settings,
 ) -> None:
     """
     Check whether input values to Elicit() are valid
     """
+    check_model(model)
+    check_target_names(targets)
+
+    # CMA-ES keeps a full covariance matrix of the search space. The weights
+    # of a normalizing flow are thousands of dimensions, which it cannot search.
+    if optimizer["optimizer"] == cmaes.CMAES and trainer["method"] == "deep_prior":
+        msg = (
+            f"optimizer='{cmaes.CMAES}' cannot learn a deep prior. A network "
+            "has too many trainable variables for a derivative-free search. "
+            "Use optimizer='auto' or a tf.keras optimizer instead."
+        )
+        raise ValueError(msg)
+
+    methods.get_method(trainer["method"]).check(parameters, network, initializer)
+
+
+def check_model(model: Callable[..., Any]) -> None:
+    """
+    Check that the generative model is callable with the prior samples
+    """
+    if isinstance(model, type) or not callable(model):
+        msg = (
+            "The model must be a PyMC model or a callable, such as an "
+            f"instance of a class with __call__. Got {model!r}."
+        )
+        raise TypeError(msg)
+    params = inspect.signature(model).parameters
+    if "prior_samples" not in params:
+        msg = "The model must take the argument 'prior_samples'."
+        raise ValueError(msg)
+    # elicito passes a stateless seed to a model that names `seed`
+    missing = [
+        name
+        for name, p in params.items()
+        if name not in {"prior_samples", "seed"} and p.default is p.empty
+    ]
+    if missing:
+        msg = (
+            f"The model arguments {missing} have no value. "
+            "Bind them with functools.partial."
+        )
+        raise ValueError(msg)
+
+
+def check_expert(expert: Any, targets: list[Target], parameters: Any) -> None:
+    """
+    Check the answers of an expert, or the ground truth of an oracle
+    """
     # check expert data
-    expected_dict = utils.get_expert_datformat(targets)
     try:
         expert["ground_truth"]
     except KeyError:
-        # input expert data: ensure data has expected format
-        if list(expert["data"].keys()) != list(expected_dict.keys()):
-            msg = (
-                "Provided expert data is not in the "
-                "correct format. Please use "
-                "el.utils.get_expert_datformat to check expected format."
-            )
-            raise AssertionError(msg)
+        check_answers(expert["data"], targets)
 
     else:
         # oracle: ensure ground truth has same dim as number of model param
@@ -63,15 +105,71 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
             )
             raise AssertionError(msg)
 
-    # CMA-ES keeps a full covariance matrix of the search space. The weights
-    # of a normalizing flow are thousands of dimensions, which it cannot search.
-    if optimizer["optimizer"] == cmaes.CMAES and trainer["method"] == "deep_prior":
+
+def check_answers(answers: dict[str, Any], targets: list[Target]) -> None:
+    """
+    Check the expert answers against the targets
+
+    Parameters
+    ----------
+    answers
+        Expert answers, keyed by target name.
+
+    targets
+        List of target quantities.
+
+    Raises
+    ------
+    ValueError
+        An answer is missing, has no target, or has the wrong length.
+    """
+    names = [tar["name"] for tar in targets]
+    missing = [name for name in names if name not in answers]
+    unknown = [key for key in answers if key not in names]
+    if missing or unknown:
         msg = (
-            f"optimizer='{cmaes.CMAES}' can only be used with "
-            "method='parametric_prior'. The 'deep_prior' method has too many "
-            "trainable variables for a derivative-free search. Use a "
-            "tf.keras optimizer instead."
+            "The expert answers do not match the targets. "
+            f"Missing answers: {missing}. Answers without a target: {unknown}."
         )
         raise ValueError(msg)
 
-    methods.get_method(trainer["method"]).check(parameters, network, initializer)
+    for tar in targets:
+        if tar["query"]["name"] != "quantiles":
+            continue
+        n_probs = len(tar["query"]["value"])
+        n_values = answers[tar["name"]].shape[-1]
+        if n_values != n_probs:
+            msg = (
+                f"The answer for target {tar['name']!r} has {n_values} values, "
+                f"but the target asks for {n_probs} quantiles."
+            )
+            raise ValueError(msg)
+
+
+# names of variables in the results that a target name must not take
+RESERVED_NAMES = ("prior", "total_loss", "penalty")
+
+
+def check_target_names(targets: list[Target]) -> None:
+    """
+    Check that the target names are unique and not reserved
+
+    Parameters
+    ----------
+    targets
+        List of target quantities.
+
+    Raises
+    ------
+    ValueError
+        Two targets have the same name, or a name is reserved.
+    """
+    names = [tar["name"] for tar in targets]
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        msg = f"Target names must be unique. Duplicates: {duplicates}."
+        raise ValueError(msg)
+    reserved = [name for name in names if name in RESERVED_NAMES]
+    if reserved:
+        msg = f"Target names {reserved} are reserved. Use another name."
+        raise ValueError(msg)

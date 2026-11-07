@@ -2,6 +2,9 @@
 Unittests for specs.py module
 """
 
+import inspect
+
+import numpy as np
 import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -112,37 +115,6 @@ def test_parameter_transformation(lower, upper, expected_name, expected_type):
     assert x["constraint_name"] == expected_name
 
 
-class TestModel1:
-    """missing prior samples"""
-
-    def __call__(self):
-        return "Hello"
-
-
-class TestModel2:
-    """minimal model example"""
-
-    def __call__(self, prior_samples, b):
-        return b
-
-
-def test_model():
-    msg = (
-        "The generative model class 'obj' requires the"
-        " input variable 'prior_samples' but argument has not been found"
-        " in 'obj'."
-    )
-    with pytest.raises(ValueError, match=msg):
-        el.model(TestModel1)
-
-    msg = (
-        "The argument arg='b' required by the"
-        "generative model class 'obj' is missing."
-    )
-    with pytest.raises(ValueError, match=msg):
-        el.model(TestModel2)
-
-
 def test_initializer_defaults():
     """no argument gives a Nelder-Mead search on the default uniform box"""
     init = el.initializer()
@@ -185,31 +157,38 @@ def test_initializer():
         )
 
 
-def test_trainer():
-    msg = "Progress has to be either 0 or 1. Got progress=2."
-    with pytest.raises(ValueError, match=msg):
-        el.trainer(method="deep_prior", seed=1, epochs=3, progress=2)
+@pytest.mark.parametrize(
+    ("lower", "upper"), [(0, "inf"), ("-inf", 5), (1, 5), ("-inf", "inf")]
+)
+def test_hyper_unconstrain_inverts_the_constraint(lower, upper):
+    x = hyper("b0", lower, upper)
+    value = tf.constant([1.5, 2.0, 3.0])
 
-    msg = "The number of epochs has to be greater 0." " Got epochs=0."
-    with pytest.raises(ValueError, match=msg):
-        el.trainer(method="deep_prior", seed=1, epochs=0)
+    assert np.allclose(x["unconstrain"](x["constraint"](value)), value, atol=1e-5)
 
-    msg = (
-        "Currently only the methods 'deep_prior' and"
-        "'parametric prior' are implemented but got method='some_prior'."
+
+def test_custom_function_reads_the_signature():
+    def func(y):
+        return y + 1.0
+
+    def renamed(**kw):
+        return func(kw["y__e0"])
+
+    renamed.__signature__ = inspect.Signature(
+        [inspect.Parameter("y__e0", inspect.Parameter.KEYWORD_ONLY)]
     )
-    with pytest.raises(ValueError, match=msg):
-        el.trainer(method="some_prior", seed=1, epochs=3)
-
-    msg = "The weight kappa cannot be negative. Got kappa=-1.0."
-    with pytest.raises(ValueError, match=msg):
-        el.trainer(method="deep_prior", seed=1, epochs=3, kappa=-1.0)
-
-    assert el.trainer(method="deep_prior", seed=1, epochs=3)["kappa"] == 0.0
+    out = el.targets.use_custom_functions({"y__e0": 1.0, "z": 5.0}, renamed)
+    assert out == 2.0
 
 
-def test_optimizer_default_is_a_class():
-    opt = el.optimizer()
-    assert isinstance(
-        opt["optimizer"](learning_rate=0.1), tf.keras.optimizers.Optimizer
+def test_correlation_reads_its_output_if_the_model_gives_it():
+    target = el.correlation("cor")
+    prior_samples = tf.zeros((1, 4, 2))
+    own = tf.ones((1, 4, 2))
+
+    out = el.targets.computation_target_quantities({}, prior_samples, [target])
+    assert out["cor"] is prior_samples
+    out = el.targets.computation_target_quantities(
+        {"cor": own}, prior_samples, [target]
     )
+    assert out["cor"] is own

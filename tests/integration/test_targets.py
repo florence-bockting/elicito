@@ -18,9 +18,9 @@ B, num_samples, num_obs = (1_000, 10_000, 3)
 @pytest.fixture
 def targets1():
     return [
-        el.target(
-            name="tar",
-            query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
+        el.quantiles(
+            "tar",
+            probs=(0.05, 0.25, 0.50, 0.75, 0.95),
             loss=el.losses.MMD2(kernel="energy"),
         )
     ]
@@ -36,12 +36,12 @@ def test_computation_elicited_statistics_quantiles(targets1, target_quantities1)
     res = el.targets.computation_elicited_statistics(target_quantities1, targets1)
 
     # check correct naming of target quantities
-    assert "quantiles_tar" == next(iter(res.keys()))
+    assert "tar" == next(iter(res.keys()))
 
     # check correct values of elicited statistics
     expected_quants_tar1 = tfd.Normal(0.0, 1.0).quantile((0.05, 0.25, 0.50, 0.75, 0.95))
 
-    for i, q in enumerate(tf.reduce_mean(res["quantiles_tar"], 0)):
+    for i, q in enumerate(tf.reduce_mean(res["tar"], 0)):
         assert q.numpy() == pytest.approx(expected_quants_tar1[i], abs=0.01)
 
 
@@ -53,13 +53,7 @@ cor = 0.3
 
 @pytest.fixture
 def targets2():
-    return [
-        el.target(
-            name="tar",
-            query=el.queries.correlation(),
-            loss=el.losses.MMD2(kernel="energy"),
-        )
-    ]
+    return [el.correlation("tar", loss=el.losses.MMD2(kernel="energy"))]
 
 
 @pytest.fixture
@@ -76,23 +70,17 @@ def test_computation_elicited_statistics_cor(targets2, target_quantities2):
     res = el.targets.computation_elicited_statistics(target_quantities2, targets2)
 
     # check correct naming of target quantities
-    assert "cor_tar" == next(iter(res.keys()))
+    assert "tar" == next(iter(res.keys()))
 
     # check correct values of elicited statistics
-    mean_cor = tf.reduce_mean(res["cor_tar"]).numpy()
+    mean_cor = tf.reduce_mean(res["tar"]).numpy()
     assert cor == pytest.approx(mean_cor, abs=0.01)
 
 
 # %% elicitation technique: identity
 @pytest.fixture
 def targets3():
-    return [
-        el.target(
-            name="tar",
-            query=el.queries.identity(),
-            loss=el.losses.MMD2(kernel="energy"),
-        )
-    ]
+    return [el.identity("tar", loss=el.losses.MMD2(kernel="energy"))]
 
 
 @pytest.fixture
@@ -105,10 +93,10 @@ def test_computation_elicited_statistics_identity(targets3, target_quantities3):
     res = el.targets.computation_elicited_statistics(target_quantities3, targets3)
 
     # check correct naming of target quantities
-    assert "identity_tar" == next(iter(res.keys()))
+    assert "tar" == next(iter(res.keys()))
 
     # check correct values of elicited statistics
-    assert tf.reduce_all(target_quantities3["tar"] == res["identity_tar"])
+    assert tf.reduce_all(target_quantities3["tar"] == res["tar"])
 
 
 # %% target quantity: correlation
@@ -130,13 +118,7 @@ def test_computation_target_quantities_cor(prior_samples, targets2):
 # %% target quantities from model simulations
 @pytest.fixture
 def targets5():
-    return [
-        el.target(
-            name="ypred",
-            query=el.queries.identity(),
-            loss=el.losses.MMD2(kernel="energy"),
-        )
-    ]
+    return [el.identity("ypred", loss=el.losses.MMD2(kernel="energy"))]
 
 
 @pytest.fixture
