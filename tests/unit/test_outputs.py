@@ -11,9 +11,7 @@ tfd = tfp.distributions
 
 
 def test_output_hyperparameter_names():
-    summary_data = {
-        "quantiles_y_obs": [0, -0.012148, 0.049513, 0.100585, 0.153291, 0.634314]
-    }
+    summary_data = {"y_obs": [-0.012148, 0.049513, 0.100585, 0.153291, 0.634314]}
 
     class GenerativeModel:
         def __call__(self, prior_samples, N, se_y):

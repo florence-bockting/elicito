@@ -740,10 +740,7 @@ class Expert:
         Parameters
         ----------
         dat
-            Elicited data from expert provided as dictionary. Data must be
-            provided in a standardized format.
-            Use [`get_expert_datformat`][elicito.utils.get_expert_datformat]
-            to get correct data format for your method specification.
+            Answers of the expert, keyed by target name.
 
         Returns
         -------
@@ -753,9 +750,9 @@ class Expert:
         Examples
         --------
         >>> expert_dat = {  # doctest: +SKIP
-        >>>     "quantiles_y_X0": [-12.55, -0.57, 3.29, 7.14, 19.15],  # doctest: +SKIP
-        >>>     "quantiles_y_X1": [-11.18, 1.45, 5.06, 8.83, 20.42],  # doctest: +SKIP
-        >>>     "quantiles_y_X2": [-9.28, 3.09, 6.83, 10.55, 23.29]  # doctest: +SKIP
+        >>>     "y_X0": [-12.55, -0.57, 3.29, 7.14, 19.15],  # doctest: +SKIP
+        >>>     "y_X1": [-11.18, 1.45, 5.06, 8.83, 20.42],  # doctest: +SKIP
+        >>>     "y_X2": [-9.28, 3.09, 6.83, 10.55, 23.29]  # doctest: +SKIP
         >>> }  # doctest: +SKIP
         """
         # Note: check for correct expert data format is done in Elicit class

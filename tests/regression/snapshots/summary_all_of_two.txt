@@ -16,23 +16,23 @@ sigma    0       0.81       0.52      0.179       1.82
 sigma    1       0.52       0.31       0.05        1.1
 
 Fit to expert:
-                 rep     expert   elicited      error
-quantiles_y0[0]    0         -1     -0.916      0.084
-quantiles_y0[0]    1         -1     -0.326      0.674
-quantiles_y0[1]    0          0      0.113      0.113
-quantiles_y0[1]    1          0      0.694      0.694
-cor_cor[0]         0       0.01     -0.002     -0.012
-cor_cor[0]         1       0.01      0.004     -0.006
-identity_y2: draws, not statistics; see its loss in 'Loss by target'.
+        rep     expert   elicited      error
+y0[0]     0         -1     -0.916      0.084
+y0[0]     1         -1     -0.326      0.674
+y0[1]     0          0      0.113      0.113
+y0[1]     1          0      0.694      0.694
+cor[0]    0       0.01     -0.002     -0.012
+cor[0]    1       0.01      0.004     -0.006
+y2: draws, not statistics; see its loss in 'Loss by target'.
 
 Loss by target:
-                     rep       loss
-quantiles_y0_loss_0    0      0.216
-quantiles_y0_loss_0    1        0.9
-cor_cor_loss_1         0      0.031
-cor_cor_loss_1         1        0.2
-identity_y2_loss_2     0      0.555
-identity_y2_loss_2     1        1.4
+     rep       loss
+y0     0      0.216
+y0     1        0.9
+cor    0      0.031
+cor    1        0.2
+y2     0      0.555
+y2     1        1.4
 
 Final loss:
    final_loss

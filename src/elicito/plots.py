@@ -734,7 +734,8 @@ def elicits(
 
     # extract quantities of interest needed for plotting
     name_elicits = list(samples["elicited_summary"].data_vars)
-    method_name = [name_elicits[i].split("_")[0] for i in range(n_elicits)]
+    queries = {tar["name"]: tar["query"]["name"] for tar in eliobj.targets}
+    method_name = [queries[name] for name in name_elicits]
 
     # check that all information can be assessed
     try:
@@ -759,7 +760,7 @@ def elicits(
             )
             method = _quantiles
 
-        elif meth == "cor":
+        elif meth == "pearson_correlation":
             labels = [("expert", "train")] + [(None, None) for _ in range(n_reps - 1)]
             method = _correlation
             num_cor = samples["elicited_summary"].to_dataset()[elicit].shape[-1]
@@ -785,14 +786,14 @@ def elicits(
             )
 
         # Configure labels, legend, title
-        if elicit.endswith("_cor"):
+        if meth == "pearson_correlation":
             ax.legend(fontsize="x-small", markerscale=0.5, frameon=False)
         ax.set_title(elicit, fontsize="small")
         ax.grid(color="lightgrey", linestyle="dotted", linewidth=1)
         ax.spines[["right", "top"]].set_visible(False)
         ax.tick_params(axis="y", labelsize="x-small")
         ax.tick_params(axis="x", labelsize="x-small")
-        if not elicit.endswith("_cor"):
+        if meth != "pearson_correlation":
             ax.set_xlabel("expert", fontsize="small")
             ax.set_ylabel("model-sim.", fontsize="small")
 

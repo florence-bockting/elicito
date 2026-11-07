@@ -190,7 +190,7 @@ class DummyEliobj_empty:
         self.targets = [
             el.target(name="b0", loss=el.losses.L2, query=el.queries.quantiles((0.5,)))
         ]
-        self.expert = el.expert.data({"quantiles_b0": 0.5})
+        self.expert = el.expert.data({"b0": 0.5})
         self.optimizer = el.optimizer(
             optimizer=tf.keras.optimizers.Adam, learning_rate=0.1
         )
@@ -218,7 +218,7 @@ class DummyEliobj_fitted:
         self.targets = [
             el.target(name="b0", loss=el.losses.L2, query=el.queries.quantiles((0.5,)))
         ]
-        self.expert = el.expert.data({"quantiles_b0": 0.5})
+        self.expert = el.expert.data({"b0": 0.5})
         self.optimizer = el.optimizer(
             optimizer=tf.keras.optimizers.Adam, learning_rate=0.1
         )

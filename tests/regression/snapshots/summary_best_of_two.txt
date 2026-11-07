@@ -12,17 +12,17 @@ b0         0.309      0.465     -0.496       1.07
 sigma       0.81       0.52      0.179       1.82
 
 Fit to expert:
-                    expert   elicited      error
-quantiles_y0[0]         -1     -0.916      0.084
-quantiles_y0[1]          0      0.113      0.113
-cor_cor[0]            0.01     -0.002     -0.012
-identity_y2: draws, not statistics; see its loss in 'Loss by target'.
+           expert   elicited      error
+y0[0]          -1     -0.916      0.084
+y0[1]           0      0.113      0.113
+cor[0]       0.01     -0.002     -0.012
+y2: draws, not statistics; see its loss in 'Loss by target'.
 
 Loss by target:
-                          loss
-quantiles_y0_loss_0      0.216
-cor_cor_loss_1           0.031
-identity_y2_loss_2       0.555
+          loss
+y0       0.216
+cor      0.031
+y2       0.555
 
 Final loss:
    final_loss

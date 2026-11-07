@@ -280,7 +280,9 @@ class Fit:
         expert = self.results[group].to_dataset().isel(replication=0, batch=0)
         # an identity statistic holds all draws; see notes/TODO.md
         draw_targets = [
-            str(name) for name in expert.data_vars if str(name).startswith("identity_")
+            tar["name"]
+            for tar in self._eliobj.targets
+            if tar["query"]["name"] == "identity"
         ]
         expert = expert.drop_vars(draw_targets)
         loss = self.results["history_stats/loss"].to_dataset()

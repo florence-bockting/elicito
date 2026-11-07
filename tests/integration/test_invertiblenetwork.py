@@ -84,10 +84,10 @@ def test_parametric_prior():
 
     expert = el.expert.data(
         dat={
-            "quantiles_y_gr0": [0.64, 1.22, 1.89],
-            "quantiles_y_gr1": [0.72, 1.39, 2.07],
-            "quantiles_y_gr2": [0.76, 1.48, 2.22],
-            "quantiles_r2": [0.07, 0.23, 0.61],
+            "y_gr0": [0.64, 1.22, 1.89],
+            "y_gr1": [0.72, 1.39, 2.07],
+            "y_gr2": [0.76, 1.48, 2.22],
+            "r2": [0.07, 0.23, 0.61],
         }
     )
 
@@ -190,10 +190,10 @@ def test_invertible_network():
 
     expert = el.expert.data(
         dat={
-            "quantiles_y_gr0": [0.64, 1.22, 1.89],
-            "quantiles_y_gr1": [0.72, 1.39, 2.07],
-            "quantiles_y_gr2": [0.76, 1.48, 2.22],
-            "quantiles_r2": [0.07, 0.23, 0.61],
+            "y_gr0": [0.64, 1.22, 1.89],
+            "y_gr1": [0.72, 1.39, 2.07],
+            "y_gr2": [0.76, 1.48, 2.22],
+            "r2": [0.07, 0.23, 0.61],
         }
     )
 

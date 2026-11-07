@@ -200,12 +200,12 @@ class Elicit:
         Raises
         ------
         AssertionError
-            ``expert`` data are not in the required format. Correct specification of
-            keys can be checked using
-            [`get_expert_datformat`][elicito.utils.get_expert_datformat]
+            ``ground_truth`` for simulating expert data has the wrong
+            dimension.
 
-            Dimensionality of ``ground_truth`` for simulating expert data, must be
-            the same as the number of model parameters.
+        ValueError
+            ``expert`` answers do not match the targets. The keys must be the
+            target names.
 
         ValueError
             if ``method = "deep_prior"``, ``network`` can't be None and ``initialization``
@@ -287,31 +287,26 @@ class Elicit:
 
     def __str__(self) -> str:  # noqa: PLR0912
         """Return a readable summary of the object."""
+        queries = {tar["name"]: tar["query"]["name"] for tar in self.targets}
         names_str = "\n".join(
-            f"  - {self.targets[tar]['name']} -> {eli}"
-            for tar, eli in zip(
-                range(len(self.targets)),
-                utils.get_expert_datformat(self.targets),
-            )
+            f"  - {name} -> {query}" for name, query in queries.items()
         )
 
         if hasattr(self, "results"):
             targets_str = names_str
         elif len(self.temp_results) != 0:
+            res = self.temp_results[0]
             targets_str = "\n".join(
-                f"  - {k1} {tuple(self.temp_results[0]['target_quantities'][k1].shape)} -> "  # noqa: E501
-                f"{k2} {tuple(self.temp_results[0]['elicited_statistics'][k2].shape)}"
-                for k1, k2 in zip(
-                    self.temp_results[0]["target_quantities"],
-                    self.temp_results[0]["elicited_statistics"],
-                )
+                f"  - {name} {tuple(res['target_quantities'][name].shape)} -> "
+                f"{query} {tuple(res['elicited_statistics'][name].shape)}"
+                for name, query in queries.items()
             )
         # unfitted eliobj with shape information due to dry run
         elif self.dry_run:
             targets_str = "\n".join(
-                f"  - {k1} {tuple(self.dry_targets[k1].shape)} -> "
-                f"{k2} {tuple(self.dry_elicits[k2].shape)}"
-                for k1, k2 in zip(self.dry_targets, self.dry_elicits)
+                f"  - {name} {tuple(self.dry_targets[name].shape)} -> "
+                f"{query} {tuple(self.dry_elicits[name].shape)}"
+                for name, query in queries.items()
             )
         # unfitted eliobj without shape information
         else:

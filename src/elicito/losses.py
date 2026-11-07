@@ -36,42 +36,17 @@ def preprocess(elicited_statistics: dict[str, tf.Tensor]) -> dict[str, tf.Tensor
         ``elicited_statistics`` can only have 2 dimensions (tensor rank = 2)
 
     """
-    # extract names from elicited statistics
-    name_elicits = list(elicited_statistics.keys())
-
-    # prepare dictionary for storing results
     preprocessed_elicits = dict()
-    # initialize some helpers for keeping track of target quantity
-    target_control: list[str] = []
-    i_target = 0
-    eval_target = True
-    # loop over elicited statistics
-    for i, name in enumerate(name_elicits):
-        # get name of target quantity
-        target = name.split(sep="_")[-1]
-        if i != 0:
-            # check whether elicited statistic correspond to same target
-            # quantity
-            eval_target = target_control[-1] == target
-        # append current target quantity
-        target_control.append(target)
-        # if target quantity changes go with index one up
-        if not eval_target:
-            i_target += 1
-        # extract data
-        tensor_elicit = elicited_statistics[name]
-
+    for name, tensor_elicit in elicited_statistics.items():
         if len(tensor_elicit.shape) > 2:  # noqa: PLR2004
             msg = "elicited statistics can only have 2 dimensions."
             raise AssertionError(msg)
 
         if len(tensor_elicit.shape) == 1:
             # add a last axis for loss computation
-            prep_elicit = tf.expand_dims(tensor_elicit, axis=-1)
-            # store result
-            preprocessed_elicits[f"{name}_loss"] = prep_elicit
+            preprocessed_elicits[name] = tf.expand_dims(tensor_elicit, axis=-1)
         else:
-            preprocessed_elicits[f"{name}_loss_{i_target}"] = tensor_elicit
+            preprocessed_elicits[name] = tensor_elicit
 
     return preprocessed_elicits
 
@@ -103,12 +78,10 @@ def indiv_loss(
     """
     # create dictionary for storing results
     indiv_losses = []
-    # extract expert loss components by name
-    name_prep_elicits = list(elicit_expert.keys())
-    # compute discrepancy
-    for i, name in enumerate(name_prep_elicits):
-        # import loss function
-        loss_function = targets[i]["loss"]
+    # compute discrepancy, in the order of the targets
+    for tar in targets:
+        name = tar["name"]
+        loss_function = tar["loss"]
         # broadcast expert loss to training data-shape
         elicit_expert_brdcst = tf.broadcast_to(
             elicit_expert[name],
@@ -171,8 +144,6 @@ def total_loss(
     # compute individual losses for each loss component
     individual_losses = indiv_loss(elicit_expert_prep, elicit_training_prep, targets)
     # compute weighted average across individual losses to get the final loss
-    # TODO: check whether order of loss_per_component and target quantities
-    # is equivalent!
     loss: tf.Tensor = tf.zeros((1,))
     for i in range(len(targets)):
         loss += tf.multiply(individual_losses[i], targets[i]["weight"])

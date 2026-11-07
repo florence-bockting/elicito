@@ -17,7 +17,6 @@ from tests.utils import eliobj as base_eliobj
 import elicito as el
 from elicito import Elicit
 from elicito.optimizers.search import box_vector, start_vector
-from elicito.utils import get_expert_datformat
 
 tfd = tfp.distributions
 scipy = pytest.importorskip("scipy")
@@ -46,7 +45,7 @@ def eliobj():
         targets=[
             el.target(name="b0", loss=el.losses.L2, query=el.queries.quantiles((0.5,)))
         ],
-        expert=el.expert.data({"quantiles_b0": [0.5]}),
+        expert=el.expert.data({"b0": [0.5]}),
         optimizer=el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.1),
         trainer=el.trainer(method="parametric_prior", seed=42, epochs=1),
         initializer=el.initializer(
@@ -108,21 +107,13 @@ def test_hyperparameters_before_fit_raises(eliobj):
 
 
 def test_expert_input(eliobj):
-    # test correct format
-    dat_format = eliobj.expert
-    expected_format = get_expert_datformat(eliobj.targets)
+    # the answers are keyed by target name
+    names = [tar["name"] for tar in eliobj.targets]
+    assert list(eliobj.expert["data"].keys()) == names
 
-    assert dat_format["data"].keys() == expected_format.keys()
-
-    # error; wrong format
-    msg = (
-        "Provided expert data is not in the "
-        "correct format. Please use "
-        "el.utils.get_expert_datformat to check expected format."
-    )
-
-    with pytest.raises(AssertionError, match=msg):
-        eliobj.update(expert=el.expert.data({"b0": 0.5}))
+    # error; answer without a target
+    with pytest.raises(ValueError, match="do not match the targets"):
+        eliobj.update(expert=el.expert.data({"unknown": 0.5}))
 
     # error; wrong number of parameters
     msg2 = (
@@ -336,9 +327,7 @@ def test_checks_fit():
 
 @pytest.mark.parametrize("dry_run", [True, False])
 def test_str_method(dry_run):
-    summary_data = {
-        "quantiles_y_obs": [0, -0.012148, 0.049513, 0.100585, 0.153291, 0.634314]
-    }
+    summary_data = {"y_obs": [-0.012148, 0.049513, 0.100585, 0.153291, 0.634314]}
 
     class GenerativeModel:
         def __call__(self, prior_samples, N, se_y):
@@ -388,9 +377,9 @@ def test_str_method(dry_run):
     obs_eliobj = eliobj.__str__()
 
     if dry_run:
-        assert "y_obs (128, 200, 50) -> quantiles_y_obs (128, 5)" in obs_eliobj
+        assert "y_obs (128, 200, 50) -> quantiles (128, 5)" in obs_eliobj
     else:
-        assert "y_obs -> quantiles_y_obs" in obs_eliobj
+        assert "y_obs -> quantiles" in obs_eliobj
 
     eliobj.fit()
 
@@ -398,13 +387,11 @@ def test_str_method(dry_run):
 
     # a fitted eliobj no longer stores the simulated quantities, so the
     # summary shows the names without the shapes
-    assert "y_obs -> quantiles_y_obs" in obs_eliobj2
+    assert "y_obs -> quantiles" in obs_eliobj2
 
 
 def test_eliobj_fit():
-    summary_data = {
-        "quantiles_y_obs": [0, -0.012148, 0.049513, 0.100585, 0.153291, 0.634314]
-    }
+    summary_data = {"y_obs": [-0.012148, 0.049513, 0.100585, 0.153291, 0.634314]}
 
     class GenerativeModel:
         def __call__(self, prior_samples, N, se_y):
@@ -511,7 +498,7 @@ def test_warmup_epochs_default():
 
 def test_warmup_epochs_changes_candidate_loss():
     """warmup_epochs>0 scores a candidate after training, not at epoch 0"""
-    summary_data = {"quantiles_y_obs": [-1.5, -0.4, 0.1, 0.7, 1.9]}
+    summary_data = {"y_obs": [-1.5, -0.4, 0.1, 0.7, 1.9]}
 
     class GenerativeModel:
         def __call__(self, prior_samples, N):
@@ -683,7 +670,7 @@ def _overflow_eliobj(overflow):
                 weight=1.0,
             )
         ],
-        expert=el.expert.data({"quantiles_y_obs": [-0.7, 0.1, 0.8]}),
+        expert=el.expert.data({"y_obs": [-0.7, 0.1, 0.8]}),
         optimizer=el.optimizer(
             optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
         ),

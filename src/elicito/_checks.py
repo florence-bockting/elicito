@@ -2,9 +2,11 @@
 Check user input of Elicit object
 """
 
-from elicito import utils
+from typing import Any
+
 from elicito.optimizers import cmaes
 from elicito.parameters import methods
+from elicito.types import Target
 
 
 def check_elicit(  # type: ignore  # noqa: PLR0913
@@ -21,19 +23,12 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
     """
     Check whether input values to Elicit() are valid
     """
+    check_target_names(targets)
     # check expert data
-    expected_dict = utils.get_expert_datformat(targets)
     try:
         expert["ground_truth"]
     except KeyError:
-        # input expert data: ensure data has expected format
-        if list(expert["data"].keys()) != list(expected_dict.keys()):
-            msg = (
-                "Provided expert data is not in the "
-                "correct format. Please use "
-                "el.utils.get_expert_datformat to check expected format."
-            )
-            raise AssertionError(msg)
+        check_answers(expert["data"], targets)
 
     else:
         # oracle: ensure ground truth has same dim as number of model param
@@ -75,3 +70,72 @@ def check_elicit(  # type: ignore  # noqa: PLR0913
         raise ValueError(msg)
 
     methods.get_method(trainer["method"]).check(parameters, network, initializer)
+
+
+def check_answers(answers: dict[str, Any], targets: list[Target]) -> None:
+    """
+    Check the expert answers against the targets
+
+    Parameters
+    ----------
+    answers
+        Expert answers, keyed by target name.
+
+    targets
+        List of target quantities.
+
+    Raises
+    ------
+    ValueError
+        An answer is missing, has no target, or has the wrong length.
+    """
+    names = [tar["name"] for tar in targets]
+    missing = [name for name in names if name not in answers]
+    unknown = [key for key in answers if key not in names]
+    if missing or unknown:
+        msg = (
+            "The expert answers do not match the targets. "
+            f"Missing answers: {missing}. Answers without a target: {unknown}."
+        )
+        raise ValueError(msg)
+
+    for tar in targets:
+        if tar["query"]["name"] != "quantiles":
+            continue
+        n_probs = len(tar["query"]["value"])
+        n_values = answers[tar["name"]].shape[-1]
+        if n_values != n_probs:
+            msg = (
+                f"The answer for target {tar['name']!r} has {n_values} values, "
+                f"but the target asks for {n_probs} quantiles."
+            )
+            raise ValueError(msg)
+
+
+# names of variables in the results that a target name must not take
+RESERVED_NAMES = ("prior", "total_loss", "penalty")
+
+
+def check_target_names(targets: list[Target]) -> None:
+    """
+    Check that the target names are unique and not reserved
+
+    Parameters
+    ----------
+    targets
+        List of target quantities.
+
+    Raises
+    ------
+    ValueError
+        Two targets have the same name, or a name is reserved.
+    """
+    names = [tar["name"] for tar in targets]
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        msg = f"Target names must be unique. Duplicates: {duplicates}."
+        raise ValueError(msg)
+    reserved = [name for name in names if name in RESERVED_NAMES]
+    if reserved:
+        msg = f"Target names {reserved} are reserved. Use another name."
+        raise ValueError(msg)

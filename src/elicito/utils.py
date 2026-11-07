@@ -78,8 +78,7 @@ def get_expert_data(  # noqa: PLR0913
     -------
     expert_data :
         dictionary containing the training data. Must have same form as the
-        model-simulated elicited statistics. Correct specification of
-        keys can be checked using :func:`elicit.utils.get_expert_datformat`
+        model-simulated elicited statistics, keyed by target name.
 
     expert_prior :
         samples from ground truth. Exists only if expert data are simulated
@@ -216,36 +215,6 @@ def parallel(
         parallel_dict["cores"] = runs
 
     return parallel_dict
-
-
-def get_expert_datformat(targets: list[Target]) -> dict[str, list[Any]]:
-    """
-    Inspect which data format for the expert data is expected by the method.
-
-    Parameters
-    ----------
-    targets
-        list of target quantities
-
-    Returns
-    -------
-    elicit_dict :
-        expected format of expert data.
-
-    """
-    elicit_dict: dict[str, Any] = dict()
-    for tar in targets:
-        query = tar["query"]["name"]
-        if query == "custom":
-            query = tar["query"]["func_name"]
-        target = tar["name"]
-        if query == "pearson_correlation":
-            key = "cor_" + target
-        else:
-            key = query + "_" + target
-        elicit_dict[key] = list()
-
-    return elicit_dict
 
 
 def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6) -> Any:

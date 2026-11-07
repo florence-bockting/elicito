@@ -99,14 +99,10 @@ def computation_elicited_statistics(
             elicited_statistic = use_custom_functions(
                 target_quantities, targets[i]["query"]["value"]
             )
-            elicits_res[f"{targets[i]['query']['func_name']}_{targets[i]['name']}"] = (
-                elicited_statistic
-            )
+            elicits_res[targets[i]["name"]] = elicited_statistic
 
         if targets[i]["query"]["name"] == "identity":
-            elicits_res[f"identity_{targets[i]['name']}"] = target_quantities[
-                targets[i]["name"]
-            ]
+            elicits_res[targets[i]["name"]] = target_quantities[targets[i]["name"]]
 
         if targets[i]["query"]["name"] == "pearson_correlation":
             # compute correlation between model parameters (used for
@@ -115,7 +111,7 @@ def computation_elicited_statistics(
                 target_quantities[targets[i]["name"]]
             )
             # save correlation in result dictionary
-            elicits_res[f"cor_{targets[i]['name']}"] = elicited_statistic
+            elicits_res[targets[i]["name"]] = elicited_statistic
 
         if targets[i]["query"]["name"] == "quantiles":
             quantiles = targets[i]["query"]["value"]
@@ -152,7 +148,7 @@ def computation_elicited_statistics(
             )
             # bring quantiles to the last dimension
             elicited_statistic = tf.einsum("ij...->ji...", computed_quantiles)
-            elicits_res[f"quantiles_{targets[i]['name']}"] = elicited_statistic
+            elicits_res[targets[i]["name"]] = elicited_statistic
 
     # return results
     return elicits_res

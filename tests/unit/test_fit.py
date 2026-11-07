@@ -47,9 +47,9 @@ def fit():
         ],
         expert=el.expert.data(
             {
-                "quantiles_y0": [-1.0, 0.0, 1.0],
-                "quantiles_y1": [0.0, 1.0, 2.0],
-                "quantiles_y2": [1.0, 2.0, 3.0],
+                "y0": [-1.0, 0.0, 1.0],
+                "y1": [0.0, 1.0, 2.0],
+                "y2": [1.0, 2.0, 3.0],
             }
         ),
         optimizer=el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.1),

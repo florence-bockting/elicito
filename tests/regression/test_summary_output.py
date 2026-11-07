@@ -52,7 +52,7 @@ def summary_tree(reps: list[int], n_reps: int) -> xr.DataTree:
             q95=per_rep([[1.07, 1.82], [1.66, 1.1]], "parameter", params).T,
         )
     )
-    stats = ["quantiles_y0[0]", "quantiles_y0[1]", "cor_cor[0]"]
+    stats = ["y0[0]", "y0[1]", "cor[0]"]
     expert = xr.DataArray(
         [-1.0, 0.0, 0.01], dims="statistic", coords=dict(statistic=stats)
     )
@@ -71,7 +71,7 @@ def summary_tree(reps: list[int], n_reps: int) -> xr.DataTree:
             )
         )
     )
-    terms = ["quantiles_y0_loss_0", "cor_cor_loss_1", "identity_y2_loss_2"]
+    terms = ["y0", "cor", "y2"]
     target_loss = xr.Dataset(
         dict(loss=per_rep([[0.216, 0.031, 0.555], [0.9, 0.2, 1.4]], "target", terms).T)
     )
@@ -90,7 +90,7 @@ def summary_tree(reps: list[int], n_reps: int) -> xr.DataTree:
         epochs=600,
         replication=label,
         reps=reps,
-        draw_targets=["identity_y2"],
+        draw_targets=["y2"],
     )
     return tree
 
