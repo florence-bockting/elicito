@@ -13,7 +13,13 @@
 # ---
 
 # %% [markdown]
-# # Choose an initialization method
+# # Initialization of the hyperparameters
+#
+# This page studies how the start values of the hyperparameters change the
+# training with a gradient optimizer, such as Adam. CMA-ES, the default
+# optimizer, ignores the initializer.
+# [Choose an initialization method][choose-an-initialization-method] gives
+# the short rules.
 #
 # ## Motivation
 #
@@ -57,6 +63,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 import time
+from functools import partial
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -133,6 +140,7 @@ PROBS = (0.05, 0.25, 0.50, 0.75, 0.95)
 targets = [el.quantiles("y", probs=PROBS)]
 
 ground_truth = {"mu": tfd.Normal(loc=1.0, scale=2.0)}
+expert = el.expert.simulator(ground_truth=ground_truth, num_samples=10_000)
 
 forward = el.parameters.LowerBound(lower=0.0).forward
 # the true values, on the scale of the figures
@@ -167,20 +175,16 @@ def build(
         the unfitted eliobj
     """
     return el.Elicit(
-        model=el.model(obj=NormalModel, N=50),
-        parameters=parameters,
-        targets=targets,
-        expert=el.expert.simulator(ground_truth=ground_truth, num_samples=10_000),
-        optimizer=el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.1),
-        trainer=el.trainer(
-            method="parametric_prior",
-            seed=0,
-            epochs=epochs,
-            B=B,
-            num_samples=num_samples,
-            progress=0,
-        ),
+        partial(NormalModel(), N=50),
+        targets,
+        parameters,
         initializer=initializer,
+        optimizer="adam",
+        seeds=(0,),
+        epochs=epochs,
+        B=B,
+        num_samples=num_samples,
+        verbose=False,
     )
 
 
@@ -218,7 +222,7 @@ def fit_and_report(
     """
     eliobj = build(initializer, epochs, B, num_samples)
     start = time.time()
-    eliobj.fit()
+    eliobj.fit(expert)
     seconds = time.time() - start
     loss = float(np.ravel(eliobj.results.history_stats.loss.total_loss.values)[-1])
     print(f"{label}: final loss {loss:.3f} in {seconds:.1f}s")
@@ -244,7 +248,7 @@ expert_elicits, _ = el.utils.get_expert_data(
     eliobj.trainer,
     eliobj.model,
     eliobj.targets,
-    eliobj.expert,
+    expert,
     eliobj.parameters,
     eliobj.network,
     eliobj.trainer["seed"],
@@ -281,7 +285,7 @@ def loss_grid(mu0_values: Any, sigma0_values: Any) -> Any:
                 trainer=eliobj.trainer,
                 model=eliobj.model,
                 targets=eliobj.targets,
-                expert=eliobj.expert,
+                expert=expert,
                 seed=0,
             )
     return grid
@@ -831,6 +835,7 @@ ground_truth = {
     "beta1": tfd.Normal(loc=0.3, scale=0.2),
     "k": tfd.Weibull(concentration=2.0, scale=5.0),
 }
+expert = el.expert.simulator(ground_truth=ground_truth, num_samples=10_000)
 
 
 # %%
@@ -853,19 +858,14 @@ def build(initializer: Any, epochs: int = 100) -> el.Elicit:
         the unfitted eliobj
     """
     return el.Elicit(
-        model=el.model(
-            obj=ToyModel, design_matrix=std_predictor(N=200, quantiles=[25, 50, 75])
-        ),
-        parameters=parameters,
-        targets=targets,
-        expert=el.expert.simulator(ground_truth=ground_truth, num_samples=10_000),
-        optimizer=el.optimizer(
-            optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0
-        ),
-        trainer=el.trainer(
-            method="parametric_prior", seed=0, epochs=epochs, progress=0
-        ),
+        partial(ToyModel(), design_matrix=std_predictor(N=200, quantiles=[25, 50, 75])),
+        targets,
+        parameters,
         initializer=initializer,
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.1, clipnorm=1.0),
+        seeds=(0,),
+        epochs=epochs,
+        verbose=False,
     )
 
 
@@ -888,7 +888,7 @@ def fit_and_report(label: str, initializer: Any) -> tuple[str, float, float]:
     """
     eliobj = build(initializer)
     start = time.time()
-    eliobj.fit()
+    eliobj.fit(expert)
     seconds = time.time() - start
     loss = float(np.ravel(eliobj.results.history_stats.loss.total_loss.values)[-1])
     print(f"{label}: final loss {loss:.3f} in {seconds:.1f}s")
@@ -1060,7 +1060,7 @@ expert_elicits, _ = el.utils.get_expert_data(
     eliobj.trainer,
     eliobj.model,
     eliobj.targets,
-    eliobj.expert,
+    expert,
     eliobj.parameters,
     eliobj.network,
     eliobj.trainer["seed"],
@@ -1130,7 +1130,7 @@ def slice_of(pair: tuple[str, str]) -> Any:
                 trainer=eliobj.trainer,
                 model=eliobj.model,
                 targets=eliobj.targets,
-                expert=eliobj.expert,
+                expert=expert,
                 seed=0,
             )
     return np.where(grid >= el.optimizers.search.PENALTY, np.nan, grid)
@@ -1291,7 +1291,7 @@ long_run = build(
     ),
     epochs=600,
 )
-fit_long = long_run.fit()
+fit_long = long_run.fit(expert)
 
 # %% tags=["remove_input"]
 fit_long.plot.elicits(cols=3, figsize=(9, 2.6))
