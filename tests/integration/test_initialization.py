@@ -2,6 +2,8 @@
 test for initialization of hyperparameter values
 """
 
+from functools import partial
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -164,8 +166,8 @@ def test_integration_initialization():
     }
 
     eliobj = el.Elicit(
-        model=el.model(
-            obj=ToyModel, design_matrix=std_predictor(N=200, quantiles=[0.25, 0.75])
+        model=partial(
+            ToyModel(), design_matrix=std_predictor(N=200, quantiles=[0.25, 0.75])
         ),
         parameters=[
             el.parameter(

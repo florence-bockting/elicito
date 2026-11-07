@@ -112,37 +112,6 @@ def test_parameter_transformation(lower, upper, expected_name, expected_type):
     assert x["constraint_name"] == expected_name
 
 
-class TestModel1:
-    """missing prior samples"""
-
-    def __call__(self):
-        return "Hello"
-
-
-class TestModel2:
-    """minimal model example"""
-
-    def __call__(self, prior_samples, b):
-        return b
-
-
-def test_model():
-    msg = (
-        "The generative model class 'obj' requires the"
-        " input variable 'prior_samples' but argument has not been found"
-        " in 'obj'."
-    )
-    with pytest.raises(ValueError, match=msg):
-        el.model(TestModel1)
-
-    msg = (
-        "The argument arg='b' required by the"
-        "generative model class 'obj' is missing."
-    )
-    with pytest.raises(ValueError, match=msg):
-        el.model(TestModel2)
-
-
 def test_initializer_defaults():
     """no argument gives a Nelder-Mead search on the default uniform box"""
     init = el.initializer()

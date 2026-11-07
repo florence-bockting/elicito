@@ -5,6 +5,7 @@ Unittest for init.py module
 import re
 import warnings
 from copy import deepcopy
+from functools import partial
 
 import numpy as np
 import pytest
@@ -31,7 +32,7 @@ class TestModel:
 @pytest.fixture
 def eliobj():
     return Elicit(
-        model=el.model(TestModel),
+        model=TestModel(),
         parameters=[
             el.parameter(
                 name=f"b{i}",
@@ -336,7 +337,7 @@ def test_str_method(dry_run):
             return dict(y_obs=y_pred)
 
     eliobj = el.Elicit(
-        model=el.model(obj=GenerativeModel, N=50, se_y=tfd.Normal(0, 1).sample(50)),
+        model=partial(GenerativeModel(), N=50, se_y=tfd.Normal(0, 1).sample(50)),
         parameters=[
             el.parameter(
                 name="mu",
@@ -398,7 +399,7 @@ def test_eliobj_fit():
             return dict(y_obs=y_pred)
 
     eliobj = el.Elicit(
-        model=el.model(obj=GenerativeModel, N=50, se_y=tfd.Normal(0, 1).sample(50)),
+        model=partial(GenerativeModel(), N=50, se_y=tfd.Normal(0, 1).sample(50)),
         parameters=[
             el.parameter(
                 name="mu",
@@ -497,7 +498,7 @@ def test_warmup_epochs_changes_candidate_loss():
 
     def build(warmup_epochs):
         return el.Elicit(
-            model=el.model(obj=GenerativeModel, N=10),
+            model=partial(GenerativeModel(), N=10),
             parameters=[
                 el.parameter(
                     name="mu",
@@ -635,7 +636,7 @@ def _overflow_eliobj(overflow):
             return dict(y_obs=y_obs)
 
     return el.Elicit(
-        model=el.model(obj=GenerativeModel, N=30),
+        model=partial(GenerativeModel(), N=30),
         parameters=[
             el.parameter(
                 name="mu",

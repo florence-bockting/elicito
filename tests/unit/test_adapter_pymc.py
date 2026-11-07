@@ -4,6 +4,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 import elicito as el
+from elicito._checks import check_model
 from elicito.adapter import pymc as adapter_pymc
 from elicito.adapter._pytensor import translate, vectorize
 
@@ -150,8 +151,8 @@ def test_model_samples_a_latent_rv(hierarchical_model):
     assert abs(float(tf.math.reduce_std(out["y"])) - np.sqrt(1.25)) < 0.05
 
 
-def test_model_is_accepted_by_el_model(toy_model):
-    el.model(obj=adapter_pymc.model(toy_model))
+def test_model_passes_check_model(toy_model):
+    check_model(adapter_pymc.model(toy_model)())
 
 
 def test_model_computes_epred(toy_model):
@@ -303,7 +304,7 @@ def _slice(i):
 
 def test_set_hyperparameters_writes_the_learned_values(toy_model):
     eliobj = el.Elicit(
-        model=el.model(obj=adapter_pymc.model(toy_model)),
+        model=adapter_pymc.model(toy_model)(),
         parameters=adapter_pymc.parameters(toy_model),
         targets=[
             el.quantiles(

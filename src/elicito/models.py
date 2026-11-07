@@ -3,6 +3,7 @@ Generative model, and the forward pass from prior samples to elicited statistics
 """
 
 import inspect
+from collections.abc import Callable
 from typing import Any
 
 import tensorflow as tf
@@ -22,7 +23,7 @@ tfd = tfp.distributions
 def simulate_from_generator(
     prior_samples: tf.Tensor,
     seed: int,
-    model: dict[str, Any],  # shape=[B,num_samples,num_params]
+    model: Callable[..., Any],
 ) -> Any:
     """
     Simulate data from the specified generative model.
@@ -36,7 +37,7 @@ def simulate_from_generator(
         Seed used for learning. Specification in :func:`elicit.elicit.trainer`.
 
     model
-        Specification of generative model using :func:`elicit.elicit.model`.
+        Generative model: a callable that takes the prior samples.
 
     Returns
     -------
@@ -44,24 +45,10 @@ def simulate_from_generator(
         simulated data from generative model.
 
     """
-    # get model and initialize generative model
-    GenerativeModel = model["obj"]
-    generative_model = GenerativeModel()
-    # get model specific arguments (that are not prior samples)
-    add_model_args = model.copy()
-    add_model_args.pop("obj")
-    signature = inspect.signature(generative_model.__call__)
-    if "seed" in signature.parameters and "seed" not in add_model_args:
-        add_model_args["seed"] = tfp.random.split_seed(
-            seed_pair(seed), n=1, salt="model"
-        )[0]
-    # simulate from generator
-    if len(add_model_args) < 1:
-        model_simulations = generative_model(prior_samples)
-    else:
-        model_simulations = generative_model(prior_samples, **add_model_args)
-
-    return model_simulations
+    kwargs = {}
+    if "seed" in inspect.signature(model).parameters:
+        kwargs["seed"] = tfp.random.split_seed(seed_pair(seed), n=1, salt="model")[0]
+    return model(prior_samples, **kwargs)
 
 
 def all_finite(quantities: dict[str, Any]) -> bool:
@@ -118,7 +105,7 @@ def nonfinite_fraction(quantities: dict[str, Any]) -> float:
 
 
 def one_forward_simulation(
-    prior_model: Priors, model: dict[str, Any], targets: list[Target], seed: int
+    prior_model: Priors, model: Callable[..., Any], targets: list[Target], seed: int
 ) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any]]:
     """
     Run one forward simulation from prior samples to elicited statistics.
@@ -163,7 +150,7 @@ def one_forward_simulation(
 
 
 def simulate_and_elicit(
-    prior_model: Priors, model: dict[str, Any], targets: list[Target], seed: int
+    prior_model: Priors, model: Callable[..., Any], targets: list[Target], seed: int
 ) -> tuple[dict[Any, Any], tf.Tensor, dict[Any, Any], dict[Any, Any]]:
     """
     Run one forward simulation, without setting the seed

@@ -195,7 +195,7 @@ def _resize_symbolic_rvs(model: Any, priors: list[Any], batch: Any) -> dict[Any,
 
 def model(model: Any) -> type:
     """
-    Translate a PyMC model into a generative model for `el.model`
+    Translate a PyMC model into a generative model for `Elicit`
 
     The generative model takes the samples of the priors that `parameters`
     reads. It samples every other free random variable itself, once per

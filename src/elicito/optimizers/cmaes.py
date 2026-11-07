@@ -4,6 +4,7 @@ Global search for the hyperparameters of a parametric prior, with CMA-ES
 
 import logging
 import time
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import cma  # type: ignore [import-untyped]
@@ -46,7 +47,7 @@ def cma_search(  # noqa: PLR0913
     expert_elicited_statistics: dict[str, tf.Tensor],
     parameters: list[Parameter],
     trainer: Trainer,
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     expert: ExpertDict,
     distribution: dict[str, Any],
@@ -271,7 +272,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
     prior_model_init: Any,
     trainer: Trainer,
     optimizer: dict[str, Any],
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     parameters: list[Parameter],
     seed: int,

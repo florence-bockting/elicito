@@ -71,7 +71,7 @@ def _default_initializer(
 
 
 def _dry_run(  # noqa: PLR0913
-    model: dict[str, Any],
+    model: Callable[..., Any],
     parameters: list[Parameter],
     targets: list[Target],
     trainer: Trainer,
@@ -84,7 +84,7 @@ def _dry_run(  # noqa: PLR0913
     Parameters
     ----------
     model
-        User-input from [`model`][elicito.specs.model].
+        Generative model: a callable that takes the prior samples.
 
     parameters
         User-input from [`parameter`][elicito.specs.parameter].
@@ -149,7 +149,7 @@ class Elicit:
 
     def __init__(  # noqa: PLR0913
         self,
-        model: dict[str, Any],
+        model: Callable[..., Any],
         targets: list[Target],
         parameters: list[Parameter],
         *,
@@ -171,7 +171,7 @@ class Elicit:
         Parameters
         ----------
         model
-            specification of generative model using [`model`][elicito.specs.model].
+            generative model: a callable that takes the prior samples.
 
         targets
             list of target quantities, specified with a target constructor

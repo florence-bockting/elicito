@@ -4,6 +4,7 @@ Training of the prior with a gradient-based optimizer
 
 import logging
 import time
+from collections.abc import Callable
 from typing import Any
 
 import tensorflow as tf
@@ -46,7 +47,7 @@ def sgd_training(  # noqa: PLR0913, PLR0915
     prior_model_init: Priors,
     trainer: Trainer,
     optimizer: dict[str, Any],
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     parameters: list[Parameter],
     seed: int,

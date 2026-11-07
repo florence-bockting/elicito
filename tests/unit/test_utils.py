@@ -180,7 +180,7 @@ def test_inverse_forward_upperbound(upperbound, x):
 
 class DummyEliobj_empty:
     def __init__(self):
-        self.model = el.model(TestModel)
+        self.model = TestModel()
         self.parameters = [
             el.parameter(
                 name="b0",
@@ -207,7 +207,7 @@ class DummyEliobj_empty:
 
 class DummyEliobj_fitted:
     def __init__(self):
-        self.model = el.model(TestModel)
+        self.model = TestModel()
         self.parameters = [
             el.parameter(
                 name="b0",
@@ -265,7 +265,7 @@ def test_save_and_load_path(monkeypatch, eliobj, fit, test_path, overwrite):
     # Check that loading object works
     loaded_eliobj = el.Elicit.load(expected_file)
 
-    assert loaded_eliobj.model["obj"] == TestModel
+    assert isinstance(loaded_eliobj.model, TestModel)
     assert loaded_eliobj.parameters[0]["name"] == "b0"
     assert loaded_eliobj.targets[0]["name"] == "b0"
     assert loaded_eliobj.trainer["method"] == "parametric_prior"
@@ -296,7 +296,7 @@ def test_save_and_load_name(eliobj, fit, test_file):
     loaded_eliobj = el.Elicit.load(expected_path)
 
     # Check that loaded object is correct
-    assert loaded_eliobj.model["obj"] == TestModel
+    assert isinstance(loaded_eliobj.model, TestModel)
     assert loaded_eliobj.parameters[0]["name"] == "b0"
     assert loaded_eliobj.targets[0]["name"] == "b0"
     assert loaded_eliobj.trainer["method"] == "parametric_prior"

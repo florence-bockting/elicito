@@ -2,6 +2,7 @@
 Initialization with exact start values
 """
 
+from collections.abc import Callable
 from typing import Any, Optional
 
 import tensorflow as tf
@@ -41,7 +42,7 @@ class ExactValues:
         parameters: list[Parameter],
         trainer: Trainer,
         optimizer: dict[str, Any],
-        model: dict[str, Any],
+        model: Callable[..., Any],
         targets: list[Target],
         network: Optional[NFDict],
         expert: ExpertDict,

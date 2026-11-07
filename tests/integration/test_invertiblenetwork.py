@@ -1,3 +1,5 @@
+from functools import partial
+
 import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -40,8 +42,8 @@ def test_parametric_prior():
         )
         return tf.cast(x, tf.float32)
 
-    model = el.model(
-        obj=GenerativeModel, n_gr=30, design_matrix=design_categorical(n_gr=30)
+    model = partial(
+        GenerativeModel(), n_gr=30, design_matrix=design_categorical(n_gr=30)
     )
 
     parameters = [
@@ -140,8 +142,8 @@ def test_invertible_network():
         )
         return tf.cast(x, tf.float32)
 
-    model = el.model(
-        obj=GenerativeModel, n_gr=30, design_matrix=design_categorical(n_gr=30)
+    model = partial(
+        GenerativeModel(), n_gr=30, design_matrix=design_categorical(n_gr=30)
     )
 
     parameters = [

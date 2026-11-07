@@ -34,7 +34,7 @@ SEED = 0
 
 def get_expert_data(  # noqa: PLR0913
     trainer: Trainer,
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     expert: ExpertDict,
     parameters: list[Parameter],
