@@ -6,11 +6,11 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+import cma  # type: ignore [import-untyped]
 import numpy as np
 import tensorflow as tf
 
 from elicito._progress import ProgressTable
-from elicito.exceptions import MissingOptionalDependencyError
 from elicito.losses import spread_penalty
 from elicito.optimizers import search
 from elicito.optimizers.search import (
@@ -100,22 +100,12 @@ def cma_search(  # noqa: PLR0913
     seed
         Seed used for the forward simulation.
 
-    Raises
-    ------
-    MissingOptionalDependencyError
-        ``cma`` is required for the search.
-
     Returns
     -------
     hyperparams :
         One value per hyperparameter, on the unconstrained scale.
 
     """
-    try:
-        import cma  # type: ignore [import-untyped]
-    except ImportError as exc:
-        raise MissingOptionalDependencyError("cma_search", requirement="cma") from exc
-
     names = hyper_names(parameters)
     search_trainer = dict(trainer)
     search_trainer["num_samples"] = max(
@@ -342,11 +332,6 @@ def cma_training(  # noqa: PLR0913, PLR0915
         First step size, used if ``optimizer`` does not give ``sigma0``. See
         [`box_step_size`][elicito.optimizers.cmaes.box_step_size].
 
-    Raises
-    ------
-    MissingOptionalDependencyError
-        ``cma`` is required for the search.
-
     Returns
     -------
     res_ep :
@@ -356,11 +341,6 @@ def cma_training(  # noqa: PLR0913, PLR0915
         Results of the best point found (results).
 
     """
-    try:
-        import cma
-    except ImportError as exc:
-        raise MissingOptionalDependencyError("cma_training", requirement="cma") from exc
-
     tf.random.set_seed(seed)
 
     prior_model = prior_model_init

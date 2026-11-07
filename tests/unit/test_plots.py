@@ -262,7 +262,6 @@ def test_prior_joint_panels_share_the_axis_of_their_column(fitted_eliobj):
 
 def test_plots_without_an_initialization_group():
     """`initializer(method="cmaes")` draws no candidates, so it writes no group"""
-    pytest.importorskip("cma")
     from tests.utils import eliobj as base
 
     eliobj = el.Elicit(
@@ -303,7 +302,6 @@ def test_hyperparameter_plot_leaves_out_the_gradients(fitted_eliobj):
 
 def test_plots_accept_a_cmaes_fit():
     """the plots read the epoch axis as generations, not as gradient steps"""
-    pytest.importorskip("cma")
     from tests.utils import eliobj as base
 
     eliobj = el.Elicit(

@@ -791,7 +791,6 @@ def test_cmaes_is_a_registered_initialization_method():
 
 
 def test_cma_search_returns_one_value_per_hyperparameter():
-    pytest.importorskip("cma")
 
     expert_elicits, _ = el.utils.get_expert_data(
         base_eliobj.trainer,
@@ -821,7 +820,6 @@ def test_cma_search_returns_one_value_per_hyperparameter():
 
 def test_cma_search_falls_back_when_every_point_fails(monkeypatch, caplog):
     """a point that failed is never returned as a start value"""
-    pytest.importorskip("cma")
 
     monkeypatch.setattr(
         el.optimizers.search,
@@ -892,7 +890,6 @@ def test_cmaes_update_replaces_the_stored_initializer(eliobj):
 
 
 def test_cma_training_records_one_point_per_generation():
-    pytest.importorskip("cma")
 
     eliobj = _cmaes_eliobj(epochs=12)
     eliobj.fit()
@@ -907,7 +904,6 @@ def test_cma_training_records_one_point_per_generation():
 
 
 def test_cma_training_spends_the_budget(monkeypatch):
-    pytest.importorskip("cma")
 
     calls = []
     original = el.optimizers.search.evaluate
@@ -926,7 +922,6 @@ def test_cma_training_spends_the_budget(monkeypatch):
 
 
 def test_cma_training_improves_the_loss():
-    pytest.importorskip("cma")
 
     eliobj = _cmaes_eliobj(epochs=40)
     eliobj.fit()
@@ -965,7 +960,6 @@ def test_step_size_rejects_an_unknown_hyperparameter():
 
 
 def test_cma_training_accepts_a_step_size_per_hyperparameter():
-    pytest.importorskip("cma")
 
     eliobj = _cmaes_eliobj(epochs=12, sigma0=dict(mu0=0.1, sigma2=1.0))
     eliobj.fit()
@@ -1011,7 +1005,6 @@ def test_box_step_size_reads_the_radius_of_the_box():
 
 
 def test_cma_training_runs_no_search_before_it(monkeypatch):
-    pytest.importorskip("cma")
 
     calls = []
     monkeypatch.setattr(
