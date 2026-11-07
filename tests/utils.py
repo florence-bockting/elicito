@@ -113,30 +113,22 @@ eliobj = el.Elicit(
         ),
     ],
     targets=[
-        el.target(
-            name="y_X0",
-            query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
+        el.quantiles(
+            "y_X0",
+            probs=(0.05, 0.25, 0.50, 0.75, 0.95),
             loss=el.losses.MMD2(kernel="energy"),
-            weight=1.0,
         ),
-        el.target(
-            name="y_X1",
-            query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
+        el.quantiles(
+            "y_X1",
+            probs=(0.05, 0.25, 0.50, 0.75, 0.95),
             loss=el.losses.MMD2(kernel="energy"),
-            weight=1.0,
         ),
-        el.target(
-            name="y_X2",
-            query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
+        el.quantiles(
+            "y_X2",
+            probs=(0.05, 0.25, 0.50, 0.75, 0.95),
             loss=el.losses.MMD2(kernel="energy"),
-            weight=1.0,
         ),
-        # el.target(
-        #     name="log_R2",
-        #     query=el.queries.quantiles((.05, .25, .50, .75, .95)),
-        #     loss=el.losses.MMD2(kernel="energy"),
-        #     weight=1.0
-        # )
+        # el.quantiles("log_R2", probs=(.05, .25, .50, .75, .95)),
     ],
     # expert=el.expert.data(dat = expert_dat),
     expert=el.expert.simulator(ground_truth=ground_truth, num_samples=10_000),

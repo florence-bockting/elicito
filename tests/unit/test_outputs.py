@@ -41,9 +41,9 @@ def test_output_hyperparameter_names():
             ),
         ],
         targets=[
-            el.target(
-                name="y_obs",
-                query=el.queries.quantiles([0.05, 0.25, 0.5, 0.75, 0.95]),
+            el.quantiles(
+                "y_obs",
+                probs=[0.05, 0.25, 0.5, 0.75, 0.95],
                 loss=el.losses.MMD2(kernel="energy"),
             ),
         ],

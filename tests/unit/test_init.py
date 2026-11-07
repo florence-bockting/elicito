@@ -42,9 +42,7 @@ def eliobj():
             )
             for i in range(2)
         ],
-        targets=[
-            el.target(name="b0", loss=el.losses.L2, query=el.queries.quantiles((0.5,)))
-        ],
+        targets=[el.quantiles("b0", probs=(0.5,), loss=el.losses.L2)],
         expert=el.expert.data({"b0": [0.5]}),
         optimizer=el.optimizer(optimizer=tf.keras.optimizers.Adam, learning_rate=0.1),
         trainer=el.trainer(method="parametric_prior", seed=42, epochs=1),
@@ -357,9 +355,9 @@ def test_str_method(dry_run):
             ),
         ],
         targets=[
-            el.target(
-                name="y_obs",
-                query=el.queries.quantiles([0.05, 0.25, 0.5, 0.75, 0.95]),
+            el.quantiles(
+                "y_obs",
+                probs=[0.05, 0.25, 0.5, 0.75, 0.95],
                 loss=el.losses.MMD2(kernel="energy"),
             ),
         ],
@@ -421,9 +419,9 @@ def test_eliobj_fit():
             ),
         ],
         targets=[
-            el.target(
-                name="y_obs",
-                query=el.queries.quantiles([0.05, 0.25, 0.5, 0.75, 0.95]),
+            el.quantiles(
+                "y_obs",
+                probs=[0.05, 0.25, 0.5, 0.75, 0.95],
                 loss=el.losses.MMD2(kernel="energy"),
             ),
         ],
@@ -527,9 +525,9 @@ def test_warmup_epochs_changes_candidate_loss():
                 ),
             ],
             targets=[
-                el.target(
-                    name="y_obs",
-                    query=el.queries.quantiles([0.05, 0.25, 0.5, 0.75, 0.95]),
+                el.quantiles(
+                    "y_obs",
+                    probs=[0.05, 0.25, 0.5, 0.75, 0.95],
                     loss=el.losses.MMD2(kernel="energy"),
                 ),
             ],
@@ -662,14 +660,7 @@ def _overflow_eliobj(overflow):
                 ),
             ),
         ],
-        targets=[
-            el.target(
-                name="y_obs",
-                query=el.queries.quantiles((0.25, 0.5, 0.75)),
-                loss=el.losses.L2,
-                weight=1.0,
-            )
-        ],
+        targets=[el.quantiles("y_obs", probs=(0.25, 0.5, 0.75), loss=el.losses.L2)],
         expert=el.expert.data({"y_obs": [-0.7, 0.1, 0.8]}),
         optimizer=el.optimizer(
             optimizer=tf.keras.optimizers.Adam, learning_rate=0.1, clipnorm=1.0

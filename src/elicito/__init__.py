@@ -33,7 +33,6 @@ from elicito.specs import (
     parameter,
     quantiles,
     queries,
-    target,
     trainer,
 )
 
@@ -63,7 +62,6 @@ __all__ = [
     "quantiles",
     "queries",
     "specs",
-    "target",
     "targets",
     "trainer",
     "types",

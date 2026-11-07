@@ -314,7 +314,8 @@ def init_runs(  # noqa: PLR0913
         User-input from [`model`][elicito.specs.model].
 
     targets
-        User-input from [`target`][elicito.specs.target].
+        User-input from a target constructor such as
+        [`quantiles`][elicito.specs.quantiles].
 
     network
         User-input from one of the methods implemented in the

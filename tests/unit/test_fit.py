@@ -37,11 +37,8 @@ def fit():
             for i in range(2)
         ],
         targets=[
-            el.target(
-                name=f"y{i}",
-                query=el.queries.quantiles((0.25, 0.5, 0.75)),
-                loss=el.losses.MMD2(kernel="energy"),
-                weight=1.0,
+            el.quantiles(
+                f"y{i}", probs=(0.25, 0.5, 0.75), loss=el.losses.MMD2(kernel="energy")
             )
             for i in range(3)
         ],

@@ -306,11 +306,11 @@ def test_set_hyperparameters_writes_the_learned_values(toy_model):
         model=el.model(obj=adapter_pymc.model(toy_model)),
         parameters=adapter_pymc.parameters(toy_model),
         targets=[
-            el.target(
-                name=f"y_X{i}",
-                query=el.queries.quantiles((0.25, 0.5, 0.75)),
+            el.quantiles(
+                f"y_X{i}",
+                output=_slice(i),
+                probs=(0.25, 0.5, 0.75),
                 loss=el.losses.MMD2(kernel="energy"),
-                target_method=_slice(i),
             )
             for i in range(3)
         ],

@@ -27,12 +27,10 @@ parameters = [
 model = el.model(obj=TestModel)
 
 targets = [
-    el.target(
-        name="mu", query=el.queries.identity(), loss=el.losses.MMD2(kernel="energy")
-    ),
-    el.target(
-        name="y_pred",
-        query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
+    el.identity("mu", loss=el.losses.MMD2(kernel="energy")),
+    el.quantiles(
+        "y_pred",
+        probs=(0.05, 0.25, 0.50, 0.75, 0.95),
         loss=el.losses.MMD2(kernel="energy"),
     ),
 ]

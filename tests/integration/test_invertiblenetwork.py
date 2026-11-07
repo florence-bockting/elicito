@@ -67,18 +67,16 @@ def test_parametric_prior():
         )
 
     targets = [
-        el.target(
-            name=f"y_gr{i}",
-            query=el.queries.quantiles(quantiles=(0.25, 0.50, 0.75)),
-            loss=el.losses.MMD2(kernel="energy"),
+        el.quantiles(
+            f"y_gr{i}", probs=(0.25, 0.50, 0.75), loss=el.losses.MMD2(kernel="energy")
         )
         for i in range(3)
     ] + [
-        el.target(
-            name="r2",
-            query=el.queries.quantiles(quantiles=(0.25, 0.50, 0.75)),
+        el.quantiles(
+            "r2",
+            output=r2,
+            probs=(0.25, 0.50, 0.75),
             loss=el.losses.MMD2(kernel="energy"),
-            target_method=r2,
         )
     ]
 
@@ -173,18 +171,16 @@ def test_invertible_network():
         )
 
     targets = [
-        el.target(
-            name=f"y_gr{i}",
-            query=el.queries.quantiles(quantiles=(0.25, 0.50, 0.75)),
-            loss=el.losses.MMD2(kernel="energy"),
+        el.quantiles(
+            f"y_gr{i}", probs=(0.25, 0.50, 0.75), loss=el.losses.MMD2(kernel="energy")
         )
         for i in range(3)
     ] + [
-        el.target(
-            name="r2",
-            query=el.queries.quantiles(quantiles=(0.25, 0.50, 0.75)),
+        el.quantiles(
+            "r2",
+            output=r2,
+            probs=(0.25, 0.50, 0.75),
             loss=el.losses.MMD2(kernel="energy"),
-            target_method=r2,
         )
     ]
 

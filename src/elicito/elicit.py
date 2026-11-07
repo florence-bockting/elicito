@@ -81,7 +81,8 @@ def dry_run(  # noqa: PLR0913
         User-input from [`parameter`][elicito.specs.parameter].
 
     targets
-        User-input from [`target`][elicito.specs.target].
+        User-input from a target constructor such as
+        [`quantiles`][elicito.specs.quantiles].
 
     trainer
         User-input from [`trainer`][elicito.specs.trainer].
@@ -161,7 +162,8 @@ class Elicit:
             list of model parameters specified with [`parameter`][elicito.specs.parameter].
 
         targets
-            list of target quantities specified with [`target`][elicito.specs.target].
+            list of target quantities, specified with a target constructor
+            such as [`quantiles`][elicito.specs.quantiles].
 
         expert
             provide input data from expert or simulate data from oracle with

@@ -184,17 +184,15 @@ def test_integration_initialization():
             ),
         ],
         targets=[
-            el.target(
-                name="y_X0",
-                query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
+            el.quantiles(
+                "y_X0",
+                probs=(0.05, 0.25, 0.50, 0.75, 0.95),
                 loss=el.losses.MMD2(kernel="energy"),
-                weight=1.0,
             ),
-            el.target(
-                name="y_X1",
-                query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
+            el.quantiles(
+                "y_X1",
+                probs=(0.05, 0.25, 0.50, 0.75, 0.95),
                 loss=el.losses.MMD2(kernel="energy"),
-                weight=1.0,
             ),
         ],
         expert=el.expert.simulator(ground_truth=ground_truth, num_samples=10_000),

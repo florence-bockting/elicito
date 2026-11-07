@@ -187,9 +187,7 @@ class DummyEliobj_empty:
                 hyperparams=dict(loc=el.hyper(name="mu0"), scale=el.hyper("sigma0")),
             )
         ]
-        self.targets = [
-            el.target(name="b0", loss=el.losses.L2, query=el.queries.quantiles((0.5,)))
-        ]
+        self.targets = [el.quantiles("b0", probs=(0.5,), loss=el.losses.L2)]
         self.expert = el.expert.data({"b0": 0.5})
         self.optimizer = el.optimizer(
             optimizer=tf.keras.optimizers.Adam, learning_rate=0.1
@@ -215,9 +213,7 @@ class DummyEliobj_fitted:
                 hyperparams=dict(loc=el.hyper(name="mu0"), scale=el.hyper("sigma0")),
             )
         ]
-        self.targets = [
-            el.target(name="b0", loss=el.losses.L2, query=el.queries.quantiles((0.5,)))
-        ]
+        self.targets = [el.quantiles("b0", probs=(0.5,), loss=el.losses.L2)]
         self.expert = el.expert.data({"b0": 0.5})
         self.optimizer = el.optimizer(
             optimizer=tf.keras.optimizers.Adam, learning_rate=0.1

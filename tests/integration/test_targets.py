@@ -18,9 +18,9 @@ B, num_samples, num_obs = (1_000, 10_000, 3)
 @pytest.fixture
 def targets1():
     return [
-        el.target(
-            name="tar",
-            query=el.queries.quantiles((0.05, 0.25, 0.50, 0.75, 0.95)),
+        el.quantiles(
+            "tar",
+            probs=(0.05, 0.25, 0.50, 0.75, 0.95),
             loss=el.losses.MMD2(kernel="energy"),
         )
     ]
@@ -53,13 +53,7 @@ cor = 0.3
 
 @pytest.fixture
 def targets2():
-    return [
-        el.target(
-            name="tar",
-            query=el.queries.correlation(),
-            loss=el.losses.MMD2(kernel="energy"),
-        )
-    ]
+    return [el.correlation("tar", loss=el.losses.MMD2(kernel="energy"))]
 
 
 @pytest.fixture
@@ -86,13 +80,7 @@ def test_computation_elicited_statistics_cor(targets2, target_quantities2):
 # %% elicitation technique: identity
 @pytest.fixture
 def targets3():
-    return [
-        el.target(
-            name="tar",
-            query=el.queries.identity(),
-            loss=el.losses.MMD2(kernel="energy"),
-        )
-    ]
+    return [el.identity("tar", loss=el.losses.MMD2(kernel="energy"))]
 
 
 @pytest.fixture
@@ -130,13 +118,7 @@ def test_computation_target_quantities_cor(prior_samples, targets2):
 # %% target quantities from model simulations
 @pytest.fixture
 def targets5():
-    return [
-        el.target(
-            name="ypred",
-            query=el.queries.identity(),
-            loss=el.losses.MMD2(kernel="energy"),
-        )
-    ]
+    return [el.identity("ypred", loss=el.losses.MMD2(kernel="energy"))]
 
 
 @pytest.fixture
