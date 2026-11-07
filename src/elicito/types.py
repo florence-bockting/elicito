@@ -16,6 +16,7 @@ class Hyper(TypedDict):
 
     name: str
     constraint: Callable[[float], tf.Tensor]
+    unconstrain: Callable[[Any], tf.Tensor]
     constraint_name: str
     vtype: Callable[[Any], Any]
     dim: int
@@ -125,6 +126,15 @@ class ExpertDict(TypedDict, total=False):
     data: dict[str, list[Any]]
 
 
+class Partial(TypedDict):
+    """
+    typed dictionary of the partial pooling of [`partial`][elicito.specs.partial]
+    """
+
+    over: tuple[str, ...]
+    tau: float | dict[str, float] | None
+
+
 class Uniform(TypedDict):
     """
     typed dictionary for specification of initialization distribution
@@ -163,6 +173,7 @@ class Trainer(TypedDict, total=False):
     seed_chain: int
     progress: int
     kappa: float
+    penalty: Callable[[dict[str, Any]], Any] | None
 
 
 class NFDict(TypedDict):

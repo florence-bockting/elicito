@@ -9,6 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 import joblib
+import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 from joblib.externals.loky.backend.context import (  # type: ignore [import-untyped]
@@ -18,6 +19,7 @@ from joblib.externals.loky.backend.context import (  # type: ignore [import-unty
 from elicito import (
     _checks,
     _outputs,
+    _panel,
     _settings,
     _storage,
     initializers,
@@ -26,8 +28,8 @@ from elicito import (
     parameters,
     utils,
 )
-from elicito._progress import SeedTable, run_in_worker
-from elicito.fit import Fit
+from elicito._progress import SeedTable, notebook_sources, run_in_worker
+from elicito.fit import Fit, Panel
 from elicito.parameters._base import _constraints
 from elicito.parameters.priors import Priors
 from elicito.types import (
@@ -45,13 +47,51 @@ tfd = tfp.distributions
 
 def _expert(experts: dict[str, Any]) -> ExpertDict:
     """Wrap the answers of an expert; pass an oracle through"""
-    if set(experts) == {"ground_truth", "num_samples"}:
+    if _is_oracle(experts):
         return experts  # type: ignore [return-value]
     data: dict[str, Any] = {
         name: tf.expand_dims(tf.cast(tf.convert_to_tensor(value), tf.float32), 0)
         for name, value in experts.items()
     }
     return dict(data=data)
+
+
+# the weak ridge of stage 1, and the smallest spread of stage 2
+TAU_STAGE1 = 10.0
+TAU_FLOOR = 1e-3
+
+
+def _is_oracle(experts: dict[str, Any]) -> bool:
+    return set(experts) == {"ground_truth", "num_samples"}
+
+
+def _is_panel(experts: dict[str, Any]) -> bool:
+    """Tell a panel from one expert: a panel is a dict of dicts"""
+    if _is_oracle(experts):
+        return False
+    nested = [isinstance(value, dict) for value in experts.values()]
+    if any(nested) and not all(nested):
+        msg = (
+            "The experts mix answers and experts. A dict of lists is one "
+            "expert. A dict of dicts is many experts."
+        )
+        raise ValueError(msg)
+    return bool(nested) and all(nested)
+
+
+def _ridge(
+    over: tuple[str, ...], tau: dict[str, float], n_experts: int
+) -> Callable[[dict[str, Any]], Any]:
+    """Return the hierarchy term for a fixed spread of the offsets"""
+
+    def penalty(hyper: dict[str, Any]) -> Any:
+        return sum(
+            hyper[_panel.suffix(name, e)] ** 2 / (2.0 * tau[name] ** 2)
+            for name in over
+            for e in range(n_experts)
+        )
+
+    return penalty
 
 
 def _default_initializer(
@@ -164,6 +204,7 @@ class Elicit:
         kappa: float = 0.0,
         verbose: bool = True,
         dry_run: bool = True,
+        pool: Any = None,
     ):
         """
         Specify the elicitation method
@@ -239,6 +280,12 @@ class Elicit:
             run the generative model once in forward mode before the
             training. The print method then shows the shapes of all tensors.
 
+        pool
+            pooling of a panel of experts. ``None`` fits each expert alone.
+            ``"complete"`` fits one prior for all experts.
+            [`partial`][elicito.specs.partial] gives each expert an offset
+            from the panel prior. Only a parametric prior can be pooled.
+
         Returns
         -------
         eliobj :
@@ -254,6 +301,8 @@ class Elicit:
             tf.keras optimizer.
 
             ``optimizer="cmaes"`` is given with a ``network``.
+
+            ``pool`` is given with a ``network``, or ``pool`` is not valid.
 
             with a ``network``, ``initializer`` is not None.
 
@@ -279,6 +328,7 @@ class Elicit:
         generator, params = _settings.model(model, parameters)
         targets = _settings.targets(targets, generator)
         seeds = _settings.seeds(seeds)
+        pool = _settings.pool(pool, network, params)
         self.settings: dict[str, Any] = dict(
             network=network,
             initializer=initializer,
@@ -291,6 +341,7 @@ class Elicit:
             kappa=kappa,
             verbose=verbose,
             dry_run=dry_run,
+            pool=pool,
         )
         trainer = _settings.trainer(
             network, seeds, epochs, B, num_samples, kappa, verbose
@@ -444,7 +495,7 @@ class Elicit:
         self,
         experts: dict[str, Any],
         overwrite: bool = False,
-    ) -> Fit:
+    ) -> Any:
         """
         Fit the eliobj and learn prior distributions.
 
@@ -455,17 +506,19 @@ class Elicit:
             ``{"y_pred": [0.1, 0.5, 0.9]}``. To simulate the answers from a
             known prior instead, give the result of
             [`simulator`][elicito.specs.Expert.simulator].
+            For a panel, give a dict of these answers, keyed by expert name.
+            ``pool=`` of [`Elicit`][elicito.elicit.Elicit] sets how the panel
+            is fitted.
 
         overwrite
-            If the eliobj was already fitted and the user wants to refit it,
-            the user is asked whether they want to overwrite the previous
-            fitting results. Setting ``overwrite=True`` allows the user to
-            force overfitting without being prompted.
+            replace the results of an earlier fit. Without it, a fitted eliobj
+            raises an error.
 
         Returns
         -------
         :
-            learned priors, with methods to inspect them
+            learned priors, with methods to inspect them. A panel returns a
+            ``Panel``.
 
         Raises
         ------
@@ -475,6 +528,8 @@ class Elicit:
         ValueError
             ``experts`` do not match the targets. The keys must be the target
             names.
+
+            ``experts`` mix answers and experts.
 
         AssertionError
             ``ground_truth`` for simulating expert data has the wrong
@@ -487,6 +542,20 @@ class Elicit:
         >>> eliobj.fit(answers, overwrite=True)  # doctest: +SKIP
 
         """
+        if _is_panel(experts):
+            # check the answers before the old results are deleted
+            for answers in experts.values():
+                _checks.check_expert(_expert(answers), self.targets, self.parameters)
+            self._delete_results(overwrite)
+            self.panel = self._fit_panel(experts)
+            return self.panel
+        if self.settings["pool"] is not None:
+            warnings.warn(
+                "pool= is ignored, because the answers are of one expert.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         # set seed
         tf.random.set_seed(self.trainer["seed"])
 
@@ -494,15 +563,7 @@ class Elicit:
         expert = _expert(experts)
         _checks.check_expert(expert, self.targets, self.parameters)
 
-        # check whether elicit object is already fitted
-        if hasattr(self, "results"):
-            if not overwrite:
-                msg = (
-                    "eliobj is already fitted. Use overwrite=True to fit it "
-                    "again and replace the results."
-                )
-                raise ValueError(msg)
-            delattr(self, "results")
+        self._delete_results(overwrite)
         self.expert = expert
 
         self.temp_results = []
@@ -526,10 +587,13 @@ class Elicit:
             # can deadlock in a multi-threaded process.
             with get_context("loky").Manager() as manager:
                 queue = manager.Queue()
+                sources = notebook_sources()
                 table = SeedTable(seeds, queue, disable=self.trainer["progress"] == 0)
                 try:
                     res = joblib.Parallel(n_jobs=min(len(seeds), os.cpu_count() or 1))(
-                        joblib.delayed(run_in_worker)(self.workflow, seed, row, queue)
+                        joblib.delayed(run_in_worker)(
+                            self.workflow, seed, row, queue, sources
+                        )
                         for row, seed in enumerate(seeds)
                     )
                 finally:
@@ -721,32 +785,33 @@ class Elicit:
         overwrite: bool = False,
     ) -> None:
         """
-        Save data on disk
+        Save the eliobj on disk, with its results if it was fitted
+
+        A fitted panel of experts is saved too.
+        [`load`][elicito.elicit.load] reads the file again.
 
         Parameters
         ----------
         name
-            file name used to store the eliobj. Saving is done
-            according to the following rule: ``./{method}/{name}_{seed}.pkl``
-            with 'method' (``parametric_prior`` or ``deep_prior``) and 'seed'
-            the first of the ``seeds`` of [`Elicit`][elicito.elicit.Elicit].
+            file name of the eliobj. The file is
+            ``./results/{method}/{name}_{seed}.pkl``, with 'method'
+            ``parametric_prior`` or ``deep_prior``, and 'seed' the first of
+            the ``seeds`` of [`Elicit`][elicito.elicit.Elicit].
 
         file
-            user-specific path for saving the eliobj. If file is specified
-            **name** must be ``None``.
+            path of the file, with or without ``.pkl``. If you give
+            ``file``, ``name`` must be ``None``.
 
         overwrite
-            If already a fitted object exists in the same path, the user is
-            asked whether the eliobj should be refitted and the results
-            overwritten.
-            With the ``overwrite`` argument, you can disable this
-            behavior. In this case the results are automatically overwritten
-            without prompting the user.
+            replace a file that exists at the same path. Without it, an
+            existing file raises an error.
 
         Raises
         ------
         AssertionError
-            ``name`` and ``file`` can't be specified simultaneously.
+            ``name`` and ``file`` are both given, or both ``None``.
+        FileExistsError
+            The file exists and ``overwrite`` is ``False``.
 
         Examples
         --------
@@ -756,44 +821,6 @@ class Elicit:
 
         """
         return _storage.save(self, name=name, file=file, overwrite=overwrite)
-
-    @classmethod
-    def load(cls, file: str) -> "Elicit":
-        """
-        Load a saved ``eliobj`` from specified path
-
-        Parameters
-        ----------
-        file
-            path where ``eliobj`` object is saved.
-
-        Returns
-        -------
-        eliobj :
-            loaded ``eliobj`` object.
-
-        Examples
-        --------
-        >>> eliobj = el.Elicit.load("res/toymodel.pkl")  # doctest: +SKIP
-
-        """
-        storage = _storage.read_storage(file)
-        eliobj = cls(
-            model=storage["model"],
-            parameters=storage["parameters"],
-            targets=storage["targets"],
-            **storage["settings"],
-        )
-        eliobj.expert = storage["expert"]
-
-        # add results if already fitted
-        if "results" in storage:
-            eliobj.results = storage["results"]
-        else:
-            eliobj.temp_history = storage["temp_history"]
-            eliobj.temp_results = storage["temp_results"]
-
-        return eliobj
 
     def update(self, **kwargs: Any) -> None:
         """
@@ -817,12 +844,7 @@ class Elicit:
         >>> eliobj.update(epochs=200)  # doctest: +SKIP
 
         """
-        inputs = dict(
-            model=self.model,
-            targets=self.targets,
-            parameters=self.parameters,
-            **self.settings,
-        )
+        inputs = self._inputs()
         unknown = set(kwargs) - set(inputs)
         if unknown:
             msg = f"{sorted(unknown)} are not arguments of Elicit."
@@ -842,6 +864,116 @@ class Elicit:
         self.__dict__.update(updated.__dict__)
         if kwargs:
             print("INFO: Results have been reset.")
+
+    def _delete_results(self, overwrite: bool) -> None:
+        """Delete the results of an earlier fit; refuse without overwrite"""
+        fitted = [name for name in ("results", "panel") if hasattr(self, name)]
+        if fitted and not overwrite:
+            msg = (
+                "eliobj is already fitted. Use overwrite=True to fit it "
+                "again and replace the results."
+            )
+            raise ValueError(msg)
+        for name in fitted:
+            delattr(self, name)
+
+    def _inputs(self) -> dict[str, Any]:
+        """Return the arguments that build this eliobj"""
+        return dict(
+            model=self.model,
+            targets=self.targets,
+            parameters=self.parameters,
+            **self.settings,
+        )
+
+    def _statistics(self, answer: dict[str, Any]) -> dict[str, Any]:
+        """Return the answers of one expert; an oracle is simulated"""
+        expert = _expert(answer)
+        _checks.check_expert(expert, self.targets, self.parameters)
+        if not _is_oracle(answer):
+            return answer
+        data, _ = utils.get_expert_data(
+            self.trainer,
+            self.model,
+            self.targets,
+            expert,
+            self.parameters,
+            None,
+            self.settings["seeds"][0],
+        )
+        # drop the batch axis: the joint fit adds it again
+        return {name: value[0] for name, value in data.items()}
+
+    def _fit_joint(
+        self, inputs: dict[str, Any], answers: dict[str, Any], penalty: Any
+    ) -> Fit:
+        """Fit the expanded setup of a pooled panel"""
+        eliobj = type(self)(**inputs)
+        eliobj.trainer["penalty"] = penalty
+        fit: Fit = eliobj.fit(answers)
+        return fit
+
+    def _fit_panel(self, experts: dict[str, dict[str, Any]]) -> Panel:
+        """Fit a panel of experts, as the pool says"""
+        names = list(experts)
+        pool = self.settings["pool"]
+        if len(names) == 1 and pool is not None:
+            warnings.warn(
+                "pool= is ignored, because the panel has one expert.",
+                UserWarning,
+                stacklevel=3,
+            )
+            pool = None
+        if pool is None:
+            fits = {
+                name: type(self)(**{**self._inputs(), "pool": None}).fit(experts[name])
+                for name in names
+            }
+            return Panel(names, None, self.parameters, fits=fits, eliobj=self)
+
+        n = len(names)
+        partial = pool != _settings.COMPLETE
+        answers = _panel.answers([self._statistics(experts[name]) for name in names])
+        correlations = [
+            t["output"]
+            for t in self.targets
+            if t["query"]["name"] == "pearson_correlation"
+        ]
+        inputs = {
+            **self._inputs(),
+            "pool": None,
+            "model": _panel.Model(self.model, n, not partial, correlations),
+            "targets": _panel.targets(self.targets, n),
+            "parameters": _panel.parameters(self.parameters, n, pool["over"])
+            if partial
+            else self.parameters,
+        }
+        if not partial:
+            joint = self._fit_joint(inputs, answers, None)
+            return Panel(names, pool, self.parameters, joint=joint, eliobj=self)
+
+        over = pool["over"]
+        tau = pool["tau"]
+        if tau is None:
+            # stage 1: a weak ridge, so the offsets follow the experts
+            weak = dict.fromkeys(over, TAU_STAGE1)
+            stage1 = self._fit_joint(inputs, answers, _ridge(over, weak, n))
+            hyper = stage1.hyperparameters()
+            tau = {
+                name: max(
+                    float(
+                        np.std(
+                            [hyper[_panel.suffix(name, e)] for e in range(n)], ddof=1
+                        )
+                    ),
+                    TAU_FLOOR,
+                )
+                for name in over
+            }
+        elif not isinstance(tau, dict):
+            tau = dict.fromkeys(over, float(tau))
+        joint = self._fit_joint(inputs, answers, _ridge(over, tau, n))
+        return Panel(names, pool, self.parameters, joint=joint, tau=tau, eliobj=self)
 
     def _answers(self) -> ExpertDict:
         """Return the answers of the last fit"""
@@ -947,3 +1079,62 @@ class Elicit:
             results["init_matrix"] = init_matrix
 
         return tuple((results, history))
+
+
+def _restore(stored: dict[str, Any]) -> Elicit:
+    """Build an eliobj again from what [`record`][elicito._storage.record] stored"""
+    eliobj = Elicit(
+        model=stored["model"],
+        parameters=stored["parameters"],
+        targets=stored["targets"],
+        **stored["settings"],
+    )
+    eliobj.expert = stored["expert"]
+    if stored.get("penalty") is not None:
+        eliobj.trainer["penalty"] = stored["penalty"]
+    if "results" in stored:
+        eliobj.results = stored["results"]
+    return eliobj
+
+
+def load(file: str) -> "Elicit | Fit | Panel":
+    """
+    Load a saved ``eliobj``
+
+    Parameters
+    ----------
+    file
+        path where the ``eliobj`` is saved.
+
+    Returns
+    -------
+    result :
+        the [`Fit`][elicito.fit.Fit] if the ``eliobj`` was fitted, the
+        ``Panel`` if it was fitted to a panel of experts, else the
+        [`Elicit`][elicito.elicit.Elicit] object.
+
+    Examples
+    --------
+    >>> fit = el.load("res/toymodel.pkl")  # doctest: +SKIP
+    """
+    storage = _storage.read_storage(file)
+    eliobj = _restore(storage)
+    if "panel" in storage:
+        stored = storage["panel"]
+        fits = stored["fits"]
+        joint = stored["joint"]
+        eliobj.panel = Panel(
+            stored["experts"],
+            stored["pool"],
+            eliobj.parameters,
+            fits=None
+            if fits is None
+            else {name: Fit(_restore(fit)) for name, fit in fits.items()},
+            joint=None if joint is None else Fit(_restore(joint)),
+            tau=stored["tau"],
+            eliobj=eliobj,
+        )
+        return eliobj.panel
+    if hasattr(eliobj, "results"):
+        return Fit(eliobj)
+    return eliobj

@@ -19,6 +19,7 @@ from elicito.types import (
     ExpertDict,
     Hyper,
     Parameter,
+    Partial,
     QueriesDict,
     Target,
     VariableType,
@@ -186,20 +187,24 @@ def hyper(  # noqa: PLR0913
     if (lower != float("-inf")) and (upper == float("inf")):
         lower_bound = LowerBound(lower=lower)
         transform = lower_bound.inverse
+        unconstrain = lower_bound.forward
         constraint_name = "softplusL"
     # only upper bound
     elif (upper != float("inf")) and (lower == float("-inf")):
         upper_bound = UpperBound(upper=upper)
         transform = upper_bound.inverse
+        unconstrain = upper_bound.forward
         constraint_name = "softplusU"
     # upper and lower bound
     elif (upper != float("inf")) and (lower != float("-inf")):
         double_bound = DoubleBound(lower=lower, upper=upper)
         transform = double_bound.inverse  # type: ignore
+        unconstrain = double_bound.forward  # type: ignore
         constraint_name = "invlogit"
     # unbounded
     else:
         transform = identity_bijection  # type: ignore
+        unconstrain = identity_bijection
         constraint_name = "identity"
 
     # value type
@@ -208,6 +213,7 @@ def hyper(  # noqa: PLR0913
     hyper_dict: Hyper = dict(
         name=name,
         constraint=transform,
+        unconstrain=unconstrain,
         constraint_name=constraint_name,
         vtype=dtype_dim,
         dim=dim,
@@ -588,6 +594,41 @@ def custom(
         weight=weight,
         select=select,
     )
+
+
+def partial(
+    over: list[str] | tuple[str, ...],
+    tau: float | dict[str, float] | None = None,
+) -> Partial:
+    """
+    Pool a panel of experts partially.
+
+    Each expert gets an offset from the panel value of the named
+    hyperparameters. The other hyperparameters are shared by all experts.
+
+    Parameters
+    ----------
+    over
+        Names of the hyperparameters that differ between the experts.
+
+    tau
+        Spread of the offsets: the disagreement in the panel. A small value
+        pulls the experts toward the panel value. A float applies to all
+        names in ``over``. A dict gives one value for each name. ``None``
+        estimates the spread from the answers.
+
+    Returns
+    -------
+    pool :
+        Specification of the pooling. Give it to ``Elicit(pool=...)``.
+
+    Examples
+    --------
+    >>> el.partial(over=["mu0", "mu1"])  # doctest: +SKIP
+
+    >>> el.partial(over=["mu0", "mu1"], tau={"mu0": 1.5, "mu1": 0.5})  # doctest: +SKIP
+    """
+    return Partial(over=tuple(over), tau=tau)
 
 
 class Expert:

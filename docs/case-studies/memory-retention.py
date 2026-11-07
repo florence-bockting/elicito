@@ -5,7 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.5
+#       jupytext_version: 1.16.6
 #   kernelspec:
 #     display_name: .venv
 #     language: python
@@ -65,7 +65,7 @@ DRAWS = 10_000
 # ## The check
 #
 # The port of a model follows the rules of the how-to guide
-# ["Use a PyMC model"](../how-to-guides/use-pymc-model.py): each input of a
+# [Use a PyMC model][use-a-pymc-model]: each input of a
 # prior is a named `pm.Data` node. `adapter_pymc.parameters` reads the priors.
 # `sample_priors` samples each prior in TensorFlow, with the current values
 # of its `pm.Data` nodes.
@@ -197,12 +197,11 @@ compare(model1, OUTPUTS)
 # %% [markdown]
 # ### Elicit the priors of 10.1
 #
-# `parameters` reads the priors. `model` translates `model1` into a
-# generative model.
+# Give `model1` to `el.Elicit`. `elicito` reads the priors and translates
+# the model. `adapter_pymc.parameters` shows the priors that it reads.
 
 # %%
-parameters1 = adapter_pymc.parameters(model1)
-gen_model1 = el.model(obj=adapter_pymc.model(model1))
+[(p["name"], p["family"].__name__) for p in adapter_pymc.parameters(model1)]
 
 # %% [markdown]
 # Participant 4 has no data, so the expert judges this participant. The
@@ -291,16 +290,9 @@ def elicit(quantiles: dict[str, list[int]], delays: tuple[int, ...]) -> Any:
         target["name"]: quantiles[target["name"]] for target in targets
     }
     eliobj = el.Elicit(
-        model=gen_model1,
-        parameters=parameters1,
-        targets=targets,
-        expert=el.expert.data(dat=data),
-        optimizer=el.optimizer(optimizer="cmaes"),
-        trainer=el.trainer(
-            method="parametric_prior", seed=2025, epochs=400, progress=0, kappa=0.1
-        ),
+        model1, targets, seeds=(1, 2, 3, 4, 5), epochs=400, kappa=0.1, verbose=False
     )
-    return eliobj.fit(parallel=el.utils.parallel(runs=5, seeds=[1, 2, 3, 4, 5]))
+    return eliobj.fit(data)
 
 
 fits = {expert: elicit(quantiles, DELAYS) for expert, quantiles in experts.items()}

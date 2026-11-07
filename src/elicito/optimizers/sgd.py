@@ -13,6 +13,7 @@ import tensorflow_probability as tfp  # type: ignore
 from elicito._progress import ProgressTable
 from elicito.losses import spread_penalty, total_loss
 from elicito.models import simulate_and_elicit
+from elicito.parameters._base import hyperparameter_values
 from elicito.parameters.methods import get_method
 from elicito.parameters.priors import Priors
 from elicito.types import Parameter, Target, Trainer
@@ -107,6 +108,7 @@ def sgd_training(  # noqa: PLR0913, PLR0915
     total_losses = []
     penalties = []
     kappa = trainer.get("kappa", 0.0)
+    hyper_penalty = trainer.get("penalty")
     component_losses = []
     gradients_ep = []
     time_per_epoch = []
@@ -118,7 +120,7 @@ def sgd_training(  # noqa: PLR0913, PLR0915
     optimizer_copy = optimizer.copy()
     init_sgd_optimizer = optimizer["optimizer"]
     optimizer_copy.pop("optimizer")
-    sgd_optimizer = init_sgd_optimizer(**optimizer_copy)
+    sgd_optimizer = init_sgd_optimizer.from_config(optimizer_copy)
 
     # start training loop
     epochs = tf.range(trainer["epochs"])
@@ -156,6 +158,9 @@ def sgd_training(  # noqa: PLR0913, PLR0915
             # keep a non-identified prior away from a point mass
             penalty = spread_penalty(prior_sim)
             loss += kappa * penalty
+            # a term of the user, for example the hierarchy of a prior
+            if hyper_penalty is not None:
+                loss += hyper_penalty(hyperparameter_values(trainable_vars, parameters))
         # compute gradient of loss wrt trainable_variables
         gradients = tape.gradient(loss, trainable_vars)
         step_ok = tf.math.is_finite(tf.squeeze(loss))
