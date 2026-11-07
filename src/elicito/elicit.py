@@ -28,7 +28,7 @@ from elicito import (
     parameters,
     utils,
 )
-from elicito._progress import SeedTable, run_in_worker
+from elicito._progress import SeedTable, notebook_sources, run_in_worker
 from elicito.fit import Fit, Panel
 from elicito.parameters._base import _constraints
 from elicito.parameters.priors import Priors
@@ -592,10 +592,13 @@ class Elicit:
             # can deadlock in a multi-threaded process.
             with get_context("loky").Manager() as manager:
                 queue = manager.Queue()
+                sources = notebook_sources()
                 table = SeedTable(seeds, queue, disable=self.trainer["progress"] == 0)
                 try:
                     res = joblib.Parallel(n_jobs=min(len(seeds), os.cpu_count() or 1))(
-                        joblib.delayed(run_in_worker)(self.workflow, seed, row, queue)
+                        joblib.delayed(run_in_worker)(
+                            self.workflow, seed, row, queue, sources
+                        )
                         for row, seed in enumerate(seeds)
                     )
                 finally:
