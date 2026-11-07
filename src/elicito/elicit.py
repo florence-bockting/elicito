@@ -9,6 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 import joblib
+import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 from joblib.externals.loky.backend.context import (  # type: ignore [import-untyped]
@@ -18,6 +19,7 @@ from joblib.externals.loky.backend.context import (  # type: ignore [import-unty
 from elicito import (
     _checks,
     _outputs,
+    _panel,
     _settings,
     _storage,
     initializers,
@@ -27,7 +29,7 @@ from elicito import (
     utils,
 )
 from elicito._progress import SeedTable, run_in_worker
-from elicito.fit import Fit
+from elicito.fit import Fit, Panel
 from elicito.parameters._base import _constraints
 from elicito.parameters.priors import Priors
 from elicito.types import (
@@ -45,13 +47,51 @@ tfd = tfp.distributions
 
 def _expert(experts: dict[str, Any]) -> ExpertDict:
     """Wrap the answers of an expert; pass an oracle through"""
-    if set(experts) == {"ground_truth", "num_samples"}:
+    if _is_oracle(experts):
         return experts  # type: ignore [return-value]
     data: dict[str, Any] = {
         name: tf.expand_dims(tf.cast(tf.convert_to_tensor(value), tf.float32), 0)
         for name, value in experts.items()
     }
     return dict(data=data)
+
+
+# the weak ridge of stage 1, and the smallest spread of stage 2
+TAU_STAGE1 = 10.0
+TAU_FLOOR = 1e-3
+
+
+def _is_oracle(experts: dict[str, Any]) -> bool:
+    return set(experts) == {"ground_truth", "num_samples"}
+
+
+def _is_panel(experts: dict[str, Any]) -> bool:
+    """Tell a panel from one expert: a panel is a dict of dicts"""
+    if _is_oracle(experts):
+        return False
+    nested = [isinstance(value, dict) for value in experts.values()]
+    if any(nested) and not all(nested):
+        msg = (
+            "The experts mix answers and experts. A dict of lists is one "
+            "expert. A dict of dicts is many experts."
+        )
+        raise ValueError(msg)
+    return bool(nested) and all(nested)
+
+
+def _ridge(
+    over: tuple[str, ...], tau: dict[str, float], n_experts: int
+) -> Callable[[dict[str, Any]], Any]:
+    """Return the hierarchy term for a fixed spread of the offsets"""
+
+    def penalty(hyper: dict[str, Any]) -> Any:
+        return sum(
+            hyper[_panel.suffix(name, e)] ** 2 / (2.0 * tau[name] ** 2)
+            for name in over
+            for e in range(n_experts)
+        )
+
+    return penalty
 
 
 def _default_initializer(
@@ -455,7 +495,7 @@ class Elicit:
         self,
         experts: dict[str, Any],
         overwrite: bool = False,
-    ) -> Fit:
+    ) -> Any:
         """
         Fit the eliobj and learn prior distributions.
 
@@ -466,6 +506,9 @@ class Elicit:
             ``{"y_pred": [0.1, 0.5, 0.9]}``. To simulate the answers from a
             known prior instead, give the result of
             [`simulator`][elicito.specs.Expert.simulator].
+            For a panel, give a dict of these answers, keyed by expert name.
+            ``pool=`` of [`Elicit`][elicito.elicit.Elicit] sets how the panel
+            is fitted.
 
         overwrite
             If the eliobj was already fitted and the user wants to refit it,
@@ -476,7 +519,8 @@ class Elicit:
         Returns
         -------
         :
-            learned priors, with methods to inspect them
+            learned priors, with methods to inspect them. A panel returns a
+            ``Panel``.
 
         Raises
         ------
@@ -486,6 +530,8 @@ class Elicit:
         ValueError
             ``experts`` do not match the targets. The keys must be the target
             names.
+
+            ``experts`` mix answers and experts.
 
         AssertionError
             ``ground_truth`` for simulating expert data has the wrong
@@ -498,6 +544,15 @@ class Elicit:
         >>> eliobj.fit(answers, overwrite=True)  # doctest: +SKIP
 
         """
+        if _is_panel(experts):
+            return self._fit_panel(experts)
+        if self.settings["pool"] is not None:
+            warnings.warn(
+                "pool= is ignored, because the answers are of one expert.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         # set seed
         tf.random.set_seed(self.trainer["seed"])
 
@@ -828,12 +883,7 @@ class Elicit:
         >>> eliobj.update(epochs=200)  # doctest: +SKIP
 
         """
-        inputs = dict(
-            model=self.model,
-            targets=self.targets,
-            parameters=self.parameters,
-            **self.settings,
-        )
+        inputs = self._inputs()
         unknown = set(kwargs) - set(inputs)
         if unknown:
             msg = f"{sorted(unknown)} are not arguments of Elicit."
@@ -853,6 +903,103 @@ class Elicit:
         self.__dict__.update(updated.__dict__)
         if kwargs:
             print("INFO: Results have been reset.")
+
+    def _inputs(self) -> dict[str, Any]:
+        """Return the arguments that build this eliobj"""
+        return dict(
+            model=self.model,
+            targets=self.targets,
+            parameters=self.parameters,
+            **self.settings,
+        )
+
+    def _statistics(self, answer: dict[str, Any]) -> dict[str, Any]:
+        """Return the answers of one expert; an oracle is simulated"""
+        expert = _expert(answer)
+        _checks.check_expert(expert, self.targets, self.parameters)
+        if not _is_oracle(answer):
+            return answer
+        data, _ = utils.get_expert_data(
+            self.trainer,
+            self.model,
+            self.targets,
+            expert,
+            self.parameters,
+            None,
+            self.settings["seeds"][0],
+        )
+        # drop the batch axis: the joint fit adds it again
+        return {name: value[0] for name, value in data.items()}
+
+    def _fit_joint(
+        self, inputs: dict[str, Any], answers: dict[str, Any], penalty: Any
+    ) -> Fit:
+        """Fit the expanded setup of a pooled panel"""
+        eliobj = type(self)(**inputs)
+        eliobj.trainer["penalty"] = penalty
+        fit: Fit = eliobj.fit(answers)
+        return fit
+
+    def _fit_panel(self, experts: dict[str, dict[str, Any]]) -> Panel:
+        """Fit a panel of experts, as the pool says"""
+        names = list(experts)
+        pool = self.settings["pool"]
+        if len(names) == 1 and pool is not None:
+            warnings.warn(
+                "pool= is ignored, because the panel has one expert.",
+                UserWarning,
+                stacklevel=3,
+            )
+            pool = None
+        if pool is None:
+            fits = {
+                name: type(self)(**{**self._inputs(), "pool": None}).fit(experts[name])
+                for name in names
+            }
+            return Panel(names, None, fits=fits)
+
+        n = len(names)
+        partial = pool != _settings.COMPLETE
+        answers = _panel.answers([self._statistics(experts[name]) for name in names])
+        correlations = [
+            t["output"]
+            for t in self.targets
+            if t["query"]["name"] == "pearson_correlation"
+        ]
+        inputs = {
+            **self._inputs(),
+            "pool": None,
+            "model": _panel.Model(self.model, n, not partial, correlations),
+            "targets": _panel.targets(self.targets, n),
+            "parameters": _panel.parameters(self.parameters, n, pool["over"])
+            if partial
+            else self.parameters,
+        }
+        if not partial:
+            return Panel(names, pool, joint=self._fit_joint(inputs, answers, None))
+
+        over = pool["over"]
+        tau = pool["tau"]
+        if tau is None:
+            # stage 1: a weak ridge, so the offsets follow the experts
+            weak = dict.fromkeys(over, TAU_STAGE1)
+            stage1 = self._fit_joint(inputs, answers, _ridge(over, weak, n))
+            hyper = stage1.hyperparameters()
+            tau = {
+                name: max(
+                    float(
+                        np.std(
+                            [hyper[_panel.suffix(name, e)] for e in range(n)], ddof=1
+                        )
+                    ),
+                    TAU_FLOOR,
+                )
+                for name in over
+            }
+        elif not isinstance(tau, dict):
+            tau = dict.fromkeys(over, float(tau))
+        joint = self._fit_joint(inputs, answers, _ridge(over, tau, n))
+        return Panel(names, pool, joint=joint, tau=tau)
 
     def _answers(self) -> ExpertDict:
         """Return the answers of the last fit"""

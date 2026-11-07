@@ -333,3 +333,32 @@ class Fit:
             draw_targets=draw_targets,
         )
         return tree
+
+
+class Panel:
+    """Learned priors of a panel of experts"""
+
+    def __init__(
+        self,
+        experts: list[str],
+        pool: Any,
+        fits: dict[str, Fit] | None = None,
+        joint: Fit | None = None,
+        tau: dict[str, float] | None = None,
+    ) -> None:
+        self.experts = experts
+        self.pool = pool
+        # one fit for each expert without pooling, else one joint fit
+        self.fits = fits
+        self.joint = joint
+        self.tau = tau
+
+    def __getitem__(self, expert: str) -> Fit:
+        """Return the fit of one expert; only without pooling"""
+        if self.fits is None:
+            msg = (
+                "A pooled panel has one joint fit, not one fit for each "
+                "expert. Use panel.joint."
+            )
+            raise KeyError(msg)
+        return self.fits[expert]
