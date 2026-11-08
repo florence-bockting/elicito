@@ -15,6 +15,7 @@ See https://oprypin.github.io/mkdocs-literate-nav/
     - [Specify the generative model](how-to-guides/define-generative-model.md)
     - [Choose an initialization method](how-to-guides/choose-initialization.md)
     - [Use a PyMC model](how-to-guides/use-pymc-model.ipynb)
+    - [Supported PyMC functions](how-to-guides/pymc-supported-functions.md)
     - [Use a custom elicitation technique](how-to-guides/use-custom-query.ipynb)
     - [Share a hyperparameter](how-to-guides/share-a-hyperparameter.ipynb)
 - [Case studies](case-studies/index.md)

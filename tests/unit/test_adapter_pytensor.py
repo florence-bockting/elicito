@@ -1,8 +1,11 @@
+import re
+from pathlib import Path
+
 import numpy as np
 import pytest
 import tensorflow as tf
 
-from elicito.adapter._pytensor import _constant, translate, vectorize
+from elicito.adapter._pytensor import RULES, _constant, translate, vectorize
 
 pt = pytest.importorskip("pytensor.tensor")
 
@@ -224,3 +227,11 @@ def test_vectorize_gives_an_unbatched_rv_the_batch_axes(size, shape):
     [out] = translate([x_b], [batch])([tf.constant([4, 5])], SEED)
     assert out.shape == shape
     assert float(tf.math.reduce_std(out)) > 0.5
+
+
+def test_docs_list_every_rule():
+    """the page of supported functions names the op of each rule, and no other"""
+    page = Path(__file__).parents[2] / "docs/how-to-guides/pymc-supported-functions.md"
+    rows = [line for line in page.read_text().splitlines() if line.startswith("|")]
+    listed = {op for row in rows for op in re.findall(r"`(\w+)`", row.split("|")[-2])}
+    assert listed == set(RULES)
