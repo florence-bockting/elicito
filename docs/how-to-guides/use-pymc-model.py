@@ -133,10 +133,7 @@ def custom_r2(ypred: Any, epred: Any) -> Any:
 PROBS = (0.05, 0.25, 0.50, 0.75, 0.95)
 
 targets = [
-    *(
-        el.quantiles(f"y_X{i}", output="ypred", select=i, probs=PROBS)
-        for i in range(3)
-    ),
+    *(el.quantiles(f"y_X{i}", output="ypred", select=i, probs=PROBS) for i in range(3)),
     el.quantiles("R2", output=custom_r2, loss=el.losses.L2, weight=0.5),
 ]
 

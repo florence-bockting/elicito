@@ -95,9 +95,12 @@ parameters = [
 
 
 # %%
+THRESHOLD = 10.0
+
+
 def prob_above_10(ypred: Any) -> Any:
     """Return the share of simulated outcomes that are larger than 10"""
-    return tf.reduce_mean(tf.cast(ypred > 10.0, tf.float32), axis=1)
+    return tf.reduce_mean(tf.cast(ypred > THRESHOLD, tf.float32), axis=1)
 
 
 targets = [
@@ -118,7 +121,9 @@ expert = {"y": [6.5, 8.0, 9.5], "ypred": [0.19]}
 # ## Training
 
 # %%
-eliobj = el.Elicit(Model(), targets, parameters, seeds=(2025,), epochs=400, verbose=False)
+eliobj = el.Elicit(
+    Model(), targets, parameters, seeds=(2025,), epochs=400, verbose=False
+)
 
 fit = eliobj.fit(expert)
 fit
@@ -129,4 +134,4 @@ fit
 # compares each answer of the expert with the statistic of the model.
 
 # %%
-fit.plot.elicits(cols=2, figsize=(6, 2.6));
+fit.plot.elicits(cols=2, figsize=(6, 2.6))

@@ -15,9 +15,11 @@
 # %% [markdown]
 # # Use a discrete likelihood
 #
-# This guide shows how to learn a prior for a model with a discrete likelihood, such as a Binomial.
+# This guide shows how to learn a prior for a model with a discrete
+# likelihood, such as a Binomial.
 # With the default optimizer, CMA-ES, the model samples the likelihood directly.
-# If you use a gradient optimizer, such as Adam, the model needs a smooth version of the samples.
+# If you use a gradient optimizer, such as Adam, the model needs a smooth
+# version of the samples.
 
 # %% tags=["hide"]
 import os
@@ -56,7 +58,8 @@ tfd = tfp.distributions
 #
 # The argument `temp` selects the sampling.
 # With `temp=None`, the model samples the Binomial directly.
-# With a number, it uses `el.utils.gumbel_softmax_trick`, which gives samples with a gradient.
+# With a number, it uses `el.utils.gumbel_softmax_trick`, which gives
+# samples with a gradient.
 
 
 # %%
@@ -125,7 +128,9 @@ targets = [
 ]
 
 # %% [markdown]
-# The answers come from an oracle with $\beta_0 \sim \text{Normal}(0.1, 0.4)$ and $\beta_1 \sim \text{Normal}(0.2, 0.2)$.
+# The answers come from an oracle with
+# $\beta_0 \sim \text{Normal}(0.1, 0.4)$ and
+# $\beta_1 \sim \text{Normal}(0.2, 0.2)$.
 
 # %%
 expert = el.expert.simulator(
@@ -152,7 +157,7 @@ fit
 # Check that the learned priors reproduce the answers.
 
 # %%
-fit.plot.elicits(cols=3, figsize=(6, 2));
+fit.plot.elicits(cols=3, figsize=(6, 2))
 
 # %% [markdown]
 # ## Fit with a gradient optimizer
@@ -163,7 +168,8 @@ fit.plot.elicits(cols=3, figsize=(6, 2));
 # A small `temp` gives samples near the integers, but noisy gradients.
 #
 # Adam also needs an initializer.
-# [Choose an initialization method][choose-an-initialization-method] helps you to pick one.
+# [Choose an initialization method][choose-an-initialization-method]
+# helps you to pick one.
 
 # %%
 model_smooth = partial(Model(), design_matrix=design_matrix, total_count=30, temp=1.6)
@@ -190,4 +196,4 @@ fit_adam
 # The answers of a real expert stay the same for both fits.
 
 # %%
-fit_adam.plot.elicits(cols=3, figsize=(6, 2));
+fit_adam.plot.elicits(cols=3, figsize=(6, 2))

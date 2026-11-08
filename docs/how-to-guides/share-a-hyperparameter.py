@@ -40,7 +40,8 @@ tfd = tfp.distributions
 # %% [markdown]
 # ## The generative model
 #
-# The outcomes $y_a$ and $y_b$ are normal, with means $\mu_a$ and $\mu_b$ and standard deviation 1.
+# The outcomes $y_a$ and $y_b$ are normal, with means $\mu_a$ and $\mu_b$
+# and standard deviation 1.
 
 
 # %%
@@ -93,7 +94,9 @@ targets = [
 expert = el.expert.simulator(
     ground_truth={"mu_a": tfd.Normal(5.0, 2.0), "mu_b": tfd.Normal(10.0, 2.0)}
 )
-eliobj = el.Elicit(Model(), targets, parameters, seeds=(2025,), epochs=400, verbose=False)
+eliobj = el.Elicit(
+    Model(), targets, parameters, seeds=(2025,), epochs=400, verbose=False
+)
 fit = eliobj.fit(expert)
 fit
 
@@ -102,4 +105,4 @@ fit
 # The learned values must be near $m_a = 5$, $m_b = 10$ and $s = 2$.
 
 # %%
-fit.plot.hyperparameter(cols=3, figsize=(8, 2.4));
+fit.plot.hyperparameter(cols=3, figsize=(8, 2.4))

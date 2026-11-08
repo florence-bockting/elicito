@@ -75,21 +75,27 @@ tfd = tfp.distributions
 PREDICTIVE_PRIOR = {
     # parameter: (mean, variance) per user
     # the order must match the unpacking in GrowthModel.__call__
-    "hts": [(162.8, 4.2), (153.73, 1.6), (148.8, 1.86), (162.8, 0.02),
-            (162.6, 0.85)],
+    "hts": [(162.8, 4.2), (153.73, 1.6), (148.8, 1.86), (162.8, 0.02), (162.6, 0.85)],
     # user 4: the printed variance of h1 is censored; see the text above
-    "dh": [(11.7, 5.0), (38.01, 5.92), (28.34, 5.54), (11.7, 0.025),
-           (11.8, 1.76)],
-    "ts": [(13.4, 0.01), (15.9, 0.7), (11.31, 0.21), (14.7, 0.9),
-           (14.6, 0.02)],
+    "dh": [(11.7, 5.0), (38.01, 5.92), (28.34, 5.54), (11.7, 0.025), (11.8, 1.76)],
+    "ts": [(13.4, 0.01), (15.9, 0.7), (11.31, 0.21), (14.7, 0.9), (14.6, 0.02)],
     # the printed variance of s0 is censored; see the text above
-    "s0": [(0.1, 0.000625), (0.04, 0.0001), (0.07, 0.00030625),
-           (0.1, 0.000625), (0.1, 0.000625)],
+    "s0": [
+        (0.1, 0.000625),
+        (0.04, 0.0001),
+        (0.07, 0.00030625),
+        (0.1, 0.000625),
+        (0.1, 0.000625),
+    ],
     # user 5: the printed variance of s1 is censored as well
-    "ds": [(3.2, 0.26), (1.96, 4.3001), (4.47, 37.83030625), (1.5, 1.700625),
-           (3.3, 0.005625)],
-    "b": [(15.79, 12.9), (61.4, 111.4), (18.4, 12.5), (14.5, 14.3),
-          (17.8, 17.8)],
+    "ds": [
+        (3.2, 0.26),
+        (1.96, 4.3001),
+        (4.47, 37.83030625),
+        (1.5, 1.700625),
+        (3.3, 0.005625),
+    ],
+    "b": [(15.79, 12.9), (61.4, 111.4), (18.4, 12.5), (14.5, 14.3), (17.8, 17.8)],
 }
 
 # %% [markdown]
@@ -241,6 +247,7 @@ class GrowthModel:
             y_t0=y_t0, y_t1=y_t1, y_t2=y_t2, y_t3=y_t3, ypred=ypred, epred=epred
         )
 
+
 # %% [markdown]
 # ## The oracle
 #
@@ -275,8 +282,7 @@ def oracle(user: int) -> dict[str, Any]:
         else:
             sigma2 = np.log(1.0 + v / m**2)
             truth[name] = tfd.LogNormal(
-                loc=float(np.log(m) - sigma2 / 2.0),
-                scale=float(np.sqrt(sigma2))
+                loc=float(np.log(m) - sigma2 / 2.0), scale=float(np.sqrt(sigma2))
             )
     return truth
 
@@ -351,6 +357,7 @@ parameters = [
 
 # %%
 QUANTILES = (0.10, 0.25, 0.50, 0.75, 0.90)
+MEDIAN = 0.50
 
 targets = [el.quantiles(f"y_t{i}", probs=QUANTILES) for i in range(4)]
 
@@ -360,10 +367,7 @@ targets = [el.quantiles(f"y_t{i}", probs=QUANTILES) for i in range(4)]
 # %%
 model = partial(GrowthModel(), ages=AGES)
 
-expert = el.expert.simulator(
-    ground_truth=oracle(user=1),
-    num_samples=10_000
-)
+expert = el.expert.simulator(ground_truth=oracle(user=1), num_samples=10_000)
 
 # %% [markdown]
 # ## The initialization box
@@ -466,10 +470,10 @@ cma_seconds = time.time() - start
 # whether the simulated quantiles reach the expert values at each age.
 
 # %%
-fit.plot.loss(figsize=(7, 3));
+fit.plot.loss(figsize=(7, 3))
 
 # %%
-fit.plot.elicits(cols=4, figsize=(9, 3));
+fit.plot.elicits(cols=4, figsize=(9, 3))
 
 # %% [markdown]
 # The parameters of interest are $h_{t_s}$, $h_1$, $s_0$, $s_1$ and $t_s$.
@@ -491,7 +495,7 @@ def add_h1_s1(draws):
 
 
 add_h1_s1(samples)
-fit.plot.prior_marginals(params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4));
+fit.plot.prior_marginals(params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4))
 
 # %% tags=["remove_input"]
 import matplotlib.pyplot as plt
@@ -514,14 +518,23 @@ def predictive(name):
 fig, ax = plt.subplots(figsize=(9, 3.2), constrained_layout=True)
 for name, age, color in zip(TARGETS, AGES.numpy(), COLORS):
     counts, edges, _ = ax.hist(
-        predictive(name), bins="auto", density=True, histtype="step",
-        linewidth=2, color=color, label=f"age {age:g}",
+        predictive(name),
+        bins="auto",
+        density=True,
+        histtype="step",
+        linewidth=2,
+        color=color,
+        label=f"age {age:g}",
     )
     mid = 0.5 * (edges[:-1] + edges[1:])
     ax.annotate(
-        f"age {age:g}", (mid[counts.argmax()], counts.max()),
-        textcoords="offset points", xytext=(0, 5),
-        ha="center", fontsize="x-small", color="#1a1a19",
+        f"age {age:g}",
+        (mid[counts.argmax()], counts.max()),
+        textcoords="offset points",
+        xytext=(0, 5),
+        ha="center",
+        fontsize="x-small",
+        color="#1a1a19",
     )
 
 ax.set_xlabel("stature (cm)", fontsize="small")
@@ -539,16 +552,20 @@ from matplotlib.lines import Line2D
 fig, axes = plt.subplots(1, 4, figsize=(12, 3), constrained_layout=True)
 for ax, name, age, color in zip(axes, TARGETS, AGES.numpy(), COLORS):
     ax.hist(
-        predictive(name), bins="auto", density=True,
-        color=color, alpha=0.5, edgecolor="none",
+        predictive(name),
+        bins="auto",
+        density=True,
+        color=color,
+        alpha=0.5,
+        edgecolor="none",
     )
-    expert_quantiles = (
-        fit.results.oracle.sel(replication=0)[name].values[0]
-    )
+    expert_quantiles = fit.results.oracle.sel(replication=0)[name].values[0]
     for q, x in zip(QUANTILES, expert_quantiles):
         ax.axvline(
-            x, color="#1a1a19", linewidth=2 if q == 0.5 else 1,
-            linestyle="solid" if q == 0.5 else "dashed",
+            x,
+            color="#1a1a19",
+            linewidth=2 if q == MEDIAN else 1,
+            linestyle="solid" if q == MEDIAN else "dashed",
         )
     ax.set_title(f"age {age:g}", fontsize="small")
     ax.set_xlabel("stature (cm)", fontsize="small")
@@ -561,10 +578,12 @@ axes[0].set_ylabel("density", fontsize="small")
 axes[0].legend(
     handles=[
         Line2D([0], [0], color="#1a1a19", lw=2, label="expert median"),
-        Line2D([0], [0], color="#1a1a19", lw=1, ls="dashed",
-               label="expert 10/25/75/90%"),
+        Line2D(
+            [0], [0], color="#1a1a19", lw=1, ls="dashed", label="expert 10/25/75/90%"
+        ),
     ],
-    fontsize="x-small", frameon=False,
+    fontsize="x-small",
+    frameon=False,
 )
 
 # %% [markdown]
@@ -626,15 +645,15 @@ report(fit, "cmaes", cma_seconds)
 report(fit_adam, "adam", adam_seconds)
 
 # %%
-fit_adam.plot.loss(figsize=(7, 3));
+fit_adam.plot.loss(figsize=(7, 3))
 
 # %%
 samples_adam = fit_adam.sample()
-fit_adam.plot.elicits(cols=4, figsize=(9, 3));
+fit_adam.plot.elicits(cols=4, figsize=(9, 3))
 
 # %%
 add_h1_s1(samples_adam)
-fit_adam.plot.prior_marginals(params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4));
+fit_adam.plot.prior_marginals(params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4))
 
 # %% [markdown]
 # ## Five experts
@@ -770,6 +789,4 @@ for row, u in zip(axes, USERS):
     row[0].set_ylabel("model-simulated", fontsize="small")
 for ax in axes[-1]:
     ax.set_xlabel("expert", fontsize="small")
-fig.suptitle(
-    "expert-elicited and model-simulated quantiles (cm)", fontsize="medium"
-)
+fig.suptitle("expert-elicited and model-simulated quantiles (cm)", fontsize="medium")
