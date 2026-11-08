@@ -1,5 +1,5 @@
 """
-setup network argument of Elicit class
+Normalizing flows for the `network` argument of `Elicit`
 
 imported code from BayesFlow==1.1.6 with approval by author Stefan Radev
 Code needs to be adjusted to elicito structure

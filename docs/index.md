@@ -5,9 +5,10 @@
 The goal of *expert prior elicitation* is to specify prior distributions for parameters in a
 Bayesian model that accurately reflect the expectations of a domain expert.
 
-With its modulare framework `elicito` supports
+With its modular framework `elicito` supports
 
 + a wide range of generative models (statistical model describing the data-generating process),
+  written in TensorFlow or in PyMC,
 + different types of expert knowledge (which information is extracted from the domain expert?)
 + various types of elicitation techniques (how the information is extracted from the domain expert)
 + loss functions (criterion used to match expert knowledge with simulated model quantities)
@@ -46,48 +47,50 @@ update the prior hyperparameters such that the loss function is minimized.
 + [Software Paper] Bockting F. & Bürkner PC (2025). elicito: A Python package for expert-prior elicitation. arXiv.
 [Preprint](https://arxiv.org/pdf/2506.16830)
 + [Methods Paper] Bockting F., Radev ST, Bürkner PC (2024). Simulation-based prior knowledge elicitation
-for parametric Bayesian models. *Scientific Report, 14*(1), 17330. [PDF](https://www.nature.com/articles/s41598-024-68090-7)
+for parametric Bayesian models. *Scientific Reports, 14*(1), 17330. [PDF](https://www.nature.com/articles/s41598-024-68090-7)
 + [Methods Paper] Bockting F., Radev ST, Bürkner PC (2025). Expert-elicitation method for non-parametric joint priors using
 normalizing flows. *Statistics and Computing*. [PDF](https://arxiv.org/abs/2411.15826)
 
 ## Implementation (in a nutshell)
-The primary user interface of **elicito** is the `Elicit` class, through which the user can specify
-the entire elicitation procedure. The arguments of the `Elicit` class are designed to capture all
-necessary information required to implement an elicitation method.
-A brief overview of these arguments is provided below:
+The primary user interface of **elicito** is the `Elicit` class. It specifies
+the entire elicitation method. `Elicit.fit()` then learns the prior from the
+answers of the expert.
 
-+ `model`: Defines the generative model used in the elicitation procedure.
-+ `parameters`: Specifies assumptions regarding the prior distributions over model parameters,
-    including (hyper)parameter constraints, dimensionality, and parametric form.
-+ `targets`: Defines the elicited statistics in terms of target quantities and corresponding
-  elicitation techniques. Also specifies the discrepancy measure and weight used for the
-    associated loss component.
-+ `expert`: Provides the expert information that serves as the basis for the learning criterion.
-+ `optimizer`: Specifies the optimization algorithm to be used, along with its
-    hyperparameters (e.g., learning rate).
-+ `trainer`: Configures the overall training procedure, including settings such as the random
-    seed, number of epochs, sample size, and batch size.
-+ `initializer`: Defines the initialization strategy for the hyperparameters used to
-    instantiate the simulation-based optimization process.
-+ `network`: Specifies the architecture of the deep generative model; required only when
-    using non-parametric prior distributions.
-+ `meta_settings`: Controls the dry run before the training. The dry run executes the
-    generative model once and collects the shape of each tensor.
+The main arguments of `Elicit`:
+
++ `model`: the generative model. Give a callable that takes the prior samples,
+  or a PyMC model.
++ `targets`: the target quantities and the elicitation techniques, for example
+  `el.quantiles`. Each target also sets its loss and its weight.
++ `parameters`: the model parameters and the families of their priors.
+  Optional for a PyMC model: `elicito` reads the priors from the model.
++ `network`: the normalizing flow of a joint, non-parametric prior. Without a
+  network, `elicito` learns one parametric prior for each parameter.
++ `optimizer`: `"auto"` (CMA-ES for parametric priors, Adam for a deep prior),
+  `"cmaes"`, `"adam"`, or a `tf.keras` optimizer.
++ `initializer`: the start values of the hyperparameters for gradient descent.
++ `seeds`, `epochs`, `B`, `num_samples`: the replications, the length of the
+  training, the batch size and the number of prior samples.
++ `pool`: the pooling of a panel of experts.
+
+The answers of the expert go to `Elicit.fit(experts)`.
+The [API reference](api/elicito/index.md) lists all arguments.
 
 By configuring these core components, **elicito** supports a wide range of elicitation
 methods, including both structural and predictive approaches, univariate and
 multivariate as well as parametric and nonparametric prior distributions.
 
 ## Getting started
-+ See introductory tutorials for learning
++ Learn the basics with the tutorials:
 
     + independent, parametric prior distributions [Notebook](tutorials/getting-started-param.ipynb)
     + joint, non-parametric prior distributions [Notebook](tutorials/getting-started-deep.ipynb)
+    + a prior for a panel of experts [Notebook](tutorials/multiple-experts.ipynb)
 
-+ Browse through the
-
-    + package **API** to get familiar with the functionalities
-    + [How-to-guides](how-to-guides/index.md) to see further use cases and explanations
++ Solve a specific task with the [how-to guides](how-to-guides/index.md), for
+  example [use a PyMC model](how-to-guides/use-pymc-model.ipynb).
++ See complete examples in the [case studies](case-studies/index.md).
++ Look up a function in the [API reference](api/elicito/index.md).
 
 Please don't hesitate to raise an [issue](https://github.com/florence-bockting/elicito/issues) if you get stuck, encounter an error, or have a question.
 We are happy to hear from you.

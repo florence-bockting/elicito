@@ -1,5 +1,14 @@
 """
 Adapter for PyMC models
+
+Give a PyMC model to [`Elicit`][elicito.Elicit] as its `model`. `Elicit`
+then calls [`parameters`][elicito.adapter.pymc.parameters] to read the
+priors and [`model`][elicito.adapter.pymc.model] to translate the model.
+After the fit, call
+[`set_hyperparameters`][elicito.adapter.pymc.set_hyperparameters] to write
+the learned values into the PyMC model.
+
+The adapter needs Python 3.12 or later and the extra `elicito[pymc]`.
 """
 
 from collections import Counter
