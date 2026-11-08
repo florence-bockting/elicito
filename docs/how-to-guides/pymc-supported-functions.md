@@ -106,6 +106,10 @@ hierarchical effect.
 | `pt.dot(a, b)` | `Dot` |
 | `pt.linalg.inv(a)` | `MatrixInverse` |
 
+`pt.linalg.inv` of a singular matrix, or of a matrix with NaN, gives NaN in
+the translated model. PyTensor raises an error instead. During a CMA-ES
+fit, the search gives this candidate a penalty, and the fit goes on.
+
 ## Ops that PyTensor adds
 
 PyTensor adds these ops to the graph by itself. You do not call them.

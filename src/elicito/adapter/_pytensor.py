@@ -197,6 +197,21 @@ def _advanced_inc_subtensor(op: Any, x: Any, y: Any, *idx: Any) -> Any:
     return scatter(x, tf.stack(keys, axis=-1), y)
 
 
+def _matrix_inverse(op: Any, x: Any) -> Any:
+    """
+    Invert each matrix; a singular or non-finite matrix gives NaN
+
+    tf.linalg.inv raises an error for such a matrix. During a fit, one bad
+    candidate would then stop the whole search; NaN lets the search reject
+    the candidate, as tf.linalg.cholesky does.
+    """
+    det = tf.linalg.det(x)
+    ok = (tf.math.is_finite(det) & tf.not_equal(det, 0.0))[..., None, None]
+    eye = tf.eye(tf.shape(x)[-1], dtype=x.dtype)
+    inverse = tf.linalg.inv(tf.where(ok, x, eye))
+    return tf.where(ok, inverse, tf.constant(np.nan, dtype=x.dtype))
+
+
 def _lkj_cholesky_cov(n: Any, eta: Any, sd: Any, seed: Any) -> Any:
     """
     Draw the packed Cholesky factor of a covariance, as LKJCholeskyCov does
@@ -340,7 +355,7 @@ RULES: dict[str, Callable[[Any, list[Any], Any], Any]] = {
     "BernoulliRV": _rv(lambda p, seed: tfd.Bernoulli(probs=p).sample(seed=seed)),
     "BinomialRV": _rv(lambda n, p, seed: tfd.Binomial(n, probs=p).sample(seed=seed)),
     "CategoricalRV": _rv(lambda p, seed: tfd.Categorical(probs=p).sample(seed=seed)),
-    "MatrixInverse": lambda op, args, seed: tf.linalg.inv(args[0]),
+    "MatrixInverse": lambda op, args, seed: _matrix_inverse(op, args[0]),
     # Dot takes two matrices; a vector dot adds and drops axes around it
     "Dot": lambda op, args, seed: tf.linalg.matmul(*args),
     "AdvancedIncSubtensor": lambda op, args, seed: _advanced_inc_subtensor(op, *args),

@@ -235,3 +235,18 @@ def test_docs_list_every_rule():
     rows = [line for line in page.read_text().splitlines() if line.startswith("|")]
     listed = {op for row in rows for op in re.findall(r"`(\w+)`", row.split("|")[-2])}
     assert listed == set(RULES)
+
+
+def test_matrix_inverse_of_a_singular_matrix_is_nan():
+    """a singular or NaN matrix gives NaN, and the other matrices their inverse"""
+    m = pt.tensor3("m")
+    batch = np.array(
+        [
+            [[2.0, 0.0], [0.0, 4.0]],
+            [[1.0, 1.0], [1.0, 1.0]],
+            [[np.nan, 0.0], [0.0, 1.0]],
+        ]
+    )
+    [value] = translate([pt.linalg.inv(m)], [m])([tf.constant(batch, tf.float32)], SEED)
+    np.testing.assert_allclose(value[0], [[0.5, 0.0], [0.0, 0.25]])
+    assert np.isnan(value[1:]).all()
