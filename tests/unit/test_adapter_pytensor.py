@@ -37,6 +37,7 @@ def test_elementwise_op_upcasts_an_integer_input():
         pytest.param(lambda m: m**2, id="Pow"),
         pytest.param(lambda m: pt.exp(m), id="Exp"),
         pytest.param(lambda m: pt.log(m + 1), id="Log"),
+        pytest.param(lambda m: pt.log1p(m), id="Log1p"),
         pytest.param(lambda m: pt.sqrt(m), id="Sqrt"),
         pytest.param(lambda m: pt.abs(m - 2.5), id="Abs"),
         pytest.param(lambda m: pt.sign(m - 2.5), id="Sign"),

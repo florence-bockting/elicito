@@ -288,6 +288,7 @@ RULES: dict[str, Callable[[Any, list[Any], Any], Any]] = {
     "Pow": lambda op, args, seed: tf.pow(*args),
     "Exp": lambda op, args, seed: tf.exp(args[0]),
     "Log": lambda op, args, seed: tf.math.log(args[0]),
+    "Log1p": lambda op, args, seed: tf.math.log1p(args[0]),
     "Sqrt": lambda op, args, seed: tf.sqrt(args[0]),
     "Abs": lambda op, args, seed: tf.abs(args[0]),
     "Sign": lambda op, args, seed: tf.sign(args[0]),
