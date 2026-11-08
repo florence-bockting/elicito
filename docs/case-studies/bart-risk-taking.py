@@ -225,7 +225,7 @@ with pm.Model() as model:
     stop = alive * theta_n
     burst = alive * (1 - theta_n) * BURST
     p_pumps = stop + (SHIFT * burst[..., None, :]).sum(axis=-1)
-    p_pumps = p_pumps / p_pumps.sum(axis=-1, keepdims=True)
+    p_pumps = pm.Deterministic("p_pumps", p_pumps / p_pumps.sum(axis=-1, keepdims=True))
     pm.Deterministic("pumps", pm.Categorical.dist(p=p_pumps))
 
 # %% [markdown]
@@ -411,8 +411,12 @@ plt.show()
 #
 # Each expert gives quantiles of two quantities:
 #
-# - the number of pumps in one trial,
-# - the best number of pumps $\omega$.
+# - **number of pumps:** "In one trial, how many times does George pump?"
+# - **$\omega$:** "How many pumps does George plan to make?"
+#
+# The expert answers each question with the 10 %, 25 %, 50 %, 75 % and
+# 90 % quantiles. For the 10 % quantile, the question is: "Give a value
+# that is too low with a probability of 10 %."
 #
 # The number of pumps alone is not sufficient. With the pumps alone,
 # `elicito` can learn a prior with negative $\gamma^+$ and $\beta$. This
@@ -553,6 +557,42 @@ plt.show()
 #   The posterior of $\beta$ moves down to 0.36 instead: the model now
 #   explains George's few pumps with less consistent behaviour.
 #
+# ## Does the model fit the data?
+#
+# A posterior predictive check simulates new data from the fitted model.
+# For each posterior draw, we simulate 90 trials and count the trials with
+# each number of pumps. The figure repeats the first figure: the dots are
+# George's trials, the bars and lines the median and the 90 % interval of
+# the simulated trials.
+
+# %% tags=["remove_input"]
+rng = np.random.default_rng(1)
+n_trials = len(pumps_obs)
+shown = np.arange(11)  # George never makes more than 7 pumps
+observed = np.bincount(pumps_obs, minlength=K + 1)[shown]
+
+fig, axs = plt.subplots(1, len(PRIORS), figsize=(9, 2.8), sharey=True)
+for ax, (label, posterior) in zip(axs, posteriors.items()):
+    p_draws = posterior["p_pumps"].values.reshape(-1, K + 1)
+    counts = rng.multinomial(n_trials, p_draws)[:, shown]
+    low, mid, high = np.quantile(counts, [0.05, 0.5, 0.95], axis=0)
+    ax.bar(shown, mid, color=BLUE, alpha=0.4, width=0.6, label="predicted")
+    ax.vlines(shown, low, high, color=BLUE, lw=2)
+    ax.plot(shown, observed, "o", color=ORANGE, ms=5, label="George")
+    ax.set(title=label, xlabel="pumps in the trial", xticks=shown[::2])
+    ax.grid(axis="x", visible=False)
+axs[0].set_ylabel(f"trials of {n_trials}")
+axs[0].legend()
+fig.tight_layout()
+plt.show()
+
+# %% [markdown]
+# The three panels show the same misfit. George never stops before the
+# first pump, but the model predicts a median of 6 to 11 such trials. And
+# George stops after one pump in 33 trials, more than the 90 % interval
+# allows. With expert B,
+# the model also predicts too few trials with 3 pumps: 24 are observed.
+#
 # ## Takeaways
 #
 # - **Translation.** One call translates the PyMC model. The largest KS
@@ -560,6 +600,8 @@ plt.show()
 # - **Speed.** The translated model is 10 to 20 times faster than PyMC.
 # - **Elicitation.** Check the elicited quantiles against the quantiles of
 #   the expert. Different priors can give the same quantiles.
+# - **Posterior predictive check.** No prior repairs a misfit of the
+#   model: George's trials with 0 and 1 pumps.
 # - **Uniform priors.** A Uniform prior is a strong statement. The data
 #   cannot move the posterior past its bounds. A wrong expert then gives a
 #   wrong posterior.
