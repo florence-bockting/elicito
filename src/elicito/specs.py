@@ -8,22 +8,20 @@ from typing import Any, Callable, Optional
 import tensorflow as tf
 import tensorflow_probability as tfp  # type: ignore
 
+from elicito import losses
 from elicito.parameters.bijections import (
     DoubleBound,
     LowerBound,
     UpperBound,
-    identity,
 )
+from elicito.parameters.bijections import identity as identity_bijection
 from elicito.types import (
     ExpertDict,
     Hyper,
-    MetaSettings,
     Parameter,
-    PriorMethods,
-    ProgressMethod,
+    Partial,
     QueriesDict,
     Target,
-    Trainer,
     VariableType,
 )
 
@@ -189,20 +187,24 @@ def hyper(  # noqa: PLR0913
     if (lower != float("-inf")) and (upper == float("inf")):
         lower_bound = LowerBound(lower=lower)
         transform = lower_bound.inverse
+        unconstrain = lower_bound.forward
         constraint_name = "softplusL"
     # only upper bound
     elif (upper != float("inf")) and (lower == float("-inf")):
         upper_bound = UpperBound(upper=upper)
         transform = upper_bound.inverse
+        unconstrain = upper_bound.forward
         constraint_name = "softplusU"
     # upper and lower bound
     elif (upper != float("inf")) and (lower != float("-inf")):
         double_bound = DoubleBound(lower=lower, upper=upper)
         transform = double_bound.inverse  # type: ignore
+        unconstrain = double_bound.forward  # type: ignore
         constraint_name = "invlogit"
     # unbounded
     else:
-        transform = identity  # type: ignore
+        transform = identity_bijection  # type: ignore
+        unconstrain = identity_bijection
         constraint_name = "identity"
 
     # value type
@@ -211,6 +213,7 @@ def hyper(  # noqa: PLR0913
     hyper_dict: Hyper = dict(
         name=name,
         constraint=transform,
+        unconstrain=unconstrain,
         constraint_name=constraint_name,
         vtype=dtype_dim,
         dim=dim,
@@ -306,7 +309,7 @@ def parameter(
         constraint_name = "invlogit"
     # unbounded
     else:
-        transform = identity  # type: ignore
+        transform = identity_bijection  # type: ignore
         constraint_name = "identity"
 
     return Parameter(
@@ -316,93 +319,6 @@ def parameter(
         constraint_name=constraint_name,
         constraint=transform,  # type: ignore
     )
-
-
-def model(obj: Callable[[str], tf.Tensor], **kwargs: dict[Any, Any]) -> dict[str, Any]:
-    """
-    Specify the generative model.
-
-    Parameters
-    ----------
-    obj
-        Generative model class as defined by the user.
-
-    **kwargs
-        additional keyword arguments expected by `obj`.
-
-    Returns
-    -------
-    generator_dict :
-        Dictionary including all generative model settings.
-
-    Raises
-    ------
-    ValueError
-        generative model in `obj` requires the input argument
-        'prior_samples', but argument has not been found.
-
-        optional argument(s) of the generative model specified in `obj` are
-        not specified
-
-    Examples
-    --------
-    >>> # specify the generative model class
-    >>> class ToyModel:  # doctest: +SKIP
-    >>>     def __call__(self, prior_samples, design_matrix):  # doctest: +SKIP
-    >>> # linear predictor
-    >>>         epred = tf.matmul(prior_samples, design_matrix,  # doctest: +SKIP
-    >>>                           transpose_b=True)  # doctest: +SKIP
-    >>> # data-generating model
-    >>>         likelihood = tfd.Normal(  # doctest: +SKIP
-    >>>             loc=epred,  # doctest: +SKIP
-    >>>             scale=tf.expand_dims(prior_samples[:, :, -1], -1)  # doctest: +SKIP
-    >>>             )  # doctest: +SKIP
-    >>> # prior predictive distribution
-    >>>         ypred = likelihood.sample()  # doctest: +SKIP
-    >>>
-    >>>         return dict(  # doctest: +SKIP
-    >>>             likelihood=likelihood,  # doctest: +SKIP
-    >>>             ypred=ypred, epred=epred,  # doctest: +SKIP
-    >>>             prior_samples=prior_samples  # doctest: +SKIP
-    >>>             )  # doctest: +SKIP
-
-    >>> # specify the model category in the elicit object
-    >>> el.model(obj=ToyModel,  # doctest: +SKIP
-    >>>          design_matrix=design_matrix  # doctest: +SKIP
-    >>>          )  # doctest: +SKIP
-    """
-    # get input arguments of generative model class
-    # `signature` follows a decorator that sets `__wrapped__`, and
-    # `getfullargspec` does not. A model whose `__call__` carries
-    # `tf.autograph.experimental.do_not_convert` is then still read.
-    input_args = list(inspect.signature(obj.__call__).parameters)  # type: ignore
-    # check correct input form of generative model class
-    if "prior_samples" not in input_args:
-        msg = (
-            "The generative model class 'obj' requires the"
-            " input variable 'prior_samples' but argument has not been found"
-            " in 'obj'."
-        )
-        raise ValueError(msg)
-
-    # check that all optional arguments have been provided by the user.
-    # `seed` is the exception: `elicito` passes a stateless seed to a model
-    # that names it, so the user does not provide it.
-    optional_args = set(input_args).difference({"prior_samples", "self", "seed"})
-    for arg in optional_args:
-        if arg not in list(kwargs.keys()):
-            msg = (
-                f"The argument {arg=} required by the"
-                "generative model class 'obj' is missing."
-            )
-            raise ValueError(msg)
-
-    generator_dict = dict(obj=obj)
-
-    for key in kwargs:  # noqa: PLC0206
-        generator_dict[key] = kwargs[key]  # type: ignore
-
-    return generator_dict
 
 
 class Queries:
@@ -501,114 +417,224 @@ class Queries:
 queries = Queries()
 
 
-def target(
+def quantiles(  # noqa: PLR0913
     name: str,
-    loss: Callable[[Any], Any],
-    query: QueriesDict,
-    target_method: Optional[Callable[[Any], Any]] = None,
+    output: str | Callable[..., Any] | None = None,
+    select: int | dict[str, Any] | None = None,
+    probs: tuple[float, ...] = (0.05, 0.5, 0.95),
     weight: float = 1.0,
+    loss: Callable[..., Any] | None = None,
 ) -> Target:
     """
-    Specify target quantity and corresponding elicitation technique.
+    Ask the expert for quantiles of a model output.
 
     Parameters
     ----------
     name
-        Name of the target quantity. Two approaches are possible:
-        (1) Target quantity is identical to an output from the generative
-        model: The name must match the output variable name. (2) Custom target
-        quantity is computed using the `target_method` argument.
+        Name of the target. The expert answer uses this name as key.
 
-    query
-        Specify the elicitation technique by using one of the methods
-        implemented in [`Queries`][elicito.specs.Queries].
+    output
+        Model output to summarize. A string names a model output. A callable
+        receives the model outputs by argument name. The default is ``name``.
 
-    loss
-        Lossfunction for computing the discrepancy between expert data and
-        model simulations. See [`losses`][elicito.losses].
+    select
+        Part of the output to keep. An integer indexes the last axis. A
+        dict maps the dims of a PyMC output to coord labels, such as
+        ``{"participant": 3, "delay": 12}``. The default keeps all.
 
-    target_method
-        Custom method for computing a target quantity.
-        Note: This method hasn't been implemented yet and will raise an
-        ``NotImplementedError``. See
-        [GitHub issue #34](https://github.com/florence-bockting/prior_elicitation/issues/34).
+    probs
+        Probabilities of the quantiles, each between 0 and 1.
 
     weight
-        Weight of the corresponding elicited quantity in the total loss.
+        Weight of the target in the total loss.
+
+    loss
+        Loss between the expert answer and the model statistic. The default
+        is ``MMD2(kernel="energy")``.
 
     Returns
     -------
-    target_dict :
-        Dictionary including all settings regarding the target quantity and
-        corresponding elicitation technique.
+    target :
+        Specification of the target.
 
     Examples
     --------
-    >>> el.target(name="y_X0",  # doctest: +SKIP
-    >>>           query=el.queries.quantiles(  # doctest: +SKIP
-    >>>                 (.05, .25, .50, .75, .95)),  # doctest: +SKIP
-    >>>           loss=el.losses.MMD2(kernel="energy"),  # doctest: +SKIP
-    >>>           weight=1.0  # doctest: +SKIP
-    >>>           )  # doctest: +SKIP
-
-    >>> el.target(name="correlation",  # doctest: +SKIP
-    >>>           query=el.queries.correlation(),  # doctest: +SKIP
-    >>>           loss=el.losses.L2,  # doctest: +SKIP
-    >>>           weight=1.0  # doctest: +SKIP
-    >>>           )  # doctest: +SKIP
+    >>> el.quantiles("y_X0", probs=(0.25, 0.5, 0.75))  # doctest: +SKIP
     """
-    # create instance of loss class
-    loss_instance = loss
-
     return Target(
         name=name,
-        query=query,
-        target_method=target_method,
-        loss=loss_instance,
+        query=queries.quantiles(probs),
+        output=name if output is None else output,
+        loss=losses.MMD2(kernel="energy") if loss is None else loss,
+        weight=weight,
+        select=select,
+    )
+
+
+def identity(
+    name: str,
+    output: str | Callable[..., Any] | None = None,
+    select: int | dict[str, Any] | None = None,
+    weight: float = 1.0,
+    loss: Callable[..., Any] | None = None,
+) -> Target:
+    """
+    Ask the expert for draws of a model output.
+
+    Parameters
+    ----------
+    name
+        Name of the target. The expert answer uses this name as key.
+
+    output
+        Model output to compare. A string names a model output. A callable
+        receives the model outputs by argument name. The default is ``name``.
+
+    select
+        Part of the output to keep. An integer indexes the last axis. A
+        dict maps the dims of a PyMC output to coord labels, such as
+        ``{"participant": 3, "delay": 12}``. The default keeps all.
+
+    weight
+        Weight of the target in the total loss.
+
+    loss
+        Loss between the expert answer and the model output. The default
+        is ``MMD2(kernel="energy")``.
+
+    Returns
+    -------
+    target :
+        Specification of the target.
+    """
+    return Target(
+        name=name,
+        query=queries.identity(),
+        output=name if output is None else output,
+        loss=losses.MMD2(kernel="energy") if loss is None else loss,
+        weight=weight,
+        select=select,
+    )
+
+
+def correlation(
+    name: str,
+    weight: float = 1.0,
+    loss: Callable[..., Any] | None = None,
+) -> Target:
+    """
+    Ask the expert for the correlations between the model parameters.
+
+    Parameters
+    ----------
+    name
+        Name of the target. The expert answer uses this name as key.
+
+    weight
+        Weight of the target in the total loss.
+
+    loss
+        Loss between the expert answer and the model correlations. The
+        default is ``L2``.
+
+    Returns
+    -------
+    target :
+        Specification of the target.
+    """
+    return Target(
+        name=name,
+        query=queries.correlation(),
+        output=name,
+        loss=losses.L2 if loss is None else loss,
         weight=weight,
     )
+
+
+def custom(
+    name: str,
+    func: Callable[..., Any],
+    loss: Callable[..., Any],
+    weight: float = 1.0,
+    select: int | dict[str, Any] | None = None,
+) -> Target:
+    """
+    Ask the expert for a statistic that you define.
+
+    Parameters
+    ----------
+    name
+        Name of the target. The expert answer uses this name as key.
+
+    func
+        Function that computes the statistic. It receives the model outputs
+        by argument name.
+
+    loss
+        Loss between the expert answer and the statistic.
+
+    weight
+        Weight of the target in the total loss.
+
+    select
+        Part of the output to keep. An integer indexes the last axis. A
+        dict maps the dims of a PyMC output to coord labels, such as
+        ``{"participant": 3, "delay": 12}``. The default keeps all.
+
+    Returns
+    -------
+    target :
+        Specification of the target.
+    """
+    return Target(
+        name=name,
+        query=queries.custom(func),
+        output=name,
+        loss=loss,
+        weight=weight,
+        select=select,
+    )
+
+
+def partial(
+    over: list[str] | tuple[str, ...],
+    tau: float | dict[str, float] | None = None,
+) -> Partial:
+    """
+    Pool a panel of experts partially.
+
+    Each expert gets an offset from the panel value of the named
+    hyperparameters. The other hyperparameters are shared by all experts.
+
+    Parameters
+    ----------
+    over
+        Names of the hyperparameters that differ between the experts.
+
+    tau
+        Spread of the offsets: the disagreement in the panel. A small value
+        pulls the experts toward the panel value. A float applies to all
+        names in ``over``. A dict gives one value for each name. ``None``
+        estimates the spread from the answers.
+
+    Returns
+    -------
+    pool :
+        Specification of the pooling. Give it to ``Elicit(pool=...)``.
+
+    Examples
+    --------
+    >>> el.partial(over=["mu0", "mu1"])  # doctest: +SKIP
+
+    >>> el.partial(over=["mu0", "mu1"], tau={"mu0": 1.5, "mu1": 0.5})  # doctest: +SKIP
+    """
+    return Partial(over=tuple(over), tau=tau)
 
 
 class Expert:
     """
     specify the expert data
     """
-
-    def data(self, dat: dict[str, list[tf.Tensor]]) -> ExpertDict:
-        """
-        Provide elicited-expert data for learning prior distributions.
-
-        Parameters
-        ----------
-        dat
-            Elicited data from expert provided as dictionary. Data must be
-            provided in a standardized format.
-            Use [`get_expert_datformat`][elicito.utils.get_expert_datformat]
-            to get correct data format for your method specification.
-
-        Returns
-        -------
-        expert_data :
-            Expert-elicited information used for learning prior distributions.
-
-        Examples
-        --------
-        >>> expert_dat = {  # doctest: +SKIP
-        >>>     "quantiles_y_X0": [-12.55, -0.57, 3.29, 7.14, 19.15],  # doctest: +SKIP
-        >>>     "quantiles_y_X1": [-11.18, 1.45, 5.06, 8.83, 20.42],  # doctest: +SKIP
-        >>>     "quantiles_y_X2": [-9.28, 3.09, 6.83, 10.55, 23.29]  # doctest: +SKIP
-        >>> }  # doctest: +SKIP
-        """
-        # Note: check for correct expert data format is done in Elicit class
-        dat_prep: dict[Any, Any] = {
-            f"{key}": tf.expand_dims(
-                tf.cast(tf.convert_to_tensor(dat[key]), dtype=tf.float32), 0
-            )
-            for key in dat
-        }
-
-        data_dict: ExpertDict = dict(data=dat_prep)
-        return data_dict
 
     def simulator(
         self, ground_truth: dict[str, Any], num_samples: int = 10_000
@@ -629,7 +655,9 @@ class Expert:
             a joint prior for all model parameters at once or any approach in
             between. Only requirement is that the dimensionality of all priors
             in ground truth match with the number of model parameters.
-            Order of priors in ground truth must match order of
+            If the keys are the parameter names, their order does not
+            matter. Otherwise, for example with a joint prior, the order of
+            the priors must match the order of the
             [`Elicit`][elicito.elicit.Elicit] argument `parameters`.
 
         num_samples
@@ -681,200 +709,3 @@ class Expert:
 
 # create an instantiation of Expert class
 expert = Expert()
-
-
-def optimizer(
-    optimizer: Any = tf.keras.optimizers.Adam, **kwargs: dict[Any, Any]
-) -> dict[str, Any]:
-    """
-    Specify optimizer and its settings for SGD.
-
-    Parameters
-    ----------
-    optimizer
-        Optimizer used for SGD implemented.
-        Must be a class implemented in [`tf.keras.optimizers`](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers),
-        or the string ``"cmaes"``.
-
-        ``"cmaes"`` replaces the gradient descent by a CMA-ES search
-        ([`cma_training`][elicito.optimizers.cmaes.cma_training]). It needs no gradient,
-        and it can leave a local basin. It is available for
-        ``method="parametric_prior"`` only, and it needs the optional
-        ``cma`` dependency. Its settings are ``sigma0``, the first step size
-        on the unconstrained scale, and ``popsize``, the number of candidates
-        in one generation. ``trainer(epochs=...)`` is then the budget in
-        forward simulations, not the number of generations.
-
-        ``sigma0`` is one number for every coordinate. Give a dictionary
-        ``{hyperparameter name: step size}`` if the hyperparameters do not
-        live on the same scale. A name that is not given gets the default
-        step size. An unknown name raises a ``ValueError``.
-
-    **kwargs
-        Additional keyword arguments expected by **optimizer**.
-
-    Returns
-    -------
-    optimizer_dict :
-        Dictionary specifying the SGD optimizer and its additional settings.
-
-    Raises
-    ------
-    TypeError
-        ``optimizer`` is not a tf.keras.optimizers object
-    ValueError
-        ``optimizer`` could not be found in tf.keras.optimizers
-
-    Examples
-    --------
-    >>> optimizer = el.optimizer(  # doctest: +SKIP
-    >>>     optimizer=tf.keras.optimizers.Adam,  # doctest: +SKIP
-    >>>     learning_rate=0.1,  # doctest: +SKIP
-    >>>     clipnorm=1.0  # doctest: +SKIP
-    >>> )  # doctest: +SKIP
-
-    >>> optimizer = el.optimizer(  # doctest: +SKIP
-    >>>     optimizer="cmaes",  # doctest: +SKIP
-    >>>     sigma0=0.5,  # doctest: +SKIP
-    >>> )  # doctest: +SKIP
-
-    >>> optimizer = el.optimizer(  # doctest: +SKIP
-    >>>     optimizer="cmaes",  # doctest: +SKIP
-    >>>     sigma0=dict(a_ts=0.1, b_ts=0.5),  # doctest: +SKIP
-    >>> )  # doctest: +SKIP
-    """
-    optimizer_dict = dict(optimizer=optimizer)
-
-    for key in kwargs:  # noqa: PLC0206
-        optimizer_dict[key] = kwargs[key]
-
-    return optimizer_dict
-
-
-def trainer(  # noqa: PLR0913
-    method: PriorMethods,
-    seed: int,
-    epochs: int,
-    B: int = 128,
-    num_samples: int = 200,
-    progress: ProgressMethod = ProgressMethod.SHOW_PROGRESS,
-    kappa: float = 0.0,
-) -> Trainer:
-    """
-    Specify training settings for learning the prior distribution(s).
-
-    Parameters
-    ----------
-    method
-        Method for learning the prior distribution. Available is either
-        ``parametric_prior`` for learning independent parametric priors
-        or ``deep_prior`` for learning a joint non-parameteric prior.
-
-    seed
-        Seed used for learning.
-
-    epochs
-        Number of iterations until training is stopped.
-
-    B
-        Batch size.
-
-    num_samples
-        Number of samples from the prior(s).
-
-    progress
-        whether training progress should be printed. Progress is shown if
-        `progress=1` and muted if `progress=0`.
-
-    kappa
-        Weight of the spread penalty. The penalty keeps a prior away from a
-        point mass. Use it when a hyperparameter is not identified by the
-        elicited statistics. A value of 0 disables the penalty.
-
-    Returns
-    -------
-    train_dict :
-        dictionary specifying the training settings for learning the prior
-        distribution(s).
-
-    Raises
-    ------
-    ValueError
-        ``method`` can only take the value "parametric_prior" or "deep_prior"
-
-        ``epochs`` can only take positive integers. Minimum number of epochs
-        is 1.
-
-        `progress` can only be 0 (mute progress) or 1 (print progress)
-
-        ``kappa`` cannot be negative.
-
-    Examples
-    --------
-    >>> el.trainer(  # doctest: +SKIP
-    >>>     method="parametric_prior",  # doctest: +SKIP
-    >>>     seed=0,  # doctest: +SKIP
-    >>>     epochs=400,  # doctest: +SKIP
-    >>>     B=128,  # doctest: +SKIP
-    >>>     num_samples=200  # doctest: +SKIP
-    >>> )  # doctest: +SKIP
-    """
-    # check that progress is either 0 or 1
-    if progress not in [0, 1]:
-        raise ValueError(f"Progress has to be either 0 or 1. Got {progress=}.")  # noqa: TRY003
-    # check that epochs are positive numbers
-    if epochs <= 0:
-        msg = "The number of epochs has to be greater 0." f" Got {epochs=}."
-        raise ValueError(msg)
-
-    # check that the penalty weight is not negative
-    if kappa < 0:
-        msg = f"The weight kappa cannot be negative. Got {kappa=}."
-        raise ValueError(msg)
-
-    # check that method is implemented
-    if method not in ["parametric_prior", "deep_prior"]:
-        msg = (
-            "Currently only the methods 'deep_prior' and"
-            f"'parametric prior' are implemented but got {method=}."
-        )
-        raise ValueError(msg)
-
-    train_dict: Trainer = dict(
-        method=method,
-        seed=int(seed),
-        B=int(B),
-        num_samples=int(num_samples),
-        epochs=int(epochs),
-        progress=progress,
-        kappa=float(kappa),
-    )
-    return train_dict
-
-
-def meta_settings(dry_run: bool = True) -> MetaSettings:
-    """
-    Specify meta settings.
-
-    Parameters
-    ----------
-    dry_run
-        Whether to perform a dry run before starting the training.
-        If ``dry_run=True``, the generative model is executed in
-        forward mode and the shape information of all tensors are
-        collected and provided in the print method.
-
-    Returns
-    -------
-    meta_dict :
-        dictionary specifying the meta settings.
-
-    Examples
-    --------
-    >>> el.meta_settings()  # doctest: +SKIP
-    """
-    meta_dict: MetaSettings = dict(
-        dry_run=dry_run,
-    )
-
-    return meta_dict

@@ -3,7 +3,7 @@ Initialization by sampling candidates from a box
 """
 
 import logging
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any, Optional, Union
 
 import numpy as np
@@ -52,7 +52,7 @@ class BoxSample:
         parameters: list[Parameter],
         trainer: Trainer,
         optimizer: dict[str, Any],
-        model: dict[str, Any],
+        model: Callable[..., Any],
         targets: list[Target],
         network: Optional[NFDict],
         expert: ExpertDict,
@@ -114,7 +114,7 @@ def uniform_samples(  # noqa: PLR0913, PLR0912, PLR0915
     Parameters
     ----------
     seed
-        User-specified seed as defined in [`trainer`][elicito.specs.trainer].
+        Seed of the training, one of the ``seeds`` of [`Elicit`][elicito.elicit.Elicit].
 
     hyppar
         List of hyperparameter names (strings) declaring the order for the
@@ -280,7 +280,7 @@ def init_runs(  # noqa: PLR0913
     parameters: list[Parameter],
     trainer: Trainer,
     optimizer: dict[str, Any],
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     network: Optional[NFDict],
     expert: ExpertDict,
@@ -304,17 +304,18 @@ def init_runs(  # noqa: PLR0913
         User-input from [`parameter`][elicito.specs.parameter].
 
     trainer
-        User-input from [`trainer`][elicito.specs.trainer].
+        Training settings of [`Elicit`][elicito.elicit.Elicit].
 
     optimizer
-        User-input from [`optimizer`][elicito.specs.optimizer]. Used to run
+        Optimizer settings of [`Elicit`][elicito.elicit.Elicit]. Used to run
         the warm-up epochs of a candidate.
 
     model
-        User-input from [`model`][elicito.specs.model].
+        Generative model: a callable that takes the prior samples.
 
     targets
-        User-input from [`target`][elicito.specs.target].
+        User-input from a target constructor such as
+        [`quantiles`][elicito.specs.quantiles].
 
     network
         User-input from one of the methods implemented in the

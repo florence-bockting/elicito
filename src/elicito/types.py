@@ -16,6 +16,7 @@ class Hyper(TypedDict):
 
     name: str
     constraint: Callable[[float], tf.Tensor]
+    unconstrain: Callable[[Any], tf.Tensor]
     constraint_name: str
     vtype: Callable[[Any], Any]
     dim: int
@@ -79,25 +80,28 @@ class QueriesDict(TypedDict, total=False):
 class Target(dict[str, Any]):
     """Class for specification of a target, inheriting from `dict`."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         name: str,
         query: QueriesDict,
-        target_method: Callable[[Any], Any] | None,
-        loss: Callable[[Any], float],
+        output: str | Callable[..., Any],
+        loss: Callable[..., Any],
         weight: float,
+        select: Any = None,
     ):
         super().__init__(
             name=name,
             query=query,
-            target_method=target_method,
+            output=output,
             loss=loss,
             weight=weight,
+            select=select,
         )
         self.name: str = name
         self.query: QueriesDict = query
-        self.target_method: Callable[[Any], Any] | None = target_method
-        self.loss: Callable[[Any], float] = loss
+        self.output: str | Callable[..., Any] = output
+        self.loss: Callable[..., Any] = loss
+        self.select: Any = select
         self.weight: float = weight
 
     def __str__(self) -> str:
@@ -120,6 +124,15 @@ class ExpertDict(TypedDict, total=False):
     ground_truth: dict[str, Any]
     num_samples: int
     data: dict[str, list[Any]]
+
+
+class Partial(TypedDict):
+    """
+    typed dictionary of the partial pooling of [`partial`][elicito.specs.partial]
+    """
+
+    over: tuple[str, ...]
+    tau: float | dict[str, float] | None
 
 
 class Uniform(TypedDict):
@@ -149,7 +162,7 @@ class Initializer(TypedDict):
 
 class Trainer(TypedDict, total=False):
     """
-    typed dictionary for specification of [`trainer`][elicito.specs.trainer]
+    typed dictionary of the training settings of [`Elicit`][elicito.elicit.Elicit]
     """
 
     method: str
@@ -160,6 +173,7 @@ class Trainer(TypedDict, total=False):
     seed_chain: int
     progress: int
     kappa: float
+    penalty: Callable[[dict[str, Any]], Any] | None
 
 
 class NFDict(TypedDict):
@@ -173,28 +187,6 @@ class NFDict(TypedDict):
     inference_network: Callable[[Any], Any]
     network_specs: dict[str, Any]
     base_distribution: Callable[[Any], Any]
-
-
-class Parallel(TypedDict):
-    """
-    Typed dictionary for specification of parallelization `parallel`
-
-    See [`parallel`][elicito.utils.parallel]
-    """
-
-    runs: int
-    cores: int
-    seeds: list[int] | None
-
-
-class MetaSettings(TypedDict):
-    """
-    Typed dictionary for specification of meta settings in `Elicit`
-
-    See [`Elicit`][elicito.elicit.Elicit]
-    """
-
-    dry_run: bool
 
 
 class PriorMethods(str, Enum):

@@ -2,9 +2,18 @@
 Unittests for the progress table
 """
 
+import linecache
 from queue import Queue
 
-from elicito._progress import _WORKER, ProgressTable, SeedTable, run_in_worker
+import joblib
+
+from elicito._progress import (
+    _WORKER,
+    ProgressTable,
+    SeedTable,
+    notebook_sources,
+    run_in_worker,
+)
 
 
 def test_progress_table_counts_steps_and_keeps_the_last_fields():
@@ -38,3 +47,30 @@ def test_seed_table_shows_the_worker_table_in_the_row_of_its_seed():
     assert trained.completed == 3
     assert trained.fields == {"seed": 22, "info": "Loss 0.2"}
     assert _WORKER["queue"] is None
+
+
+def test_a_worker_reads_the_source_of_a_notebook_function():
+    # IPython keeps the source of a cell in `linecache`, under a file name
+    # that is not on disk. A worker gets the function by value, without it.
+    cell = "/nonexistent/ipykernel_0/cell.py"
+    source = (
+        "def probe(seed):\n"
+        "    import inspect\n"
+        "\n"
+        "    return inspect.getsource(probe)\n"
+    )
+    namespace = {"__name__": "__main__"}
+    exec(compile(source, cell, "exec"), namespace)  # noqa: S102
+    linecache.cache[cell] = (len(source), None, source.splitlines(True), cell)
+    try:
+        sources = notebook_sources()
+        assert cell in sources
+
+        outputs = joblib.Parallel(n_jobs=2, backend="loky")(
+            joblib.delayed(run_in_worker)(namespace["probe"], seed, 0, None, sources)
+            for seed in (1, 2)
+        )
+    finally:
+        del linecache.cache[cell]
+
+    assert outputs == [source, source]

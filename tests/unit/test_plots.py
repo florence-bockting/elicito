@@ -22,16 +22,17 @@ def fitted_eliobj():
         model=base_eliobj.model,
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
-        expert=base_eliobj.expert,
-        optimizer=base_eliobj.optimizer,
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=1, progress=0),
+        optimizer=base_eliobj.settings["optimizer"],
+        seeds=(0,),
+        epochs=1,
+        verbose=False,
         initializer=el.initializer(
             method="sobol",
             iterations=1,
             distribution=el.initializers.uniform(radius=1.0, mean=0.0),
         ),
     )
-    eliobj_copy.fit()
+    eliobj_copy.fit(base_eliobj.expert)
     return eliobj_copy
 
 
@@ -46,9 +47,9 @@ def unfitted_eliobj():
         model=base_eliobj.model,
         parameters=base_eliobj.parameters,
         targets=base_eliobj.targets,
-        expert=base_eliobj.expert,
-        optimizer=base_eliobj.optimizer,
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=2),
+        optimizer=base_eliobj.settings["optimizer"],
+        seeds=(0,),
+        epochs=2,
         initializer=el.initializer(
             method="sobol",
             iterations=2,
@@ -262,20 +263,19 @@ def test_prior_joint_panels_share_the_axis_of_their_column(fitted_eliobj):
 
 def test_plots_without_an_initialization_group():
     """`initializer(method="cmaes")` draws no candidates, so it writes no group"""
-    pytest.importorskip("cma")
     from tests.utils import eliobj as base
 
     eliobj = el.Elicit(
         model=base.model,
         parameters=base.parameters,
         targets=base.targets,
-        expert=base.expert,
-        optimizer=el.optimizer(
-            optimizer=el.optimizers.cmaes.CMAES, sigma0=0.5, popsize=4
-        ),
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=8, progress=0),
+        optimizer="cmaes",
+        cmaes=dict(sigma0=0.5, popsize=4),
+        seeds=(0,),
+        epochs=8,
+        verbose=False,
     )
-    eliobj.fit()
+    eliobj.fit(base.expert)
     assert "initialization" not in eliobj.results.children
 
     # the names come from the model, so the convergence plot still works
@@ -303,20 +303,19 @@ def test_hyperparameter_plot_leaves_out_the_gradients(fitted_eliobj):
 
 def test_plots_accept_a_cmaes_fit():
     """the plots read the epoch axis as generations, not as gradient steps"""
-    pytest.importorskip("cma")
     from tests.utils import eliobj as base
 
     eliobj = el.Elicit(
         model=base.model,
         parameters=base.parameters,
         targets=base.targets,
-        expert=base.expert,
-        optimizer=el.optimizer(
-            optimizer=el.optimizers.cmaes.CMAES, sigma0=0.5, popsize=4
-        ),
-        trainer=el.trainer(method="parametric_prior", seed=0, epochs=12, progress=0),
+        optimizer="cmaes",
+        cmaes=dict(sigma0=0.5, popsize=4),
+        seeds=(0,),
+        epochs=12,
+        verbose=False,
     )
-    eliobj.fit()
+    eliobj.fit(base.expert)
 
     # 12 evaluations of 4 candidates are 3 generations, not 12 epochs
     el.plots.loss(eliobj)

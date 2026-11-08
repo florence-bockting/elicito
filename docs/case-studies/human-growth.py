@@ -26,6 +26,7 @@ import os
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -43,22 +44,26 @@ tfd = tfp.distributions
 # resulting prior, as $E[\cdot]$ and $V(\cdot)$ per parameter. We treat the
 # printed *predictive* prior as the oracle.
 #
-# Three variances are censored, all of them for $s_0$: `< 0.1`, `< 0.01` and
-# `< 0.001`. Half the bound is the obvious substitute, but it fails here. The
+# Seven variances are censored: five for $s_0$, one for $h_1$ and one for
+# $s_1$. Half the bound is the obvious substitute, but it fails for $s_0$. The
 # bound of user 1 equals the mean of $s_0$. Half of it gives a standard
 # deviation of 0.22, more than twice the mean, and such a prior puts a large
 # part of its mass on a curve with a **negative** stature at birth. The 10%
 # quantile of the simulated stature at age 0 is then $-311$ cm.
 #
-# So we set the standard deviation to a quarter of the mean instead. The
-# result stays below every printed bound, and every simulated stature is
-# positive.
+# So we take the smaller of two values: half the bound, and the variance of a
+# standard deviation of a quarter of the mean. The result stays below every
+# printed bound, and every simulated stature is positive.
 #
-# | user | printed | half the bound | our substitute |
-# | :-- | --: | --: | --: |
-# | 1 | < 0.1 | 0.05 | 0.000625 |
-# | 2 | < 0.01 | 0.005 | 0.0001 |
-# | 3 | < 0.001 | 0.0005 | 0.00030625 |
+# | user | parameter | mean | printed | half the bound | our substitute |
+# | :-- | :-- | --: | --: | --: | --: |
+# | 1 | $s_0$ | 0.1 | < 0.1 | 0.05 | 0.000625 |
+# | 2 | $s_0$ | 0.04 | < 0.01 | 0.005 | 0.0001 |
+# | 3 | $s_0$ | 0.07 | < 0.001 | 0.0005 | 0.00030625 |
+# | 4 | $h_1$ | 174.5 | < 0.01 | 0.005 | 0.005 |
+# | 4 | $s_0$ | 0.1 | < 0.01 | 0.005 | 0.000625 |
+# | 5 | $s_0$ | 0.1 | < 0.01 | 0.005 | 0.000625 |
+# | 5 | $s_1$ | 3.4 | < 0.01 | 0.005 | 0.005 |
 #
 # The table is stated in the parameters $\delta_h$ and $\delta_s$ of the next
 # section, not in $h_1$ and $s_1$. Under independence, $E[\delta] = E[h_1] -
@@ -66,17 +71,31 @@ tfd = tfp.distributions
 
 # %%
 # user 1: Table 1 of Hartmann et al. (2020)
-# users 2, 3: Tables 1 and 2 of the supplement
+# users 2 to 5: Tables 1 to 4 of the supplement
 PREDICTIVE_PRIOR = {
     # parameter: (mean, variance) per user
     # the order must match the unpacking in GrowthModel.__call__
-    "hts": [(162.8, 4.2), (153.73, 1.6), (148.8, 1.86)],
-    "dh": [(11.7, 5.0), (38.01, 5.92), (28.34, 5.54)],
-    "ts": [(13.4, 0.01), (15.9, 0.7), (11.31, 0.21)],
+    "hts": [(162.8, 4.2), (153.73, 1.6), (148.8, 1.86), (162.8, 0.02), (162.6, 0.85)],
+    # user 4: the printed variance of h1 is censored; see the text above
+    "dh": [(11.7, 5.0), (38.01, 5.92), (28.34, 5.54), (11.7, 0.025), (11.8, 1.76)],
+    "ts": [(13.4, 0.01), (15.9, 0.7), (11.31, 0.21), (14.7, 0.9), (14.6, 0.02)],
     # the printed variance of s0 is censored; see the text above
-    "s0": [(0.1, 0.000625), (0.04, 0.0001), (0.07, 0.00030625)],
-    "ds": [(3.2, 0.26), (1.96, 4.305), (4.47, 37.8305)],
-    "b": [(15.79, 12.9), (61.4, 111.4), (18.4, 12.5)],
+    "s0": [
+        (0.1, 0.000625),
+        (0.04, 0.0001),
+        (0.07, 0.00030625),
+        (0.1, 0.000625),
+        (0.1, 0.000625),
+    ],
+    # user 5: the printed variance of s1 is censored as well
+    "ds": [
+        (3.2, 0.26),
+        (1.96, 4.3001),
+        (4.47, 37.83030625),
+        (1.5, 1.700625),
+        (3.3, 0.005625),
+    ],
+    "b": [(15.79, 12.9), (61.4, 111.4), (18.4, 12.5), (14.5, 14.3), (17.8, 17.8)],
 }
 
 # %% [markdown]
@@ -165,7 +184,7 @@ class GrowthModel:
     # `elicito` calls this inside a compiled forward pass. AutoGraph would
     # then rewrite the body, and it finds the body by file and line. A cell
     # of a notebook has no source file in a worker process of
-    # `fit(parallel=...)`, so AutoGraph rewrites the wrong function there.
+    # the parallel `seeds`, so AutoGraph rewrites the wrong function there.
     # This model has no Python branch to rewrite, so we switch it off.
     @tf.autograph.experimental.do_not_convert
     def __call__(
@@ -201,9 +220,13 @@ class GrowthModel:
         h1 = hts + dh
         s1 = s0 + ds
 
-        # growth curve, supplement equation 25
-        epred = h1 - 2 * (h1 - hts) / (
-            tf.exp(s0 * (ages - ts)) + tf.exp(s1 * (ages - ts))
+        # growth curve, supplement equation 25. The denominator
+        # exp(a) + exp(b) overflows for a large s1, and its gradient is then
+        # inf * 0 = NaN. exp(-logsumexp(a, b)) is the same value with a finite
+        # gradient.
+        exponents = tf.stack([s0 * (ages - ts), s1 * (ages - ts)], axis=-1)
+        epred = h1 - 2 * (h1 - hts) * tf.exp(
+            -tf.math.reduce_logsumexp(exponents, axis=-1)
         )
 
         # The curve dips below zero for an extreme draw, and a height cannot.
@@ -224,6 +247,7 @@ class GrowthModel:
             y_t0=y_t0, y_t1=y_t1, y_t2=y_t2, y_t3=y_t3, ypred=ypred, epred=epred
         )
 
+
 # %% [markdown]
 # ## The oracle
 #
@@ -239,7 +263,7 @@ def oracle(user: int) -> dict[str, Any]:
     Parameters
     ----------
     user
-        user number, 1, 2 or 3
+        user number, 1 to 5
 
     Returns
     -------
@@ -258,8 +282,7 @@ def oracle(user: int) -> dict[str, Any]:
         else:
             sigma2 = np.log(1.0 + v / m**2)
             truth[name] = tfd.LogNormal(
-                loc=float(np.log(m) - sigma2 / 2.0),
-                scale=float(np.sqrt(sigma2))
+                loc=float(np.log(m) - sigma2 / 2.0), scale=float(np.sqrt(sigma2))
             )
     return truth
 
@@ -273,7 +296,7 @@ oracle(user=1)
 
 # %%
 # median bounds, in the units of each parameter. The true medians of the
-# three users are 149-163 cm, 11-38 cm, 0.039-0.097 1/y and 1.3-3.2 1/y.
+# five users are 149-163 cm, 11-38 cm, 0.039-0.097 1/y and 1.1-3.3 1/y.
 MEDIAN_BOUNDS = {
     "hts": (50.0, 250.0),
     "dh": (1.0, 100.0),
@@ -334,27 +357,17 @@ parameters = [
 
 # %%
 QUANTILES = (0.10, 0.25, 0.50, 0.75, 0.90)
+MEDIAN = 0.50
 
-targets = [
-    el.target(
-        name=f"y_t{i}",
-        query=el.queries.quantiles(QUANTILES),
-        loss=el.losses.MMD2(kernel="energy"),
-        weight=1.0,
-    )
-    for i in range(4)
-]
+targets = [el.quantiles(f"y_t{i}", probs=QUANTILES) for i in range(4)]
 
 # %% [markdown]
 # ## The generative model and the oracle
 
 # %%
-model = el.model(obj=GrowthModel, ages=AGES)
+model = partial(GrowthModel(), ages=AGES)
 
-expert = el.expert.simulator(
-    ground_truth=oracle(user=1),
-    num_samples=10_000
-)
+expert = el.expert.simulator(ground_truth=oracle(user=1), num_samples=10_000)
 
 # %% [markdown]
 # ## The initialization box
@@ -373,10 +386,12 @@ expert = el.expert.simulator(
 # We state no prior knowledge. The box is centred on zero, with a radius of
 # 6 in every direction. The centre is the midpoint of every interval: a
 # median stature of 112 cm, a median $s_0$ of 0.1 per year, and the spurt at
-# 8.75 years. The true values of the three users sit at $|y| \leq 5.5$, so
-# the box holds them all.
+# 8.75 years. The true values of users 1, 2, 3 and 5 sit at
+# $|y| \leq 5.9$, so the box holds them. User 4 is the exception: its
+# $b_{h_{t^*}}$ is at $y = -7.7$, a standard deviation of 0.14 cm for
+# $h_{t^*}$.
 #
-# Only the Adam run below reads this box. With `optimizer="cmaes"`, `elicito`
+# Only the Adam run below reads this box. With the default optimizer, CMA-ES, `elicito`
 # ignores the initializer, with a warning. The CMA-ES training then starts at
 # 0, the midpoint of every interval, which is also the centre of this box.
 # The training is itself a search. A search before it would only throw away
@@ -388,8 +403,6 @@ expert = el.expert.simulator(
 # local Nelder-Mead search from the centre, and `random`, `lhs` and `sobol`
 # rank independent draws. All three take the first usable basin, which is not
 # the best one.
-#
-# `cmaes` needs the optional dependency `cma`: `pip install "elicito[cma]"`.
 
 # %%
 BOX = el.initializers.uniform(mean=0.0, radius=6.0)
@@ -397,7 +410,7 @@ BOX = el.initializers.uniform(mean=0.0, radius=6.0)
 # %% [markdown]
 # ## Training
 #
-# We fit with CMA-ES, not with a gradient. `el.optimizer(optimizer="cmaes")`
+# We fit with CMA-ES, the default, not with a gradient. CMA-ES
 # replaces the gradient descent by one search over the whole budget, on the
 # full 400 prior draws.
 #
@@ -420,33 +433,26 @@ BOX = el.initializers.uniform(mean=0.0, radius=6.0)
 # the order of 12² = 144 generations. 3000 evaluations pass that number. The
 # page is therefore slow to render.
 #
-# This fit is one chain. The section on the three experts below runs five
-# replications of one fit with `fit(parallel=...)`.
+# This fit is one chain. The section on the five experts below runs five
+# replications of one fit with five `seeds`.
 
 # %%
 eliobj = el.Elicit(
-    model=model,
-    parameters=parameters,
-    targets=targets,
-    expert=expert,
-    optimizer=el.optimizer(
-        optimizer="cmaes",
-        sigma0=1.0,
-    ),
-    trainer=el.trainer(
-        method="parametric_prior",
-        seed=2025,
-        epochs=3000,
-        progress=0,
-        num_samples=400,
-    ),
+    model,
+    targets,
+    parameters,
+    cmaes={"sigma0": 1.0},
+    seeds=(2025,),
+    epochs=3000,
+    num_samples=400,
+    verbose=False,
 )
 
 # %%
 import time
 
 start = time.time()
-eliobj.fit()
+fit = eliobj.fit(expert)
 
 # %% [markdown]
 # The results hold the learned hyperparameters and the loss. The prior
@@ -454,7 +460,7 @@ eliobj.fit()
 # summaries follow from them, and `sample` computes them.
 
 # %%
-samples = eliobj.sample()
+samples = fit.sample()
 cma_seconds = time.time() - start
 
 # %% [markdown]
@@ -464,10 +470,10 @@ cma_seconds = time.time() - start
 # whether the simulated quantiles reach the expert values at each age.
 
 # %%
-el.plots.loss(eliobj, figsize=(7, 3));
+fit.plot.loss(figsize=(7, 3))
 
 # %%
-el.plots.elicits(eliobj, cols=4, figsize=(9, 3), samples=samples);
+fit.plot.elicits(cols=4, figsize=(9, 3))
 
 # %% [markdown]
 # The parameters of interest are $h_{t_s}$, $h_1$, $s_0$, $s_1$ and $t_s$.
@@ -489,9 +495,7 @@ def add_h1_s1(draws):
 
 
 add_h1_s1(samples)
-el.plots.prior_marginals(
-    eliobj, params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4), samples=samples
-);
+fit.plot.prior_marginals(params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4))
 
 # %% tags=["remove_input"]
 import matplotlib.pyplot as plt
@@ -514,14 +518,23 @@ def predictive(name):
 fig, ax = plt.subplots(figsize=(9, 3.2), constrained_layout=True)
 for name, age, color in zip(TARGETS, AGES.numpy(), COLORS):
     counts, edges, _ = ax.hist(
-        predictive(name), bins="auto", density=True, histtype="step",
-        linewidth=2, color=color, label=f"age {age:g}",
+        predictive(name),
+        bins="auto",
+        density=True,
+        histtype="step",
+        linewidth=2,
+        color=color,
+        label=f"age {age:g}",
     )
     mid = 0.5 * (edges[:-1] + edges[1:])
     ax.annotate(
-        f"age {age:g}", (mid[counts.argmax()], counts.max()),
-        textcoords="offset points", xytext=(0, 5),
-        ha="center", fontsize="x-small", color="#1a1a19",
+        f"age {age:g}",
+        (mid[counts.argmax()], counts.max()),
+        textcoords="offset points",
+        xytext=(0, 5),
+        ha="center",
+        fontsize="x-small",
+        color="#1a1a19",
     )
 
 ax.set_xlabel("stature (cm)", fontsize="small")
@@ -539,16 +552,20 @@ from matplotlib.lines import Line2D
 fig, axes = plt.subplots(1, 4, figsize=(12, 3), constrained_layout=True)
 for ax, name, age, color in zip(axes, TARGETS, AGES.numpy(), COLORS):
     ax.hist(
-        predictive(name), bins="auto", density=True,
-        color=color, alpha=0.5, edgecolor="none",
+        predictive(name),
+        bins="auto",
+        density=True,
+        color=color,
+        alpha=0.5,
+        edgecolor="none",
     )
-    expert_quantiles = (
-        eliobj.results.oracle.sel(replication=0)[f"quantiles_{name}"].values[0]
-    )
+    expert_quantiles = fit.results.oracle.sel(replication=0)[name].values[0]
     for q, x in zip(QUANTILES, expert_quantiles):
         ax.axvline(
-            x, color="#1a1a19", linewidth=2 if q == 0.5 else 1,
-            linestyle="solid" if q == 0.5 else "dashed",
+            x,
+            color="#1a1a19",
+            linewidth=2 if q == MEDIAN else 1,
+            linestyle="solid" if q == MEDIAN else "dashed",
         )
     ax.set_title(f"age {age:g}", fontsize="small")
     ax.set_xlabel("stature (cm)", fontsize="small")
@@ -561,10 +578,12 @@ axes[0].set_ylabel("density", fontsize="small")
 axes[0].legend(
     handles=[
         Line2D([0], [0], color="#1a1a19", lw=2, label="expert median"),
-        Line2D([0], [0], color="#1a1a19", lw=1, ls="dashed",
-               label="expert 10/25/75/90%"),
+        Line2D(
+            [0], [0], color="#1a1a19", lw=1, ls="dashed", label="expert 10/25/75/90%"
+        ),
     ],
-    fontsize="x-small", frameon=False,
+    fontsize="x-small",
+    frameon=False,
 )
 
 # %% [markdown]
@@ -588,35 +607,24 @@ axes[0].legend(
 
 # %%
 eliobj_adam = el.Elicit(
-    model=eliobj.model,
-    parameters=eliobj.parameters,
-    targets=eliobj.targets,
-    expert=eliobj.expert,
-    optimizer=el.optimizer(
-        optimizer=tf.keras.optimizers.Adam,
+    model,
+    targets,
+    parameters,
+    initializer=el.initializer(method="cmaes", distribution=BOX, iterations=300),
+    optimizer=tf.keras.optimizers.Adam(
         learning_rate=tf.keras.optimizers.schedules.ExponentialDecay(
-            initial_learning_rate=0.01,
-            decay_steps=800,
-            decay_rate=0.02,
+            initial_learning_rate=0.01, decay_steps=800, decay_rate=0.02
         ),
         clipnorm=1.0,
     ),
-    trainer=el.trainer(
-        method="parametric_prior",
-        seed=2025,
-        epochs=800,
-        progress=0,
-        num_samples=400,
-    ),
-    initializer=el.initializer(
-        method="cmaes",
-        distribution=BOX,
-        iterations=300,
-    ),
+    seeds=(2025,),
+    epochs=800,
+    num_samples=400,
+    verbose=False,
 )
 
 start = time.time()
-eliobj_adam.fit()
+fit_adam = eliobj_adam.fit(expert)
 adam_seconds = time.time() - start
 
 
@@ -633,41 +641,38 @@ def report(obj, label, seconds):
     )
 
 
-report(eliobj, "cmaes", cma_seconds)
-report(eliobj_adam, "adam", adam_seconds)
+report(fit, "cmaes", cma_seconds)
+report(fit_adam, "adam", adam_seconds)
 
 # %%
-el.plots.loss(eliobj_adam, figsize=(7, 3));
+fit_adam.plot.loss(figsize=(7, 3))
 
 # %%
-samples_adam = eliobj_adam.sample()
-el.plots.elicits(eliobj_adam, cols=4, figsize=(9, 3), samples=samples_adam);
+samples_adam = fit_adam.sample()
+fit_adam.plot.elicits(cols=4, figsize=(9, 3))
 
 # %%
 add_h1_s1(samples_adam)
-el.plots.prior_marginals(
-    eliobj_adam,
-    params=PARAMS_OF_INTEREST,
-    cols=5,
-    figsize=(11, 2.4),
-    samples=samples_adam,
-);
+fit_adam.plot.prior_marginals(params=PARAMS_OF_INTEREST, cols=5, figsize=(11, 2.4))
 
 # %% [markdown]
-# ## Three experts
+# ## Five experts
 #
-# The paper reports three users. Table 1 of the paper gives user 1, and
-# tables 1 and 2 of the supplement give users 2 and 3. `PREDICTIVE_PRIOR`
-# above already holds the three columns, and `oracle(user)` turns one column
+# The paper reports five users. Table 1 of the paper gives user 1, and
+# tables 1 to 4 of the supplement give users 2 to 5. `PREDICTIVE_PRIOR`
+# above already holds the five columns, and `oracle(user)` turns one column
 # into a ground truth. So this section needs no new data.
 #
-# The three users do not agree:
+# The five users do not agree:
 #
 # - user 1 expects an adult height of 174.5 cm, and the spurt at 13.4 years.
 # - user 2 expects the tallest adult, 191.7 cm, and the latest spurt, at 15.9
-#   years. Its $b = 61.4$ is the largest of the three, so user 2 states the
+#   years. Its $b = 61.4$ is the largest of the five, so user 2 states the
 #   smallest spread around one stature, 2.1%.
 # - user 3 expects 177.1 cm, and the earliest spurt, at 11.3 years.
+# - users 4 and 5 expect 174.5 and 174.4 cm, and the spurt at 14.7 and 14.6
+#   years. User 4 is almost certain of $h_{t^*}$ and $h_1$, and user 5 of
+#   $t^*$ and $s_1$.
 #
 # Every fit uses the same design, the same start point and the same budget.
 # Only the expert changes.
@@ -677,12 +682,12 @@ el.plots.prior_marginals(
 # difference between two experts is the expert. A difference between two runs
 # of the same expert is the search.
 #
-# `fit(parallel=...)` runs the five replications, and `elicito` stores them
-# in the `replication` dimension of `eliobj.results`.
+# `seeds` runs the five replications, and `elicito` stores them
+# in the `replication` dimension of `fit.results`.
 
 # %%
-USERS = (1, 2, 3)
-USER_COLORS = {1: "#2a78d6", 2: "#eb6834", 3: "#1baf7a"}
+USERS = (1, 2, 3, 4, 5)
+USER_COLORS = {1: "#2a78d6", 2: "#eb6834", 3: "#1baf7a", 4: "#4a3aa7", 5: "#e34948"}
 REPLICATIONS = 5
 SEEDS = [2025, 2026, 2027, 2028, 2029]
 
@@ -690,27 +695,16 @@ SEEDS = [2025, 2026, 2027, 2028, 2029]
 def fit_user(user):
     """Fit the growth model to the prior of one user, five times."""
     obj = el.Elicit(
-        model=model,
-        parameters=parameters,
-        targets=targets,
-        expert=el.expert.simulator(
-            ground_truth=oracle(user),
-            num_samples=10_000,
-        ),
-        optimizer=el.optimizer(
-            optimizer="cmaes",
-            sigma0=1.0,
-        ),
-        trainer=el.trainer(
-            method="parametric_prior",
-            seed=2025,
-            epochs=3000,
-            progress=0,
-            num_samples=400,
-        ),
+        model,
+        targets,
+        parameters,
+        cmaes={"sigma0": 1.0},
+        seeds=tuple(SEEDS),
+        epochs=3000,
+        num_samples=400,
+        verbose=False,
     )
-    obj.fit(parallel=el.utils.parallel(runs=REPLICATIONS, cores=5, seeds=SEEDS))
-    return obj
+    return obj.fit(el.expert.simulator(ground_truth=oracle(user), num_samples=10_000))
 
 
 fits = {u: fit_user(u) for u in USERS}
@@ -721,6 +715,15 @@ fits = {u: fit_user(u) for u in USERS}
 # The best loss of each run is the first check. A run with a large loss did
 # not fit, and it says nothing about its expert. A spread over the five runs
 # of one expert is the search, not the expert.
+#
+# The loss curves show the five runs of each expert. A curve that is still
+# falling at the last epoch did not converge. A flat curve at a high loss
+# ended in a worse optimum than the other runs.
+
+# %%
+for u in USERS:
+    fig, _ = fits[u].plot.loss(figsize=(7, 3))
+    fig.suptitle(f"user {u}")
 
 
 # %%
@@ -767,17 +770,15 @@ for u in USERS:
 
 # %% tags=["remove_input"]
 fig, axes = plt.subplots(
-    len(USERS), len(TARGETS), figsize=(9, 6.6), constrained_layout=True
+    len(USERS), len(TARGETS), figsize=(9, 2.2 * len(USERS)), constrained_layout=True
 )
 for row, u in zip(axes, USERS):
     res = fits[u].results
     summary = samples_user[u]["elicited_summary"]
     for ax, name, age in zip(row, TARGETS, AGES.numpy()):
         for i in successful(samples_user[u]):
-            expert_q = res.oracle.sel(replication=i)[f"quantiles_{name}"].values[0]
-            model_q = summary.sel(replication=i)[f"quantiles_{name}"].values.mean(
-                axis=0
-            )
+            expert_q = res.oracle.sel(replication=i)[name].values[0]
+            model_q = summary.sel(replication=i)[name].values.mean(axis=0)
             ax.plot(expert_q, model_q, "o", ms=5, alpha=0.5, color=USER_COLORS[u])
         ax.axline((0, 0), slope=1, color="darkgrey", linestyle="dashed", lw=1)
         ax.set_title(f"user {u}, age {age:g}", fontsize="small")
@@ -788,133 +789,4 @@ for row, u in zip(axes, USERS):
     row[0].set_ylabel("model-simulated", fontsize="small")
 for ax in axes[-1]:
     ax.set_xlabel("expert", fontsize="small")
-fig.suptitle(
-    "expert-elicited and model-simulated quantiles (cm)", fontsize="medium"
-)
-
-# %% [markdown]
-# ## The learned priors
-#
-# The prior is the answer that the expert asked for, so we show it. We do not
-# score it against a truth, for the reason above.
-#
-# One row is one expert, and one column is one parameter. Each cell holds the
-# five runs. Five lines on top of each other say that the search finds one
-# answer for that expert. Five different lines say that it finds many, and
-# every one of them fits the elicits of the figure above.
-#
-# The column is shared over the three rows, so a row compares with a row.
-
-# %%
-for u in USERS:
-    add_h1_s1(samples_user[u])
-
-
-def prior_draws(obj_samples, replication):
-    """Return the learned draws of one replication, per parameter."""
-    prior = obj_samples["prior"].sel(replication=replication).to_dataset()
-    return {name: prior[name].values.ravel() for name in PARAMS_OF_INTEREST}
-
-
-draws = {
-    u: {i: prior_draws(samples_user[u], i) for i in successful(samples_user[u])}
-    for u in USERS
-}
-
-# one range per column, from the pooled draws, so that the rows compare
-ranges = {
-    name: np.percentile(
-        np.concatenate([d[name] for u in USERS for d in draws[u].values()]), [1, 99]
-    )
-    for name in PARAMS_OF_INTEREST
-}
-
-# %% tags=["remove_input"]
-fig, axes = plt.subplots(
-    len(USERS), len(PARAMS_OF_INTEREST), figsize=(12, 6.6), constrained_layout=True
-)
-for row, u in zip(axes, USERS):
-    for ax, name in zip(row, PARAMS_OF_INTEREST):
-        bins = np.linspace(*ranges[name], 60)
-        for d in draws[u].values():
-            ax.hist(
-                d[name], bins=bins, density=True, histtype="step",
-                linewidth=1.5, alpha=0.8, color=USER_COLORS[u],
-            )
-        ax.set_xlim(*ranges[name])
-        ax.set_yticks([])
-        ax.grid(color="lightgrey", linestyle="dotted", linewidth=1)
-        ax.set_axisbelow(True)
-        ax.spines[["right", "top", "left"]].set_visible(False)
-        ax.tick_params(labelsize="x-small")
-    row[0].set_ylabel(f"user {u}", fontsize="small")
-for ax, name in zip(axes[0], PARAMS_OF_INTEREST):
-    ax.set_title(name, fontsize="small")
-fig.suptitle("learned prior, five runs per expert", fontsize="medium")
-
-# %% [markdown]
-# Read the figure in two steps. First read one row: the spread of the five
-# lines is the spread of the search. Then compare the rows: that distance is
-# the disagreement between the experts, as the fit recovers it. A row whose
-# five lines disagree does not support a statement about its expert.
-
-# %% [markdown]
-# ## One answer instead of many
-#
-# The rows above disagree because the twenty elicited numbers do not fix the
-# six hyperparameters. The literature calls this non-identification. It has
-# one failure mode that is easy to see in the figure: a prior collapses onto
-# a point. The search then reports a hyperparameter without any uncertainty,
-# and a replication with another seed reports a different point.
-#
-# The collapse is not a bug of the search. It costs nothing. A parameter that
-# the elicits do not constrain can push all of its spread into another
-# parameter, and the twenty numbers stay the same.
-#
-# The literature offers four remedies:
-#
-# 1. **Ask for more.** A new query changes the map from prior to elicits. It
-#    is the only remedy that removes the cause. More quantiles per age, or a
-#    query on a quantity that depends on one parameter alone.
-# 2. **Use a joint prior.** Fewer hyperparameters identify better than many
-#    independent ones. Use `method="deep_prior"` for this.
-# 3. **Penalize the collapse.** Add a term to the loss that grows without
-#    bound as a prior standard deviation goes to zero.
-# 4. **Report the spread, do not hide it.** The figure above already does
-#    this. Five lines are five answers, and all five fit the expert.
-#
-# `elicito` implements the third remedy. `el.trainer()` takes a weight
-# `kappa`. It multiplies the negative mean log standard deviation of the
-# priors, which is the term of Manderson and Goudie (2026):
-#
-# $$
-# \mathcal{L}(\lambda) = D(\lambda) - \frac{\kappa}{Q}
-# \sum_{q=1}^{Q} \log \mathrm{SD}[\theta_q]
-# $$
-#
-# The term goes to infinity as one standard deviation goes to zero, so the
-# search cannot reach a point mass.
-#
-# ```python
-# trainer=el.trainer(
-#     method="parametric_prior",
-#     seed=2025,
-#     epochs=3000,
-#     progress=0,
-#     num_samples=400,
-#     kappa=0.1,
-# )
-# ```
-#
-# Warning: `kappa` buys spread with fit. Start at a small value. Then read
-# the two parts of the history against each other:
-#
-# ```python
-# res = fits[0].results["history_stats/loss"]
-# res["total_loss"].values[i][-1]
-# res["penalty"].values[i][-1]
-# ```
-#
-# The penalty is recorded at every epoch, also at `kappa=0`. A run at
-# `kappa=0` therefore costs nothing and still tells you whether a prior is
-# collapsing: the penalty climbs while the loss falls.
+fig.suptitle("expert-elicited and model-simulated quantiles (cm)", fontsize="medium")

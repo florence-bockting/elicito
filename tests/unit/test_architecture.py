@@ -142,3 +142,18 @@ def test_find_cycle_reports_a_cycle():
     graph = {"a": {"b"}, "b": {"c"}, "c": {"a"}, "d": set()}
 
     assert _find_cycle(graph) == ["a", "b", "c", "a"]
+
+
+def test_pytensor_translator_does_not_import_elicito():
+    """the translator can move to its own package as one file"""
+    tree = ast.parse(FILES["elicito.adapter._pytensor"].read_text())
+    found = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            found += [a.name for a in node.names if a.name.split(".")[0] == "elicito"]
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            if node.level > 0 or module.split(".")[0] == "elicito":
+                found.append(module)
+
+    assert not found

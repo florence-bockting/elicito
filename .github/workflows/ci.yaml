@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         os: [ "ubuntu-latest" ]
-        python-version: [ "3.11" ]
+        python-version: [ "3.12" ]
     runs-on: "${{ matrix.os }}"
     steps:
       - name: Check out repository
@@ -39,12 +39,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           uv-dependency-install-flags: "--all-extras --group docs"
+      - name: notebooks
+        run: |
+          # The docs render the committed notebooks; check that they match their pages
+          uv run python scripts/check-notebooks.py
       - name: docs
         run: |
           uv run mkdocs build --strict
       - uses: ./.github/actions/setup
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           uv-dependency-install-flags: "--all-extras --group docs --group dev"
       - name: docs-with-changelog
         run: |

@@ -8,6 +8,7 @@ authors = [
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11, <3.14"
 dependencies = [
+    "cma >= 3.4.0",
     "joblib >= 1.4.2",
     "numpy >= 1.24",
     "rich >= 13.0",
@@ -51,14 +52,14 @@ plots = [
 scipy = [
     "scipy>=1.14.0"
 ]
-cma = [
-    "cma>=3.4.0"
+pymc = [
+    "pymc>=6.3.2; python_version >= '3.12'"
 ]
 
 full = [
     "elicito[plots]",
     "elicito[scipy]",
-    "elicito[cma]",
+    "elicito[pymc]",
 ]
 
 [dependency-groups]
@@ -109,6 +110,8 @@ dev = [
 docs = [
     # Key dependencies
     # ----------------
+    # TensorFlow 2.21 ignores TF_CPP_MIN_LOG_LEVEL for its import log lines
+    "tensorflow==2.20.0",
     "attrs==24.3.0",
     "mkdocs-autorefs==1.2.0",
     "mkdocs-gen-files==0.5.0",
@@ -317,6 +320,10 @@ follow_imports = "normal"
 exclude = [
     "^networks\\.py$",
 ]
+
+[[tool.mypy.overrides]]
+module = ["pymc", "pymc.*", "pytensor", "pytensor.*"]
+ignore_missing_imports = true
 
 [tool.jupytext]
 formats = "ipynb,py:percent"

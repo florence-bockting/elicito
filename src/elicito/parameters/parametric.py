@@ -174,15 +174,8 @@ class ParametricPrior:
         """Raise if the sections are not valid for this method."""
         if initializer is None:
             msg = (
-                "If method is 'parametric_prior', "
-                " the section 'initializer' can't be None."
-            )
-            raise ValueError(msg)
-
-        if network is not None:
-            msg = (
-                "If method is 'parametric prior' "
-                "the 'network' is not used and should be set to None."
+                "A gradient optimizer needs an initializer for parametric "
+                "priors. Give an initializer, or use optimizer='auto'."
             )
             raise ValueError(msg)
 

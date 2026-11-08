@@ -19,7 +19,6 @@ from elicito.parameters.priors import Priors
 from elicito.types import (
     ExpertDict,
     NFDict,
-    Parallel,
     Parameter,
     Target,
     Trainer,
@@ -35,7 +34,7 @@ SEED = 0
 
 def get_expert_data(  # noqa: PLR0913
     trainer: Trainer,
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     expert: ExpertDict,
     parameters: list[Parameter],
@@ -78,8 +77,7 @@ def get_expert_data(  # noqa: PLR0913
     -------
     expert_data :
         dictionary containing the training data. Must have same form as the
-        model-simulated elicited statistics. Correct specification of
-        keys can be checked using :func:`elicit.utils.get_expert_datformat`
+        model-simulated elicited statistics, keyed by target name.
 
     expert_prior :
         samples from ground truth. Exists only if expert data are simulated
@@ -180,72 +178,6 @@ def add_derived(samples: Any, **derived: Callable[[Any], Any]) -> None:
         prior_samples[name] = function(prior_samples)
 
     samples["prior"].dataset = prior_samples
-
-
-def parallel(
-    runs: int = 4, cores: Optional[int] = None, seeds: Optional[list[int]] = None
-) -> Parallel:
-    """
-    Specify parallelization
-
-    Specification for parallelizing training by running multiple training
-    instances with different seeds simultaneously.
-
-    Parameters
-    ----------
-    runs
-        Number of replication.
-
-    cores
-        Number of cores that should be used.
-
-    seeds
-        A list of seeds. If ``None`` seeds are drawn from a Uniform(0,999999)
-        distribution. The seed information corresponding to each chain is
-        stored in ``eliobj.results``.
-
-    Returns
-    -------
-    parallel_dict :
-        dictionary containing the parallelization settings.
-
-    """
-    parallel_dict: Parallel = dict(runs=runs, cores=cores, seeds=seeds)  # type: ignore
-
-    if cores is None:
-        parallel_dict["cores"] = runs
-
-    return parallel_dict
-
-
-def get_expert_datformat(targets: list[Target]) -> dict[str, list[Any]]:
-    """
-    Inspect which data format for the expert data is expected by the method.
-
-    Parameters
-    ----------
-    targets
-        list of target quantities
-
-    Returns
-    -------
-    elicit_dict :
-        expected format of expert data.
-
-    """
-    elicit_dict: dict[str, Any] = dict()
-    for tar in targets:
-        query = tar["query"]["name"]
-        if query == "custom":
-            query = tar["query"]["func_name"]
-        target = tar["name"]
-        if query == "pearson_correlation":
-            key = "cor_" + target
-        else:
-            key = query + "_" + target
-        elicit_dict[key] = list()
-
-    return elicit_dict
 
 
 def gumbel_softmax_trick(likelihood: Any, upper_thres: float, temp: float = 1.6) -> Any:

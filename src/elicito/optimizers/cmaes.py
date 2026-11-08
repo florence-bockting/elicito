@@ -4,13 +4,14 @@ Global search for the hyperparameters of a parametric prior, with CMA-ES
 
 import logging
 import time
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+import cma  # type: ignore [import-untyped]
 import numpy as np
 import tensorflow as tf
 
 from elicito._progress import ProgressTable
-from elicito.exceptions import MissingOptionalDependencyError
 from elicito.losses import spread_penalty
 from elicito.optimizers import search
 from elicito.optimizers.search import (
@@ -22,6 +23,7 @@ from elicito.optimizers.search import (
     variable_names,
 )
 from elicito.parameters import methods
+from elicito.parameters._base import hyperparameter_values
 from elicito.types import ExpertDict, Parameter, Target, Trainer
 
 if TYPE_CHECKING:
@@ -38,7 +40,7 @@ SIGMA_FRACTION = 2.0
 # has no box to read a scale from, so the value is a setting of the optimizer.
 DEFAULT_SIGMA0 = 0.5
 
-# Value of `el.optimizer(optimizer=...)` that selects the CMA-ES fitter
+# Value of `Elicit(optimizer=...)` that selects the CMA-ES fitter
 CMAES = "cmaes"
 
 
@@ -46,7 +48,7 @@ def cma_search(  # noqa: PLR0913
     expert_elicited_statistics: dict[str, tf.Tensor],
     parameters: list[Parameter],
     trainer: Trainer,
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     expert: ExpertDict,
     distribution: dict[str, Any],
@@ -100,22 +102,12 @@ def cma_search(  # noqa: PLR0913
     seed
         Seed used for the forward simulation.
 
-    Raises
-    ------
-    MissingOptionalDependencyError
-        ``cma`` is required for the search.
-
     Returns
     -------
     hyperparams :
         One value per hyperparameter, on the unconstrained scale.
 
     """
-    try:
-        import cma  # type: ignore [import-untyped]
-    except ImportError as exc:
-        raise MissingOptionalDependencyError("cma_search", requirement="cma") from exc
-
     names = hyper_names(parameters)
     search_trainer = dict(trainer)
     search_trainer["num_samples"] = max(
@@ -281,7 +273,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
     prior_model_init: Any,
     trainer: Trainer,
     optimizer: dict[str, Any],
-    model: dict[str, Any],
+    model: Callable[..., Any],
     targets: list[Target],
     parameters: list[Parameter],
     seed: int,
@@ -342,11 +334,6 @@ def cma_training(  # noqa: PLR0913, PLR0915
         First step size, used if ``optimizer`` does not give ``sigma0``. See
         [`box_step_size`][elicito.optimizers.cmaes.box_step_size].
 
-    Raises
-    ------
-    MissingOptionalDependencyError
-        ``cma`` is required for the search.
-
     Returns
     -------
     res_ep :
@@ -356,11 +343,6 @@ def cma_training(  # noqa: PLR0913, PLR0915
         Results of the best point found (results).
 
     """
-    try:
-        import cma
-    except ImportError as exc:
-        raise MissingOptionalDependencyError("cma_training", requirement="cma") from exc
-
     tf.random.set_seed(seed)
 
     prior_model = prior_model_init
@@ -404,6 +386,7 @@ def cma_training(  # noqa: PLR0913, PLR0915
     )
 
     kappa = trainer.get("kappa", 0.0)
+    hyper_penalty = trainer.get("penalty")
 
     def objective(values: Any) -> tuple[float, dict[str, Any]]:
         assign(values)
@@ -418,8 +401,12 @@ def cma_training(  # noqa: PLR0913, PLR0915
         # the penalty enters the score of the search, not the recorded loss.
         # A failed point already carries the PENALTY sentinel, and must keep
         # its order against the usable points.
-        if kappa and value < PENALTY:
-            value += kappa * float(spread_penalty(output["prior_samples"]))
+        if value < PENALTY:
+            if kappa:
+                value += kappa * float(spread_penalty(output["prior_samples"]))
+            if hyper_penalty is not None:
+                hyper = hyperparameter_values(variables, parameters)
+                value += float(hyper_penalty(hyper))
         return value, output
 
     total_losses = []

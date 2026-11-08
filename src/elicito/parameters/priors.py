@@ -203,7 +203,14 @@ def sample_from_priors(  # noqa: PLR0913
         rep_true = expert["num_samples"]
         priors = []
 
-        truths = list(expert["ground_truth"].values())
+        truth = expert["ground_truth"]
+        names = [param["name"] for param in parameters]
+        if set(truth) == set(names):
+            # keys name the parameters: use the order of the model
+            truths = [truth[name] for name in names]
+        else:
+            # joint priors: the dict order must match the model
+            truths = list(truth.values())
         # one stateless seed per distribution, see `ParametricPrior.sample`
         seeds = tfp.random.split_seed(seed_pair(seed), n=len(truths), salt="truth")
         for pr, pr_seed in zip(truths, seeds):

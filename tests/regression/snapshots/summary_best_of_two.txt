@@ -1,0 +1,32 @@
+Method: parametric_prior (600 epochs)
+Shown: replication [0] (best)
+
+Hyperparameters:
+         estimate     rep_sd        min        max
+mu0         0.315      0.206     0.0234      0.315
+sigma0      0.952      0.192      0.681      0.952
+
+Priors:
+            mean         sd        q05        q95
+b0         0.309      0.465     -0.496       1.07
+sigma       0.81       0.52      0.179       1.82
+
+Fit to expert:
+           expert   elicited      error
+y0[0]          -1     -0.916      0.084
+y0[1]           0      0.113      0.113
+cor[0]       0.01     -0.002     -0.012
+y2: draws, not statistics; see its loss in 'Loss by target'.
+
+Loss by target:
+       technique       loss
+y0     quantiles      0.216
+cor  correlation      0.031
+y2      identity      0.555
+
+Final loss:
+   final_loss
+0        2.45
+1        5.16
+
+rep_sd, min and max are over all replications.
