@@ -4,27 +4,25 @@
 
 - [The human growth model](human-growth.ipynb): a prior for the Preece-Baines model, from five simulated experts.
 
-## PyMC translation checks
+## PyMC models from Bayesian Cognitive Modeling
 
 These case studies use the models of the book *Bayesian Cognitive Modeling:
-A Practical Course* (Lee & Wagenmakers, 2013). Each notebook:
+A Practical Course* (Lee & Wagenmakers, 2013). Each case study takes one
+model and:
 
-- ports the PyMC3 version of a model to the current PyMC,
-- translates the model with `elicito.adapter.pymc`,
-- compares the TensorFlow samples with the samples of `pm.draw`.
+- translates the PyMC model with `elicito.adapter.pymc`,
+- checks that the TensorFlow samples match the samples of `pm.draw`,
+- elicits a prior from two or three experts, and fits the model with PyMC.
 
-The notebooks check the translation only. They do not elicit a prior.
-
-- [Signal detection theory](signal-detection-theory.ipynb) (chapter 11)
-- [The BART model of risk taking](bart-risk-taking.ipynb) (chapter 16)
-- [Psychophysical functions](psychophysical-functions.ipynb) (chapter 12)
-- [Memory retention](memory-retention.ipynb) (chapter 10)
-- [The GCM model of categorization](gcm-categorization.ipynb) (chapter 17)
-- [The SIMPLE model of memory](simple-memory.ipynb) (chapter 15)
-- [Heuristic decision-making](heuristic-decision-making.ipynb) (chapter 18)
-- [Extrasensory perception](extrasensory-perception.ipynb) (chapter 13)
-- [Multinomial processing trees](multinomial-processing-trees.ipynb) (chapter 14)
-- [Number concept development](number-concept-development.ipynb) (chapter 19)
+- [Memory retention](memory-retention.ipynb) (chapter 10.1)
+- [Signal detection theory](signal-detection-theory.ipynb) (chapter 11.2)
+- [Psychophysical functions](psychophysical-functions.ipynb) (chapter 12.1)
+- [Extrasensory perception](extrasensory-perception.ipynb) (chapter 13.3)
+- [Multinomial processing trees](multinomial-processing-trees.ipynb) (chapter 14.1)
+- [The BART model of risk taking](bart-risk-taking.ipynb) (chapter 16.1)
+- [The GCM model of categorization](gcm-categorization.ipynb) (chapter 17.2)
+- [Heuristic decision-making](heuristic-decision-making.ipynb) (chapter 18.2)
+- [Number concept development](number-concept-development.ipynb) (chapter 19.1)
 
 ## Source and licence
 
