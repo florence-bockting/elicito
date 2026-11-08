@@ -655,7 +655,9 @@ class Expert:
             a joint prior for all model parameters at once or any approach in
             between. Only requirement is that the dimensionality of all priors
             in ground truth match with the number of model parameters.
-            Order of priors in ground truth must match order of
+            If the keys are the parameter names, their order does not
+            matter. Otherwise, for example with a joint prior, the order of
+            the priors must match the order of the
             [`Elicit`][elicito.elicit.Elicit] argument `parameters`.
 
         num_samples
