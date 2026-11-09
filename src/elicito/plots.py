@@ -1,5 +1,5 @@
 """
-plotting helpers
+Plots of the initialization, the training and the learned priors
 """
 
 import itertools

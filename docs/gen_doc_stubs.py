@@ -46,6 +46,10 @@ def write_subpackage_pages(subpackage: object) -> tuple[PackageInfo, ...]:
     """
     sub_sub_packages = []
     for _, name, is_pkg in pkgutil.walk_packages(subpackage.__path__):
+        # A private module is not part of the API
+        if name.startswith("_"):
+            continue
+
         subpackage_full_name = subpackage.__name__ + "." + name
         sub_package_info = write_package_page(subpackage_full_name)
         sub_sub_packages.append(sub_package_info)

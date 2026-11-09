@@ -126,6 +126,9 @@ Additional dependencies can be installed using
 
     # To add scipy dependency
     pip install 'elicito[scipy]'
+
+    # To add the PyMC adapter (Python 3.12 or later)
+    pip install 'elicito[pymc]'
     ```
 
 ### For developers

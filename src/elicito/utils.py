@@ -1,5 +1,5 @@
 """
-helper functions for setting up the Elicit object
+Helper functions for the setup of the Elicit object
 """
 
 import logging

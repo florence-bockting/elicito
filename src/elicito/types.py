@@ -1,5 +1,5 @@
 """
-specification of custom types
+Types of the specifications of an elicitation method
 """
 
 from collections.abc import Callable

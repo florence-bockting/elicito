@@ -23,6 +23,16 @@
 # The example is the linear regression of the tutorial
 # [Getting started with parametric priors][getting-started-with-parametric-priors].
 #
+# The module [`elicito.adapter.pymc`][elicito.adapter.pymc] has three
+# functions. You call only two of them:
+#
+# - [`parameters`][elicito.adapter.pymc.parameters] reads the priors of the
+#   PyMC model. `el.Elicit` calls it. Call it yourself to inspect the priors.
+# - [`model`][elicito.adapter.pymc.model] translates the PyMC model into a
+#   TensorFlow model. Only `el.Elicit` calls it.
+# - [`set_hyperparameters`][elicito.adapter.pymc.set_hyperparameters] writes
+#   the learned values into the PyMC model. Call it after the fit.
+#
 # > **Note:** the adapter needs Python 3.12 or later and the optional
 # > dependency `pymc`. Install it with `pip install "elicito[pymc]"`.
 
