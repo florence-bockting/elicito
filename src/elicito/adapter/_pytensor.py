@@ -410,10 +410,10 @@ def _vectorize_rv(  # noqa: PLR0913
     if new_ndim == 0 and batch is not None:
         if no_size:
             size = compute_batch_shape(params, ndims_params=op.ndims_params)
-        size = concatenate([batch, size])  # type: ignore[no-untyped-call]
+        size = concatenate([batch, size])  # type: ignore[no-untyped-call,unused-ignore]
     elif new_ndim > 0 and not no_size:
         shape = compute_batch_shape(params, ndims_params=op.ndims_params)
-        size = concatenate([shape[:new_ndim], size])  # type: ignore[no-untyped-call]
+        size = concatenate([shape[:new_ndim], size])  # type: ignore[no-untyped-call,unused-ignore]
     return op.make_node(rng, size, *params)
 
 
