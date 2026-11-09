@@ -231,7 +231,7 @@ def test_vectorize_gives_an_unbatched_rv_the_batch_axes(size, shape):
 
 def test_docs_list_every_rule():
     """the page of supported functions names the op of each rule, and no other"""
-    page = Path(__file__).parents[2] / "docs/how-to-guides/pymc-supported-functions.md"
+    page = Path(__file__).parents[2] / "docs/reference/pymc-supported-functions.md"
     rows = [line for line in page.read_text().splitlines() if line.startswith("|")]
     listed = {op for row in rows for op in re.findall(r"`(\w+)`", row.split("|")[-2])}
     assert listed == set(RULES)
