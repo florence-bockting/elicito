@@ -21,6 +21,19 @@ from the examples given in that link.
 
 <!-- towncrier release notes start -->
 
+## Expert prior elicitation method v0.9.0 (2026-11-09)
+
+### 📚 Improved Documentation
+
+- + The home page lists the current arguments of `Elicit` and links to the panel
+    tutorial, the PyMC guide, the case studies and the API reference.
+  + The installation section shows the extra `elicito[pymc]`.
+  + The API reference no longer shows the private modules.
+  + The guide "Use a PyMC model" and the module `elicito.adapter.pymc` list the
+    three adapter functions and say which of them `Elicit` calls.
+  + The page "Supported PyMC functions" moved to the new section "Reference". ([#70](https://github.com/florence-bockting/elicito/pull/70))
+
+
 ## Expert prior elicitation method v0.8.0 (2026-11-08)
 
 ### ⚠️ Breaking Changes
