@@ -95,6 +95,27 @@ plt.rcParams.update(
 )
 
 # %% [markdown]
+# ## Try it yourself
+#
+# The [elicito app](https://github.com/florence-bockting/elicito-app) turns this
+# case study into an interactive elicitation. Answer the two questions about the
+# pumps by placing chips, as yourself or as one of three training personas, and
+# see the prior that `elicito` learns from your answers, what it predicts, and
+# how to use it in PyMC or brms. The app in the page shows fits that were made in
+# advance with `elicito`; the desktop app also fits your own answers live.
+#
+# <details>
+# <summary><b>Open the interactive demo</b> (loads about 12 MB)</summary>
+# <iframe src="https://florence-bockting.github.io/elicito-app/?case=bart&embed=1"
+#   title="elicito app: the BART case study" width="100%" height="820"
+#   loading="lazy" allow="fullscreen; clipboard-write"
+#   style="border: 1px solid #ddd; border-radius: 6px;"></iframe>
+# </details>
+#
+# [Open the app in a new tab](https://florence-bockting.github.io/elicito-app/?case=bart)
+# · [Run it on your computer](https://github.com/florence-bockting/elicito-app#run-it)
+
+# %% [markdown]
 # ## The balloon task
 #
 # In the Balloon Analogue Risk Task (BART), a participant pumps up a balloon
